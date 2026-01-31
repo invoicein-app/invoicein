@@ -1,3 +1,4 @@
+// ✅ FULL REPLACE
 // app/invoice/invoice-actions-client.tsx
 "use client";
 
@@ -11,6 +12,9 @@ type Props = {
   invoiceNumber?: string | null;
   remaining: number;
   payStatus: "UNPAID" | "PARTIAL" | "PAID";
+
+  // ✅ NEW: kalau invoice sudah ada quotation (invoice.quotation_id not null)
+  hasQuotation?: boolean;
 };
 
 export default function InvoiceActionsClient({
@@ -18,14 +22,27 @@ export default function InvoiceActionsClient({
   invoiceNumber,
   remaining,
   payStatus,
+  hasQuotation,
 }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const isPaid = payStatus === "PAID";
+  const isLinkedQuotation = Boolean(hasQuotation); // ✅
 
   async function onDelete() {
     if (loading) return;
+
+    if (isPaid) {
+      alert("Invoice PAID tidak boleh delete.");
+      return;
+    }
+
+    if (isLinkedQuotation) {
+      alert("Invoice ini terhubung ke Quotation, jadi tidak boleh delete. Gunakan Cancel saja.");
+      return;
+    }
+
     const ok = confirm(`Hapus invoice ${invoiceNumber || ""} ?`);
     if (!ok) return;
 
@@ -62,6 +79,17 @@ export default function InvoiceActionsClient({
     textDecoration: "none",
   };
 
+  // ✅ Delete disable rules:
+  // - PAID => disabled
+  // - linked to quotation => disabled
+  const disableDelete = loading || isPaid || isLinkedQuotation;
+
+  const deleteTitle = isPaid
+    ? "Invoice PAID tidak boleh delete"
+    : isLinkedQuotation
+    ? "Invoice terhubung ke Quotation, tidak boleh delete"
+    : "Hapus invoice";
+
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
       {/* BAYAR */}
@@ -91,18 +119,16 @@ export default function InvoiceActionsClient({
       <button
         type="button"
         onClick={onDelete}
-        disabled={loading || isPaid}
+        disabled={disableDelete}
         style={{
           ...btnBase,
           border: "1px solid #fecaca",
-          background: isPaid ? "#f8fafc" : "#fff5f5",
-          color: isPaid ? "#94a3b8" : "#991b1b",
-          cursor: loading || isPaid ? "not-allowed" : "pointer",
-          opacity: loading || isPaid ? 0.6 : 1,
+          background: disableDelete ? "#f8fafc" : "#fff5f5",
+          color: disableDelete ? "#94a3b8" : "#991b1b",
+          cursor: disableDelete ? "not-allowed" : "pointer",
+          opacity: disableDelete ? 0.6 : 1,
         }}
-        title={
-          isPaid ? "Invoice PAID tidak boleh delete" : "Hapus invoice"
-        }
+        title={deleteTitle}
       >
         {loading ? "..." : "Delete"}
       </button>

@@ -1,5 +1,5 @@
 // app/api/invoice/pdf-dotmatrix/[id]/route.ts
-// (NEW FILE) Dot-matrix style PDF (Paper.id-ish, black & white) — does NOT replace your modern blue template
+// Dot-matrix style PDF (Paper.id-ish, black & white)
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
@@ -22,6 +22,29 @@ type OrgProfile = {
   invoice_footer: string | null;
   logo_url: string | null;
 };
+
+// ✅ settings mengikuti clean (pake invoice_settings)
+type InvoiceSettings = {
+  active_template_key?: string | null;
+  show_tax?: boolean | null;
+  show_discount?: boolean | null;
+  show_delivery_note?: boolean | null;
+  show_terbilang?: boolean | null;
+  show_bank_info?: boolean | null;
+  show_note?: boolean | null;
+};
+
+function defaultSettings(): Required<InvoiceSettings> {
+  return {
+    active_template_key: "dotmatrix",
+    show_tax: true,
+    show_discount: true,
+    show_delivery_note: true,
+    show_terbilang: true,
+    show_bank_info: true,
+    show_note: true,
+  };
+}
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -61,7 +84,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   if (invGateErr) return NextResponse.json({ error: invGateErr.message }, { status: 403 });
   if (!invGate) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  // 2) Admin client (service role) buat baca invoice + items + org
+  // 2) Admin client (service role) buat baca invoice + items + org + settings
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
   const { data: inv, error: invErr } = await admin.from("invoices").select("*").eq("id", id).single();
@@ -87,12 +110,34 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   const logoSrc = String(org?.logo_url || "").trim();
 
+  // 3) Invoice Settings (toggle)
+  let settings: Required<InvoiceSettings> = defaultSettings();
+  if (inv.org_id) {
+    const { data: setRow } = await admin
+      .from("invoice_settings")
+      .select("active_template_key, show_tax, show_discount, show_delivery_note, show_terbilang, show_bank_info, show_note")
+      .eq("organization_id", inv.org_id)
+      .maybeSingle();
+
+    settings = {
+      ...settings,
+      active_template_key: (setRow as any)?.active_template_key ?? settings.active_template_key,
+      show_tax: (setRow as any)?.show_tax ?? settings.show_tax,
+      show_discount: (setRow as any)?.show_discount ?? settings.show_discount,
+      show_delivery_note: (setRow as any)?.show_delivery_note ?? settings.show_delivery_note,
+      show_terbilang: (setRow as any)?.show_terbilang ?? settings.show_terbilang,
+      show_bank_info: (setRow as any)?.show_bank_info ?? settings.show_bank_info,
+      show_note: (setRow as any)?.show_note ?? settings.show_note,
+    };
+  }
+
   // NOTE: typing pdf() suka rewel, cast any saja biar tidak merah.
   const element = React.createElement(InvoiceDotMatrixPDF as any, {
     inv,
     items: items || [],
     org,
     logoSrc,
+    settings,
   }) as any;
 
   const buffer = await pdf(element).toBuffer();
@@ -138,23 +183,32 @@ function fmtMoney2(n: number) {
   return v.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function fmtMoney0(n: number) {
-  const v = Number.isFinite(n) ? n : 0;
-  return v.toLocaleString("id-ID", { maximumFractionDigits: 0 });
+function getInvoiceNote(inv: any) {
+  return (
+    safeText(inv?.note) ||
+    safeText(inv?.notes) ||
+    safeText(inv?.customer_note) ||
+    safeText(inv?.customer_notes) ||
+    ""
+  );
 }
 
-function calc(inv: any, items: any[]) {
+function calcWithSettings(inv: any, items: any[], settings: Required<InvoiceSettings>) {
   const subtotal = (items || []).reduce((a, it) => a + toNum(it.qty) * toNum(it.price), 0);
 
-  // discount_type: none/percent/fixed/amount (kamu bisa sesuaikan)
   let disc = 0;
-  if (inv.discount_type === "percent") disc = subtotal * (toNum(inv.discount_value) / 100);
-  if (inv.discount_type === "fixed" || inv.discount_type === "amount") disc = toNum(inv.discount_value);
+  if (settings.show_discount) {
+    if (inv.discount_type === "percent") disc = subtotal * (toNum(inv.discount_value) / 100);
+    if (inv.discount_type === "fixed" || inv.discount_type === "amount") disc = toNum(inv.discount_value);
+  }
+
   const afterDisc = Math.max(0, subtotal - disc);
 
   let tax = 0;
-  if (inv.tax_type === "percent") tax = afterDisc * (toNum(inv.tax_value) / 100);
-  if (inv.tax_type === "amount") tax = toNum(inv.tax_value);
+  if (settings.show_tax) {
+    if (inv.tax_type === "percent") tax = afterDisc * (toNum(inv.tax_value) / 100);
+    if (inv.tax_type === "amount" || inv.tax_type === "fixed") tax = toNum(inv.tax_value);
+  }
 
   const total = Math.max(0, afterDisc + tax);
   return { subtotal, disc, tax, total };
@@ -167,7 +221,6 @@ function calc(inv: any, items: any[]) {
  */
 function terbilangID(n: number) {
   const angka = Math.floor(Math.abs(n));
-
   const satuan = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
 
   function bilang(x: number): string {
@@ -175,13 +228,10 @@ function terbilangID(n: number) {
     if (x < 20) return `${bilang(x - 10)} Belas`;
     if (x < 100) return `${bilang(Math.floor(x / 10))} Puluh${x % 10 ? " " + bilang(x % 10) : ""}`;
     if (x < 200) return `Seratus${x - 100 ? " " + bilang(x - 100) : ""}`;
-    if (x < 1000)
-      return `${bilang(Math.floor(x / 100))} Ratus${x % 100 ? " " + bilang(x % 100) : ""}`;
+    if (x < 1000) return `${bilang(Math.floor(x / 100))} Ratus${x % 100 ? " " + bilang(x % 100) : ""}`;
     if (x < 2000) return `Seribu${x - 1000 ? " " + bilang(x - 1000) : ""}`;
-    if (x < 1000000)
-      return `${bilang(Math.floor(x / 1000))} Ribu${x % 1000 ? " " + bilang(x % 1000) : ""}`;
-    if (x < 1000000000)
-      return `${bilang(Math.floor(x / 1000000))} Juta${x % 1000000 ? " " + bilang(x % 1000000) : ""}`;
+    if (x < 1000000) return `${bilang(Math.floor(x / 1000))} Ribu${x % 1000 ? " " + bilang(x % 1000) : ""}`;
+    if (x < 1000000000) return `${bilang(Math.floor(x / 1000000))} Juta${x % 1000000 ? " " + bilang(x % 1000000) : ""}`;
     if (x < 1000000000000)
       return `${bilang(Math.floor(x / 1000000000))} Miliar${x % 1000000000 ? " " + bilang(x % 1000000000) : ""}`;
     return `${bilang(Math.floor(x / 1000000000000))} Triliun${x % 1000000000000 ? " " + bilang(x % 1000000000000) : ""}`;
@@ -197,7 +247,6 @@ function terbilangID(n: number) {
  * ======================= */
 
 // Pagination: supaya tidak “nabrak” footer dotmatrix
-// Kamu bisa ubah angka ini belakangan.
 const FIRST_PAGE_ROWS = 15;
 const NEXT_PAGE_ROWS = 18;
 
@@ -215,10 +264,16 @@ function chunkRows(items: any[]) {
   return pages;
 }
 
-function InvoiceDotMatrixPDF(props: { inv: any; items: any[]; org: OrgProfile | null; logoSrc: string }) {
-  const { inv, items, org, logoSrc } = props;
+function InvoiceDotMatrixPDF(props: {
+  inv: any;
+  items: any[];
+  org: OrgProfile | null;
+  logoSrc: string;
+  settings: Required<InvoiceSettings>;
+}) {
+  const { inv, items, org, logoSrc, settings } = props;
 
-  const t = calc(inv, items);
+  const t = calcWithSettings(inv, items, settings);
   const pages = chunkRows(items);
 
   const orgName = safeText(org?.name) || "PERUSAHAAN";
@@ -233,7 +288,6 @@ function InvoiceDotMatrixPDF(props: { inv: any; items: any[]; org: OrgProfile | 
   const invNo = safeText(inv?.invoice_number) || "-";
   const invDate = fmtDateDM(inv?.invoice_date);
 
-  // optional: kalau nanti kamu punya field nomor SJ di invoice, isi disini.
   const sjNo =
     safeText(inv?.delivery_note_number) ||
     safeText(inv?.sj_number) ||
@@ -244,12 +298,10 @@ function InvoiceDotMatrixPDF(props: { inv: any; items: any[]; org: OrgProfile | 
   const custPhone = safeText(inv?.customer_phone);
   const custAddr = safeText(inv?.customer_address);
 
-  // signature
-  const signName = (bankAccName || orgName || "").replace(/\s+/g, " ").trim();
   const signDate = fmtDateDM(inv?.invoice_date || new Date().toISOString());
 
-  // terbilang pakai integer rupiah
-  const terbilang = terbilangID(t.total);
+  const terbilang = settings.show_terbilang ? terbilangID(t.total) : "";
+  const noteText = getInvoiceNote(inv);
 
   return React.createElement(
     Document,
@@ -263,7 +315,7 @@ function InvoiceDotMatrixPDF(props: { inv: any; items: any[]; org: OrgProfile | 
         Page,
         { key: pageIdx, size: "A4", style: styles.page },
 
-        // Header (ulang di setiap halaman, seperti dotmatrix beneran)
+        // Header
         React.createElement(
           View,
           { style: styles.headerRow },
@@ -296,12 +348,11 @@ function InvoiceDotMatrixPDF(props: { inv: any; items: any[]; org: OrgProfile | 
           )
         ),
 
-        // Top info area
+        // Top info
         React.createElement(
           View,
           { style: styles.topInfoRow },
 
-          // Kepada box (muncul hanya halaman pertama)
           isFirst
             ? React.createElement(
                 View,
@@ -313,13 +364,12 @@ function InvoiceDotMatrixPDF(props: { inv: any; items: any[]; org: OrgProfile | 
               )
             : React.createElement(View, { style: styles.kepadaBoxGhost }),
 
-          // Invoice info box
           React.createElement(
             View,
             { style: styles.invInfoBox },
             RowKV("Invoice Number", invNo, true),
             RowKV("Tanggal", invDate),
-            RowKV("No. Surat Jalan", sjNo)
+            settings.show_delivery_note ? RowKV("No. Surat Jalan", sjNo) : null
           )
         ),
 
@@ -327,7 +377,7 @@ function InvoiceDotMatrixPDF(props: { inv: any; items: any[]; org: OrgProfile | 
         React.createElement(
           View,
           { style: styles.tableWrap },
-          // head
+
           React.createElement(
             View,
             { style: styles.trHead },
@@ -347,9 +397,11 @@ function InvoiceDotMatrixPDF(props: { inv: any; items: any[]; org: OrgProfile | 
             )
           ),
 
-          // rows
           ...pageItems.map((it: any, idx: number) => {
-            const no = isFirst ? pageIdx * NEXT_PAGE_ROWS + idx + 1 : FIRST_PAGE_ROWS + (pageIdx - 1) * NEXT_PAGE_ROWS + idx + 1;
+            const no = isFirst
+              ? pageIdx * NEXT_PAGE_ROWS + idx + 1
+              : FIRST_PAGE_ROWS + (pageIdx - 1) * NEXT_PAGE_ROWS + idx + 1;
+
             const qty = toNum(it?.qty);
             const price = toNum(it?.price);
             const amount = qty * price;
@@ -365,54 +417,65 @@ function InvoiceDotMatrixPDF(props: { inv: any; items: any[]; org: OrgProfile | 
             );
           }),
 
-          // filler space on last page (biar tabel “blok” kelihatan dotmatrix)
-          isLast
-            ? React.createElement(View, { style: styles.tableFiller })
-            : null
+          isLast ? React.createElement(View, { style: styles.tableFiller }) : null
         ),
 
-        // Footer area only on LAST PAGE
+        // Footer only on LAST PAGE
         isLast
           ? React.createElement(
               View,
               { style: styles.bottomArea },
 
-              // Terbilang + totals row
+              // Terbilang + totals
               React.createElement(
                 View,
                 { style: styles.bottomRow },
 
-                React.createElement(
-                  View,
-                  { style: styles.terbilangBox },
-                  React.createElement(Text, { style: styles.terbilangLabel }, "Terbilang :"),
-                  React.createElement(Text, { style: styles.terbilangText }, terbilang)
-                ),
+                settings.show_terbilang
+                  ? React.createElement(
+                      View,
+                      { style: styles.terbilangBox },
+                      React.createElement(Text, { style: styles.terbilangLabel }, "Terbilang :"),
+                      React.createElement(Text, { style: styles.terbilangText }, terbilang)
+                    )
+                  : React.createElement(View, { style: styles.terbilangBox }),
 
                 React.createElement(
                   View,
                   { style: styles.totalBox },
                   TotalRow("Subtotal", `Rp ${fmtMoney2(t.subtotal)}`),
-                  t.disc ? TotalRow("Diskon", `Rp ${fmtMoney2(t.disc)}`) : TotalRow("Diskon", "Rp 0.00"),
-                  t.tax ? TotalRow("Pajak", `Rp ${fmtMoney2(t.tax)}`) : TotalRow("Pajak", "Rp 0.00"),
+                  settings.show_discount ? TotalRow("Diskon", `Rp ${fmtMoney2(t.disc)}`) : null,
+                  settings.show_tax ? TotalRow("Pajak", `Rp ${fmtMoney2(t.tax)}`) : null,
                   React.createElement(View, { style: styles.totalDivider }),
                   TotalRowStrong("Jumlah Tertagih", `Rp ${fmtMoney2(t.total)}`)
                 )
               ),
+
+              // Note (optional)
+              settings.show_note && noteText
+                ? React.createElement(
+                    View,
+                    { style: [styles.noteBox] },
+                    React.createElement(Text, { style: styles.noteLabel }, "Catatan :"),
+                    React.createElement(Text, { style: styles.noteText }, noteText)
+                  )
+                : null,
 
               // Payment + Signature
               React.createElement(
                 View,
                 { style: styles.paySignRow },
 
-                React.createElement(
-                  View,
-                  { style: styles.payBox },
-                  React.createElement(Text, { style: styles.payText }, "Pembayaran mohon ditransfer via rekening :"),
-                  bankName ? React.createElement(Text, { style: styles.payText }, bankName) : null,
-                  bankAcc ? React.createElement(Text, { style: styles.payText }, `NO. REKENING : ${bankAcc}`) : null,
-                  bankAccName ? React.createElement(Text, { style: styles.payText }, `ATAS NAMA : ${bankAccName}`) : null
-                ),
+                settings.show_bank_info
+                  ? React.createElement(
+                      View,
+                      { style: styles.payBox },
+                      React.createElement(Text, { style: styles.payText }, "Pembayaran mohon ditransfer via rekening :"),
+                      bankName ? React.createElement(Text, { style: styles.payText }, bankName) : null,
+                      bankAcc ? React.createElement(Text, { style: styles.payText }, `NO. REKENING : ${bankAcc}`) : null,
+                      bankAccName ? React.createElement(Text, { style: styles.payText }, `ATAS NAMA : ${bankAccName}`) : null
+                    )
+                  : React.createElement(View, { style: styles.payBox }),
 
                 React.createElement(
                   View,
@@ -420,7 +483,7 @@ function InvoiceDotMatrixPDF(props: { inv: any; items: any[]; org: OrgProfile | 
                   React.createElement(Text, { style: styles.signDate }, signDate),
                   React.createElement(Text, { style: styles.signRespect }, "Dengan Hormat"),
                   React.createElement(View, { style: styles.signSpace }),
-                  React.createElement(Text, { style: styles.signLine },)
+                  React.createElement(View, { style: styles.signLine })
                 )
               )
             )
@@ -439,18 +502,8 @@ function RowKV(k: string, v: string, boldVal?: boolean) {
   );
 }
 
-function fmtQty(v: any) {
-  const n = Number(v || 0);
-  // kalau integer tampil 23, kalau decimal tampil 20.3
-  return Number.isInteger(n) ? String(n) : String(n);
-}
-
 function Cell(text: string, style: any) {
-  return React.createElement(
-    View,
-    { style: style },
-    React.createElement(Text, { style: styles.tdText }, text)
-  );
+  return React.createElement(View, { style: style }, React.createElement(Text, { style: styles.tdText }, text));
 }
 
 function TotalRow(k: string, v: string) {
@@ -477,10 +530,10 @@ function TotalRowStrong(k: string, v: string) {
 
 const W_NO = 34;
 const W_QTY = 90;
-const W_UNIT = 110;  // kamu bisa adjust
-const W_AMT  = 110;  // kamu bisa adjust
+const W_UNIT = 110;
+const W_AMT = 110;
 const BORDER = "#000";
-const LIGHT = "#000";
+
 const styles = StyleSheet.create({
   page: {
     paddingTop: 24,
@@ -543,7 +596,7 @@ const styles = StyleSheet.create({
   tableWrap: {
     borderWidth: 1,
     borderColor: BORDER,
-    marginbottom: 10,
+    marginBottom: 10,
   },
 
   trHead: {
@@ -553,34 +606,34 @@ const styles = StyleSheet.create({
   },
 
   thCenter: { textAlign: "center", fontSize: 10, fontWeight: 900 },
-  thCenterSmall: {textAlign: "center", fontSize: 9, fontWeight: 900 },
+  thCenterSmall: { textAlign: "center", fontSize: 9, fontWeight: 900 },
 
   tr: {
     flexDirection: "row",
     borderBottomWidth: 1,
     borderBottomColor: BORDER,
-    Height: 40,
+    height: 40,
   },
 
   cellH: { paddingVertical: 6, paddingHorizontal: 6, justifyContent: "center" },
   tdText: { fontSize: 10 },
 
-  // Columns widths (dotmatrix-ish)
+  // Header widths
   cNoH: {
-  width: W_NO,
-  borderRightWidth: 1,
-  borderRightColor: BORDER,
-  padding: 6,
-  justifyContent: "center",
-},
+    width: W_NO,
+    borderRightWidth: 1,
+    borderRightColor: BORDER,
+    padding: 6,
+    justifyContent: "center",
+  },
   cDescH: {
-  width: 193,
-  borderRightWidth: 1,
-  borderRightColor: BORDER,
-  padding: 6,
-  justifyContent: "center",
-},
-  cQtyH: { width: 90, borderRightWidth: 1, borderRightColor: BORDER, padding: 6, justifyContent: "center"},
+    width: 193,
+    borderRightWidth: 1,
+    borderRightColor: BORDER,
+    padding: 6,
+    justifyContent: "center",
+  },
+  cQtyH: { width: W_QTY, borderRightWidth: 1, borderRightColor: BORDER, padding: 6, justifyContent: "center" },
 
   cPriceGroupH: {
     flex: 1.6,
@@ -595,51 +648,48 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
 
-  // body cols
+  // Body cols
   cNo: {
-  width: W_NO,
-  borderRightWidth: 1,
-  borderRightColor: BORDER,
-  padding: 6,
-  justifyContent: "center",
-},
-  cDesc: {
-  flex: 1, // deskripsi saja yang fleksibel biar ngisi sisa space
-  borderRightWidth: 1,
-  borderRightColor: BORDER,
-  padding: 6,
-  justifyContent: "center",
-},
-  cQty: {
-  width: W_QTY,
-  borderRightWidth: 1,
-  borderRightColor: BORDER,
-  padding: 6,
-  justifyContent: "center",
-  alignItems: "center",
-},
-  cUnit: {
-  width: W_UNIT,
-  borderRightWidth: 1,
-  borderRightColor: BORDER,
-  padding: 6,
-  justifyContent: "center",
-  alignItems: "flex-end",
-},
-  cAmt: {
-  width: W_AMT,
-  padding: 6,
-  justifyContent: "center",
-  alignItems: "flex-end",
-},
-
-  tableFiller: {
-    height: 120, // ruang kosong seperti contoh dotmatrix, biar tidak aneh kalau item sedikit
+    width: W_NO,
+    borderRightWidth: 1,
+    borderRightColor: BORDER,
+    padding: 6,
+    justifyContent: "center",
   },
+  cDesc: {
+    flex: 1,
+    borderRightWidth: 1,
+    borderRightColor: BORDER,
+    padding: 6,
+    justifyContent: "center",
+  },
+  cQty: {
+    width: W_QTY,
+    borderRightWidth: 1,
+    borderRightColor: BORDER,
+    padding: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cUnit: {
+    width: W_UNIT,
+    borderRightWidth: 1,
+    borderRightColor: BORDER,
+    padding: 6,
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
+  cAmt: {
+    width: W_AMT,
+    padding: 6,
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
+
+  tableFiller: { height: 120 },
 
   // Bottom area
   bottomArea: { marginTop: 10 },
-
   bottomRow: { flexDirection: "row", gap: 10 },
 
   terbilangBox: {
@@ -670,20 +720,28 @@ const styles = StyleSheet.create({
   totalKeyStrong: { fontSize: 10, fontWeight: 900 },
   totalValStrong: { fontSize: 10, fontWeight: 900 },
 
+  noteBox: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: BORDER,
+    padding: 10,
+  },
+  noteLabel: { fontSize: 10, marginBottom: 6, fontWeight: 900 },
+  noteText: { fontSize: 10, lineHeight: 1.25 },
+
   paySignRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 12, gap: 12 },
 
-  payBox: { flex: 1.4,marginRight: 12 },
+  payBox: { flex: 1.4, marginRight: 12 },
   payText: { fontSize: 10, marginBottom: 6 },
 
   signBox: { flex: 1, alignItems: "center" },
   signDate: { fontSize: 10, alignSelf: "flex-end" },
   signRespect: { fontSize: 10, fontWeight: 700, marginTop: 10 },
   signSpace: { height: 70, width: "100%" },
-  signName: { fontSize: 11, fontWeight: 900 },
   signLine: {
-  marginTop: 6,
-  borderBottomWidth: 1,
-  borderBottomColor: "#000",
-  width: 160,
-},
+    marginTop: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#000",
+    width: 160,
+  },
 });

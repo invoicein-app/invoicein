@@ -1,3 +1,4 @@
+// ✅ FULL REPLACE FILE
 // app/components/sidebar.tsx
 "use client";
 
@@ -10,6 +11,7 @@ type NavItem = { href: string; label: string; adminOnly?: boolean };
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/quotations", label: "Quotations" }, // ✅ NEW
   { href: "/invoice", label: "Invoice" },
   { href: "/delivery-notes", label: "Surat Jalan" },
   { href: "/customers", label: "Customer" },
@@ -74,9 +76,7 @@ export default function Sidebar() {
 
       <nav style={{ display: "grid", gap: 8 }}>
         {items.map((it) => {
-          const isActive =
-            pathname === it.href ||
-            (it.href !== "/" && pathname.startsWith(it.href + "/"));
+          const isActive = pathname === it.href;
 
           return (
             <Link
@@ -91,9 +91,14 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 12 }}>
+      <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 12, display: "grid", gap: 8 }}>
         <Link href="/invoice/new" style={cta()}>
           + Buat Invoice
+        </Link>
+
+        {/* ✅ optional quick action */}
+        <Link href="/quotations/new" style={ctaSecondary()}>
+          + Buat Quotation
         </Link>
       </div>
     </aside>
@@ -147,6 +152,20 @@ function cta(): React.CSSProperties {
     border: "1px solid #111",
     background: "#111",
     color: "white",
+    textDecoration: "none",
+    fontWeight: 900,
+    textAlign: "center",
+  };
+}
+
+function ctaSecondary(): React.CSSProperties {
+  return {
+    display: "block",
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid #111",
+    background: "white",
+    color: "#111",
     textDecoration: "none",
     fontWeight: 900,
     textAlign: "center",

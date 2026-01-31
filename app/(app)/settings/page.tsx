@@ -1,5 +1,7 @@
-// app/settings/page.tsx  (atau file SettingsHome kamu berada)
-// ✅ Disable menu "Manajemen Staff" kalau role = staff
+// ✅ REPLACE FULL FILE
+// app/settings/page.tsx
+// Tambah card "Invoice Template" dan hanya bisa diklik admin.
+// (staff tetap bisa lihat settings page, tapi card invoice-template disable)
 
 "use client";
 
@@ -19,7 +21,6 @@ export default function SettingsHome() {
 
     (async () => {
       try {
-        // 1) ambil user
         const { data: userRes } = await supabase.auth.getUser();
         const user = userRes.user;
         if (!user) {
@@ -30,7 +31,6 @@ export default function SettingsHome() {
           return;
         }
 
-        // 2) ambil role dari memberships (org pertama)
         const { data: mem } = await supabase
           .from("memberships")
           .select("role")
@@ -57,6 +57,7 @@ export default function SettingsHome() {
   }, [supabase]);
 
   const isStaff = role === "staff";
+  const isAdmin = role === "admin";
 
   const cardBase: React.CSSProperties = {
     display: "block",
@@ -72,7 +73,7 @@ export default function SettingsHome() {
     ...cardBase,
     opacity: 0.55,
     cursor: "not-allowed",
-    pointerEvents: "none", // biar gak bisa diklik
+    pointerEvents: "none",
     background: "#f9fafb",
   };
 
@@ -95,9 +96,7 @@ export default function SettingsHome() {
           <div style={{ color: "#4b5563", marginTop: 6 }}>Pengaturan aplikasi.</div>
         </div>
 
-        <div style={badge}>
-          {loading ? "ROLE: ..." : `ROLE: ${role?.toUpperCase() || "UNKNOWN"}`}
-        </div>
+        <div style={badge}>{loading ? "ROLE: ..." : `ROLE: ${role?.toUpperCase() || "UNKNOWN"}`}</div>
       </div>
 
       <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
@@ -109,6 +108,27 @@ export default function SettingsHome() {
           </div>
         </a>
 
+        {/* Invoice Template (admin only) */}
+        <a
+          href="/settings/invoice-template"
+          style={!isAdmin ? disabledCard : cardBase}
+          title={!isAdmin ? "Hanya Admin yang bisa mengubah template invoice" : "Atur template & opsi PDF"}
+          aria-disabled={!isAdmin}
+        >
+          <div style={{ fontSize: 14, fontWeight: 900 }}>
+            🧾 Invoice Template {!isAdmin ? "(Admin only)" : ""}
+          </div>
+          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
+            Pilih template (clean/dotmatrix) + toggle pajak/diskon/surat jalan/terbilang/rekening.
+          </div>
+
+          {!isAdmin ? (
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
+              Kamu login sebagai <b>STAFF</b>. Menu ini hanya untuk <b>ADMIN</b>.
+            </div>
+          ) : null}
+        </a>
+
         {/* Manajemen Staff (disabled kalau staff) */}
         <a
           href="/settings/staff"
@@ -116,12 +136,8 @@ export default function SettingsHome() {
           title={isStaff ? "Hanya Admin yang bisa mengelola staff" : "Kelola staff"}
           aria-disabled={isStaff}
         >
-          <div style={{ fontSize: 14, fontWeight: 900 }}>
-            👥 Manajemen Staff {isStaff ? "(Admin only)" : ""}
-          </div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
-            Tambah staff, reset password, nonaktifkan staff.
-          </div>
+          <div style={{ fontSize: 14, fontWeight: 900 }}>👥 Manajemen Staff {isStaff ? "(Admin only)" : ""}</div>
+          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>Tambah staff, reset password, nonaktifkan staff.</div>
 
           {isStaff ? (
             <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>

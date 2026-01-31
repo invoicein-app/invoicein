@@ -181,6 +181,7 @@ export default async function InvoiceListPage({
       `
       id,
       invoice_number,
+      quotation_id,
       invoice_date,
       customer_id,
       customer_name,
@@ -386,6 +387,7 @@ export default async function InvoiceListPage({
                       invoiceNumber={inv.invoice_number}
                       remaining={inv.remaining}
                       payStatus={inv.payStatus}
+                      hasQuotation={Boolean(inv.quotation_id)}
                     />
                   </td>
                 </tr>

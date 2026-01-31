@@ -1,14 +1,15 @@
 // invoiceku/app/dashboard/page.tsx  (FULL REPLACE)
 //
-// Dashboard v1 (lebih "berguna" + gak kopong):
+// Dashboard v1 (berguna + gak kopong) — FIX duplicate month key
 // - KPI cards: Outstanding (UNPAID/PARTIAL), Paid bulan ini, Paid bulan lalu, Total invoice
 // - "Butuh perhatian": 8 invoice unpaid/partial paling lama (clickable)
 // - Mini chart: Omset Paid 6 bulan terakhir (bar chart pakai div, tanpa library)
 // - Quick stats: jumlah customer + products
 //
-// NOTE penting biar hitungan muncul:
+// FIX PENTING:
+// ✅ monthKeys6 unik (anchor ke tanggal 1) biar gak double (issue JS Date 29/30/31)
 // ✅ semua query di-filter by org_id
-// ✅ status bayar dihitung dari grandTotal vs amount_paid (bukan cuma kolom status)
+// ✅ status bayar dihitung dari grandTotal vs amount_paid
 // ✅ discount_value & tax_value dianggap persen (0-100)
 
 import { supabaseServer } from "@/lib/supabase/server";
@@ -20,16 +21,20 @@ function clampPercent(v: any) {
   return Math.max(0, Math.min(100, n));
 }
 
-function toISODate(d: Date) {
-  return d.toISOString().slice(0, 10);
+function monthKeyFromDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function monthKey(dt: Date) {
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+// selalu balik ke tanggal 1 agar setMonth() gak "lompat" (29/30/31 issue)
+function monthStart(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  x.setDate(1);
+  return x;
 }
 
-function addMonths(base: Date, delta: number) {
-  const d = new Date(base);
+function addMonthsSafe(base: Date, delta: number) {
+  const d = monthStart(base);
   d.setMonth(d.getMonth() + delta);
   return d;
 }
@@ -76,7 +81,7 @@ export default async function DashboardPage() {
     );
   }
 
-  // Ambil invoices + items (1 query) — penting: filter org_id
+  // Ambil invoices + items (1 query) — filter org_id
   const { data: invRows, error: invErr } = await supabase
     .from("invoices")
     .select(
@@ -96,19 +101,12 @@ export default async function DashboardPage() {
     .eq("org_id", orgId)
     .order("invoice_date", { ascending: true });
 
-  // Quick counts (biar dashboard gak kosong)
+  // Quick counts
   const [{ count: customerCount }, { count: productCount }] = await Promise.all([
-    supabase
-      .from("customers")
-      .select("id", { count: "exact", head: true })
-      .eq("org_id", orgId),
-    supabase
-      .from("products")
-      .select("id", { count: "exact", head: true })
-      .eq("org_id", orgId),
+    supabase.from("customers").select("id", { count: "exact", head: true }).eq("org_id", orgId),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("org_id", orgId),
   ]);
 
-  // kalau invoices gagal kebaca, tetap render dashboard + error
   const invoices = (invRows || []) as any[];
 
   // Helper: hitung total invoice
@@ -137,7 +135,7 @@ export default async function DashboardPage() {
     return { subtotal, discount, tax, grandTotal, paid, remaining, payState };
   }
 
-  // Ringkas KPI
+  // KPI
   let outstandingCount = 0;
   let outstandingSum = 0;
 
@@ -146,15 +144,21 @@ export default async function DashboardPage() {
   let paidSumLastMonth = 0;
 
   const now = new Date();
-  const thisMonthKey = monthKey(now);
-  const lastMonthKey = monthKey(addMonths(now, -1));
+  const base = monthStart(now);
 
-  // byMonth (paid) 6 bulan terakhir
-  const monthKeys6 = Array.from({ length: 6 }, (_, i) => monthKey(addMonths(now, -(5 - i))));
+  const thisMonthKey = monthKeyFromDate(base);
+  const lastMonthKey = monthKeyFromDate(addMonthsSafe(base, -1));
+
+  // ✅ byMonth (paid) 6 bulan terakhir — FIX duplicate keys
+  const monthKeys6 = Array.from({ length: 6 }, (_, i) => {
+    const d = addMonthsSafe(base, -(5 - i));
+    return monthKeyFromDate(d);
+  });
+
   const paidByMonth = new Map<string, number>();
   monthKeys6.forEach((k) => paidByMonth.set(k, 0));
 
-  // list attention candidates
+  // attention candidates
   const attention: Array<{
     id: string;
     invoice_number: string | null;
@@ -168,7 +172,7 @@ export default async function DashboardPage() {
   for (const inv of invoices) {
     const t = calcTotals(inv);
     const dt = inv?.invoice_date ? new Date(inv.invoice_date) : null;
-    const mk = dt ? monthKey(dt) : "";
+    const mk = dt ? monthKeyFromDate(monthStart(dt)) : ""; // anchor biar konsisten
 
     if (t.payState !== "PAID") {
       outstandingCount += 1;
@@ -195,7 +199,6 @@ export default async function DashboardPage() {
     }
   }
 
-  // Sort attention: paling lama dulu
   attention.sort((a, b) => {
     const da = a.invoice_date ? new Date(a.invoice_date).getTime() : 0;
     const db = b.invoice_date ? new Date(b.invoice_date).getTime() : 0;
@@ -209,7 +212,15 @@ export default async function DashboardPage() {
 
   return (
     <div style={{ padding: 18, maxWidth: 1050, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+        }}
+      >
         <div>
           <h1 style={{ margin: 0 }}>Dashboard</h1>
           <p style={{ marginTop: 6, color: "#666" }}>
@@ -223,19 +234,36 @@ export default async function DashboardPage() {
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <a href="/invoice/new" style={btnPrimary()}>+ Buat Invoice</a>
-          <a href="/invoice" style={btn()}>Daftar Invoice</a>
-          <a href="/delivery-notes" style={btn()}>Surat Jalan</a>
-          <a href="/products" style={btn()}>Barang</a>
+          <a href="/invoice/new" style={btnPrimary()}>
+            + Buat Invoice
+          </a>
+          <a href="/invoice" style={btn()}>
+            Daftar Invoice
+          </a>
+          <a href="/delivery-notes" style={btn()}>
+            Surat Jalan
+          </a>
+          <a href="/products" style={btn()}>
+            Barang
+          </a>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginTop: 14 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gap: 12,
+          marginTop: 14,
+        }}
+      >
         <div style={card()}>
           <div style={kpiLabel()}>Outstanding (UNPAID/PARTIAL)</div>
           <div style={kpiValue()}>{outstandingCount}</div>
-          <div style={kpiSub()}>Sisa tagihan: <b>{rupiah(outstandingSum)}</b></div>
+          <div style={kpiSub()}>
+            Sisa tagihan: <b>{rupiah(outstandingSum)}</b>
+          </div>
         </div>
 
         <div style={card()}>
@@ -254,7 +282,8 @@ export default async function DashboardPage() {
           <div style={kpiLabel()}>Total Invoice</div>
           <div style={kpiValue()}>{invoices.length}</div>
           <div style={kpiSub()}>
-            Paid: <b>{paidCount}</b> • Customers: <b>{customerCount ?? 0}</b> • Products: <b>{productCount ?? 0}</b>
+            Paid: <b>{paidCount}</b> • Customers: <b>{customerCount ?? 0}</b> • Products:{" "}
+            <b>{productCount ?? 0}</b>
           </div>
         </div>
       </div>
@@ -263,11 +292,17 @@ export default async function DashboardPage() {
       <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 12 }}>
         {/* Attention list */}
         <div style={card()}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
             <h3 style={{ margin: 0 }}>Butuh Perhatian</h3>
-            <span style={{ color: "#666", fontSize: 13 }}>
-              UNPAID/PARTIAL paling lama (klik untuk buka)
-            </span>
+            <span style={{ color: "#666", fontSize: 13 }}>UNPAID/PARTIAL paling lama (klik untuk buka)</span>
           </div>
 
           <div style={{ marginTop: 10 }}>
@@ -300,22 +335,30 @@ export default async function DashboardPage() {
           </div>
 
           <div style={{ marginTop: 10 }}>
-            <a href="/invoice" style={{ ...btn(), display: "inline-block" }}>Lihat semua invoice →</a>
+            <a href="/invoice" style={{ ...btn(), display: "inline-block" }}>
+              Lihat semua invoice →
+            </a>
           </div>
         </div>
 
         {/* Mini chart */}
         <div style={card()}>
           <h3 style={{ margin: 0 }}>Omset Paid (6 Bulan)</h3>
-          <p style={{ marginTop: 6, color: "#666", fontSize: 13 }}>
-            Bar chart sederhana (tanpa library)
-          </p>
+          <p style={{ marginTop: 6, color: "#666", fontSize: 13 }}>Bar chart sederhana (tanpa library)</p>
 
           <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
             {monthBars.map((m) => {
               const w = Math.max(2, Math.round((m.value / maxBar) * 100));
               return (
-                <div key={m.month} style={{ display: "grid", gridTemplateColumns: "76px 1fr", gap: 10, alignItems: "center" }}>
+                <div
+                  key={m.month}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "76px 1fr",
+                    gap: 10,
+                    alignItems: "center",
+                  }}
+                >
                   <div style={{ fontSize: 12, color: "#666" }}>{m.month}</div>
                   <div style={{ display: "grid", gap: 6 }}>
                     <div style={{ height: 10, background: "#f3f4f6", borderRadius: 999, overflow: "hidden" }}>
@@ -331,8 +374,7 @@ export default async function DashboardPage() {
           <div style={{ marginTop: 12, borderTop: "1px solid #eee", paddingTop: 10 }}>
             <div style={{ color: "#666", fontSize: 12 }}>Tip:</div>
             <div style={{ color: "#333", fontSize: 13 }}>
-              nanti kalau mau “lebih cakep”, kita bisa ganti ini jadi chart beneran (Recharts),
-              tapi versi ini udah cukup buat deploy & validasi.
+              nanti kalau mau “lebih cakep”, kita bisa ganti ini jadi chart beneran (Recharts), tapi versi ini udah cukup buat deploy & validasi.
             </div>
           </div>
         </div>
@@ -342,10 +384,18 @@ export default async function DashboardPage() {
       <div style={{ marginTop: 12, ...card() }}>
         <h3 style={{ margin: 0 }}>Shortcut</h3>
         <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-          <a href="/invoice/new" style={btnPrimary()}>+ Buat Invoice Baru</a>
-          <a href="/invoice" style={btn()}>Lihat Daftar Invoice</a>
-          <a href="/delivery-notes" style={btn()}>Lihat Surat Jalan</a>
-          <a href="/products" style={btn()}>Kelola Barang</a>
+          <a href="/invoice/new" style={btnPrimary()}>
+            + Buat Invoice Baru
+          </a>
+          <a href="/invoice" style={btn()}>
+            Lihat Daftar Invoice
+          </a>
+          <a href="/delivery-notes" style={btn()}>
+            Lihat Surat Jalan
+          </a>
+          <a href="/products" style={btn()}>
+            Kelola Barang
+          </a>
         </div>
       </div>
     </div>
@@ -400,7 +450,30 @@ function rowLink(): React.CSSProperties {
 }
 
 function pill(state: "UNPAID" | "PARTIAL" | "PAID"): React.CSSProperties {
-  if (state === "PAID") return { fontSize: 11, padding: "3px 8px", borderRadius: 999, border: "1px solid #6ee7b7", background: "#ecfdf5", color: "#065f46" };
-  if (state === "PARTIAL") return { fontSize: 11, padding: "3px 8px", borderRadius: 999, border: "1px solid #93c5fd", background: "#eff6ff", color: "#1e3a8a" };
-  return { fontSize: 11, padding: "3px 8px", borderRadius: 999, border: "1px solid #fdba74", background: "#fff7ed", color: "#9a3412" };
+  if (state === "PAID")
+    return {
+      fontSize: 11,
+      padding: "3px 8px",
+      borderRadius: 999,
+      border: "1px solid #6ee7b7",
+      background: "#ecfdf5",
+      color: "#065f46",
+    };
+  if (state === "PARTIAL")
+    return {
+      fontSize: 11,
+      padding: "3px 8px",
+      borderRadius: 999,
+      border: "1px solid #93c5fd",
+      background: "#eff6ff",
+      color: "#1e3a8a",
+    };
+  return {
+    fontSize: 11,
+    padding: "3px 8px",
+    borderRadius: 999,
+    border: "1px solid #fdba74",
+    background: "#fff7ed",
+    color: "#9a3412",
+  };
 }

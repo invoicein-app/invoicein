@@ -1,13 +1,12 @@
 // ✅ FULL REPLACE
-// invoiceku/app/invoice/new/page.tsx
+// invoiceku/app/(app)/quotations/[id]/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { num, rupiah } from "@/lib/money";
-import { useSearchParams } from "next/navigation";
 
-type Customer = { id: string; name: string; phone: string; address: string };
 type Product = {
   id: string;
   name: string;
@@ -18,12 +17,11 @@ type Product = {
 };
 
 type Item = {
+  id?: string; // quotation_items.id (optional)
   product_id?: string;
   name: string;
-
   qty: number;
   price: number;
-
   qtyText: string;
   priceText: string;
 };
@@ -31,127 +29,65 @@ type Item = {
 function digitsOnlyString(raw: string) {
   return String(raw ?? "").replace(/\D/g, "");
 }
-
 function digitsToNumber(raw: string) {
   const s = digitsOnlyString(raw).replace(/^0+/, "");
   return s === "" ? 0 : Number(s);
 }
-
 function formatThousandsID(n: number) {
   const x = Math.max(0, Math.floor(Number.isFinite(n) ? n : 0));
   return x === 0 ? "" : x.toLocaleString("id-ID");
 }
-
 function clampPercent(n: number) {
   if (!Number.isFinite(n)) return 0;
   if (n < 0) return 0;
   if (n > 100) return 100;
   return Math.floor(n);
 }
+function safeDateOrEmpty(v: any) {
+  const s = String(v || "").trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return "";
+}
 
-type PrefillData = {
-  quotation_id: string;
-  quotation_number: string | null;
-  quotation_date: string | null;
+export default function QuotationEditPage() {
+  const router = useRouter();
+  const params = useParams();
+  const id = String((params as any)?.id || "");
 
-  customer_id: string | null;
-  customer_name: string;
-  customer_phone: string;
-  customer_address: string;
-  note: string;
-
-  discount_type: "percent" | "amount";
-  discount_value: number;
-
-  tax_value: number; // percent-only
-
-  items: Array<{
-    product_id: string | null;
-    name: string;
-    qty: number;
-    price: number;
-    sort_order: number;
-  }>;
-};
-
-export default function InvoiceNewPage() {
   const supabase = supabaseBrowser();
-  const sp = useSearchParams();
 
-  // ✅ FIX: param yang bener itu fromQuotation
-  const fromQuotationId = String(sp.get("fromQuotation") || "").trim();
-
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loadingCust, setLoadingCust] = useState(true);
-  const [loadingProd, setLoadingProd] = useState(true);
-
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [prefilling, setPrefilling] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const [invoiceDate, setInvoiceDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProd, setLoadingProd] = useState(true);
 
-  // ✅ Due date + terms
-  const [dueDate, setDueDate] = useState<string>(() => "");
-  const [termsDays, setTermsDays] = useState<number>(14);
+  const [isLocked, setIsLocked] = useState(false);
+  const [status, setStatus] = useState<string>("draft");
+  const [quotationNumber, setQuotationNumber] = useState<string>("");
+
+  const [quotationDate, setQuotationDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
   const [customerId, setCustomerId] = useState<string>("");
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [customerAddress, setCustomerAddress] = useState("");
+  const [customerName, setCustomerName] = useState<string>("");
+  const [customerPhone, setCustomerPhone] = useState<string>("");
+  const [customerAddress, setCustomerAddress] = useState<string>("");
+  const [note, setNote] = useState<string>("");
 
-  const [note, setNote] = useState("");
-
-  // ✅ DISCOUNT: type + value
+  // ✅ discount type + value (biar konsisten sama invoice/new)
   const [discountType, setDiscountType] = useState<"percent" | "amount">("percent");
-  const [discountPercent, setDiscountPercent] = useState<number>(0); // percent
-  const [discountAmountText, setDiscountAmountText] = useState<string>(""); // amount input text
+  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountAmountText, setDiscountAmountText] = useState<string>("");
   const discountAmount = useMemo(() => digitsToNumber(discountAmountText), [discountAmountText]);
 
-  // ✅ TAX fix percent only
+  // ✅ tax percent only
   const [taxPercent, setTaxPercent] = useState<number>(0);
 
   const [items, setItems] = useState<Item[]>([
     { product_id: "", name: "", qty: 1, qtyText: "1", price: 0, priceText: "" },
   ]);
-
-  // pointer quotation (optional)
-  const [sourceQuotationId, setSourceQuotationId] = useState<string>("");
-
-  function applyTerms(days: number) {
-    const d = Math.max(0, Math.floor(num(days)));
-    setTermsDays(d);
-
-    const base = new Date(invoiceDate);
-    if (Number.isNaN(base.getTime())) return;
-
-    const next = new Date(base);
-    next.setDate(next.getDate() + d);
-    setDueDate(next.toISOString().slice(0, 10));
-  }
-
-  useEffect(() => {
-    applyTerms(termsDays);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!invoiceDate) return;
-    applyTerms(termsDays);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invoiceDate]);
-
-  async function loadCustomers() {
-    setLoadingCust(true);
-    const { data } = await supabase
-      .from("customers")
-      .select("id,name,phone,address")
-      .order("created_at", { ascending: false });
-
-    setCustomers((data || []) as any);
-    setLoadingCust(false);
-  }
 
   async function loadProducts() {
     setLoadingProd(true);
@@ -160,45 +96,105 @@ export default function InvoiceNewPage() {
       .select("id,name,sku,unit,price,is_active")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
-
     setProducts((data || []) as any);
     setLoadingProd(false);
   }
 
-  useEffect(() => {
-    loadCustomers();
-    loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  async function loadQuotation() {
+    setLoading(true);
+    setMsg("");
+
+    try {
+      // header
+      const { data: q, error: qErr } = await supabase
+        .from("quotations")
+        .select(
+          "id,quotation_number,quotation_date,customer_id,customer_name,customer_phone,customer_address,note,discount_type,discount_value,tax_value,status,is_locked"
+        )
+        .eq("id", id)
+        .single();
+
+      if (qErr || !q) throw new Error(qErr?.message || "Quotation not found");
+
+      setQuotationNumber(String((q as any).quotation_number || ""));
+      setQuotationDate(safeDateOrEmpty((q as any).quotation_date) || new Date().toISOString().slice(0, 10));
+
+      setCustomerId(String((q as any).customer_id || ""));
+      setCustomerName(String((q as any).customer_name || ""));
+      setCustomerPhone(String((q as any).customer_phone || ""));
+      setCustomerAddress(String((q as any).customer_address || ""));
+      setNote(String((q as any).note || ""));
+
+      const dtRaw = String((q as any).discount_type || "percent").toLowerCase();
+      if (dtRaw === "amount" || dtRaw === "fixed") {
+        setDiscountType("amount");
+        setDiscountAmountText(formatThousandsID(Math.max(0, Math.floor(num((q as any).discount_value || 0)))));
+        setDiscountPercent(0);
+      } else {
+        setDiscountType("percent");
+        setDiscountPercent(clampPercent(num((q as any).discount_value || 0)));
+        setDiscountAmountText("");
+      }
+
+      setTaxPercent(clampPercent(num((q as any).tax_value || 0)));
+
+      setStatus(String((q as any).status || "draft"));
+      setIsLocked(!!(q as any).is_locked);
+
+      // items
+      const { data: itRows, error: itErr } = await supabase
+        .from("quotation_items")
+        .select("id,product_id,name,qty,price,sort_order")
+        .eq("quotation_id", id)
+        .order("sort_order", { ascending: true });
+
+      if (itErr) throw new Error(itErr.message);
+
+      const mapped =
+        (itRows || []).length > 0
+          ? (itRows || []).map((x: any) => {
+              const qtyN = Math.max(0, Math.floor(num(x.qty || 0)));
+              const priceN = Math.max(0, Math.floor(num(x.price || 0)));
+              return {
+                id: String(x.id),
+                product_id: String(x.product_id || ""),
+                name: String(x.name || ""),
+                qty: qtyN,
+                qtyText: qtyN ? String(qtyN) : "",
+                price: priceN,
+                priceText: priceN ? formatThousandsID(priceN) : "",
+              } as Item;
+            })
+          : [{ product_id: "", name: "", qty: 1, qtyText: "1", price: 0, priceText: "" }];
+
+      setItems(mapped);
+    } catch (e: any) {
+      setMsg(e?.message || "Gagal load quotation.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    if (!customerId) return;
-    const c = customers.find((x) => x.id === customerId);
-    if (!c) return;
-    setCustomerName(c.name);
-    setCustomerPhone(c.phone || "");
-    setCustomerAddress(c.address || "");
-  }, [customerId, customers]);
+    if (!id) return;
+    loadProducts();
+    loadQuotation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const calc = useMemo(() => {
     const sub = items.reduce((a, it) => a + num(it.qty) * num(it.price), 0);
 
-    // discount
     let disc = 0;
     if (discountType === "percent") {
-      const discPct = clampPercent(num(discountPercent));
-      disc = sub * (discPct / 100);
+      disc = sub * (clampPercent(num(discountPercent)) / 100);
     } else {
       disc = Math.max(0, num(discountAmount));
     }
-    // guard: jangan lebih dari subtotal
     if (disc > sub) disc = sub;
 
     const afterDisc = Math.max(0, sub - disc);
-
-    const taxPct = clampPercent(num(taxPercent));
-    const tax = afterDisc * (taxPct / 100);
-
+    const tax = afterDisc * (clampPercent(num(taxPercent)) / 100);
     const total = Math.max(0, afterDisc + tax);
 
     return { sub, disc, tax, total };
@@ -224,10 +220,8 @@ export default function InvoiceNewPage() {
       setItem(rowIdx, { product_id: "", name: "", price: 0, priceText: "" });
       return;
     }
-
     const p = products.find((x) => x.id === productId);
     if (!p) return;
-
     const pPrice = Math.max(0, Math.floor(Number(p.price || 0)));
     setItem(rowIdx, {
       product_id: p.id,
@@ -252,8 +246,7 @@ export default function InvoiceNewPage() {
 
   function onChangePrice(rowIdx: number, raw: string) {
     const n = digitsToNumber(raw);
-    const formatted = formatThousandsID(n);
-    setItem(rowIdx, { product_id: "", price: n, priceText: formatted });
+    setItem(rowIdx, { price: n, priceText: formatThousandsID(n), product_id: "" });
   }
 
   function onBlurPrice(rowIdx: number) {
@@ -262,95 +255,10 @@ export default function InvoiceNewPage() {
     setItem(rowIdx, { price: n, priceText: formatThousandsID(n) });
   }
 
-  // ✅ PREFILL: pakai API convert (single source of truth)
-  async function prefillFromQuotation(qid: string) {
-    if (!qid) return;
-    setPrefilling(true);
-    try {
-      setMsg("");
-
-      const res = await fetch(`/api/quotations/convert/${qid}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
-
-      const json = await res.json().catch(() => ({} as any));
-      if (!res.ok) throw new Error(json?.error || `Gagal prefill (${res.status})`);
-
-      // kalau udah ada invoice, langsung buka invoice itu
-      if (json?.invoice_id) {
-        window.location.href = `/invoice/${json.invoice_id}`;
-        return;
-      }
-
-      if (!json?.prefill || !json?.prefill_data) {
-        throw new Error("Prefill data kosong dari server.");
-      }
-
-      const p: PrefillData = json.prefill_data as any;
-
-      // customer + note
-      setCustomerId(p.customer_id || "");
-      setCustomerName(p.customer_name || "");
-      setCustomerPhone(p.customer_phone || "");
-      setCustomerAddress(p.customer_address || "");
-      setNote(p.note || "");
-
-      // pointer
-      setSourceQuotationId(p.quotation_id);
-
-      // discount
-      if (p.discount_type === "amount") {
-        setDiscountType("amount");
-        setDiscountAmountText(formatThousandsID(Math.max(0, Math.floor(num(p.discount_value || 0)))));
-        setDiscountPercent(0);
-      } else {
-        setDiscountType("percent");
-        setDiscountPercent(clampPercent(num(p.discount_value || 0)));
-        setDiscountAmountText("");
-      }
-
-      // tax percent only
-      setTaxPercent(clampPercent(num(p.tax_value || 0)));
-
-      // items
-      const mappedItems =
-        (p.items || []).length > 0
-          ? (p.items || []).map((x) => {
-              const qtyN = Math.max(0, Math.floor(num(x.qty || 0)));
-              const priceN = Math.max(0, Math.floor(num(x.price || 0)));
-              return {
-                product_id: x.product_id || "",
-                name: String(x.name || ""),
-                qty: qtyN,
-                qtyText: qtyN ? String(qtyN) : "",
-                price: priceN,
-                priceText: priceN ? formatThousandsID(priceN) : "",
-              } as Item;
-            })
-          : [{ product_id: "", name: "", qty: 1, qtyText: "1", price: 0, priceText: "" }];
-
-      setItems(mappedItems);
-
-      setMsg("Prefill dari quotation berhasil. Silakan cek & edit (isi due date) sebelum simpan.");
-    } catch (e: any) {
-      setMsg(e?.message || "Gagal prefill dari quotation.");
-    } finally {
-      setPrefilling(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!fromQuotationId) return;
-    prefillFromQuotation(fromQuotationId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromQuotationId]);
-
   async function save() {
     setMsg("");
 
-    if (prefilling) return setMsg("Tunggu prefill selesai dulu ya.");
+    if (isLocked) return setMsg("Quotation ini sudah LOCKED, tidak bisa di-edit.");
     if (!customerName.trim()) return setMsg("Customer name wajib diisi.");
     if (items.length === 0) return setMsg("Minimal 1 item.");
     if (items.some((it) => !it.name.trim())) return setMsg("Nama item tidak boleh kosong.");
@@ -358,10 +266,7 @@ export default function InvoiceNewPage() {
     setSaving(true);
     try {
       const payload: any = {
-        invoice_date: invoiceDate,
-        due_date: dueDate || null,
-        quotation_id: sourceQuotationId || null,
-
+        quotation_date: quotationDate,
         customer_id: customerId || null,
         customer_name: customerName,
         customer_phone: customerPhone || "",
@@ -376,14 +281,16 @@ export default function InvoiceNewPage() {
 
         tax_value: clampPercent(num(taxPercent)),
 
-        items: items.map((it) => ({
+        items: items.map((it, idx) => ({
+          product_id: it.product_id || null,
           name: String(it.name || ""),
           qty: Math.max(0, Math.floor(num(it.qty))),
           price: Math.max(0, Math.floor(num(it.price))),
+          sort_order: idx,
         })),
       };
 
-      const res = await fetch("/api/invoice/create", {
+      const res = await fetch(`/api/quotations/update/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -393,7 +300,8 @@ export default function InvoiceNewPage() {
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok) return setMsg(json?.error || `Gagal simpan (${res.status})`);
 
-      window.location.href = `/invoice/${json.id}`;
+      setMsg("Berhasil disimpan ✅");
+      await loadQuotation();
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan.");
     } finally {
@@ -403,102 +311,79 @@ export default function InvoiceNewPage() {
 
   return (
     <div style={{ padding: 18, maxWidth: 980, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ margin: 0 }}>Invoice Baru</h1>
-          <p style={{ marginTop: 6, color: "#666" }}>Simpan dulu, nanti bisa view & download PDF</p>
-
-          {fromQuotationId ? (
-            <p style={{ marginTop: 6, color: "#111", fontWeight: 700 }}>
-              Prefill dari Quotation:{" "}
-              <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
-                {fromQuotationId.slice(0, 8)}...
-              </span>
-              {prefilling ? <span style={{ marginLeft: 8, color: "#666" }}>loading...</span> : null}
-            </p>
-          ) : null}
+          <h1 style={{ margin: 0 }}>
+            Edit Quotation {quotationNumber ? <span style={{ fontFamily: "ui-monospace" }}>{quotationNumber}</span> : ""}
+          </h1>
+          <p style={{ marginTop: 6, color: "#666" }}>
+            Status: <b>{status}</b> {isLocked ? "• (LOCKED)" : ""}
+          </p>
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
-          <a href="/invoice" style={btn()}>
+          <button onClick={() => router.push("/quotations")} style={btn()}>
             Kembali
-          </a>
-          <button onClick={save} disabled={saving || prefilling} style={btnPrimary()}>
-            {saving ? "Menyimpan..." : prefilling ? "Prefilling..." : "Simpan Invoice"}
+          </button>
+
+          <button onClick={save} disabled={saving || loading || isLocked} style={btnPrimary()}>
+            {saving ? "Menyimpan..." : isLocked ? "Locked" : "Simpan Perubahan"}
           </button>
         </div>
       </div>
 
+      {msg ? (
+        <div style={{ marginTop: 12, padding: 12, borderRadius: 12, border: "1px solid #eee", background: "#fff" }}>
+          <span style={{ color: msg.includes("✅") ? "#065f46" : "#b00", fontWeight: 800 }}>{msg}</span>
+        </div>
+      ) : null}
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
         <div style={card()}>
-          <h3 style={{ margin: 0 }}>Info Invoice</h3>
+          <h3 style={{ margin: 0 }}>Info Quotation</h3>
+
           <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
             <label style={label()}>
               Tanggal
-              <input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={input()} />
-            </label>
-
-            <div style={{ display: "grid", gap: 8 }}>
-              <label style={label()}>
-                Due Date
-                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={input()} />
-              </label>
-
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button type="button" onClick={() => applyTerms(7)} style={pillBtn(termsDays === 7)}>
-                  Terms 7 hari
-                </button>
-                <button type="button" onClick={() => applyTerms(14)} style={pillBtn(termsDays === 14)}>
-                  Terms 14 hari
-                </button>
-                <button type="button" onClick={() => applyTerms(30)} style={pillBtn(termsDays === 30)}>
-                  Terms 30 hari
-                </button>
-              </div>
-              <small style={{ color: "#666" }}>Klik terms untuk otomatis hitung due date dari tanggal invoice.</small>
-            </div>
-
-            <label style={label()}>
-              Pilih Customer (optional)
-              <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={input()}>
-                <option value="">- manual -</option>
-                {(customers || []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.phone})
-                  </option>
-                ))}
-              </select>
-              {loadingCust ? <small style={{ color: "#666" }}>Loading customer...</small> : null}
+              <input
+                type="date"
+                value={quotationDate}
+                onChange={(e) => setQuotationDate(e.target.value)}
+                style={input()}
+                disabled={isLocked}
+              />
             </label>
 
             <label style={label()}>
               Nama Customer (wajib)
-              <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} style={input()} />
+              <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} style={input()} disabled={isLocked} />
             </label>
 
             <label style={label()}>
               No HP
-              <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} style={input()} />
+              <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} style={input()} disabled={isLocked} />
             </label>
 
             <label style={label()}>
-              Alamat Customer (tersimpan di invoice)
+              Alamat Customer
               <textarea
                 value={customerAddress}
                 onChange={(e) => setCustomerAddress(e.target.value)}
-                style={{ ...input(), minHeight: 80, resize: "vertical" }}
+                style={{ ...input(), minHeight: 80 }}
+                disabled={isLocked}
               />
             </label>
 
             <label style={label()}>
               Catatan
-              <textarea value={note} onChange={(e) => setNote(e.target.value)} style={{ ...input(), minHeight: 80 }} />
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} style={{ ...input(), minHeight: 80 }} disabled={isLocked} />
             </label>
           </div>
         </div>
 
         <div style={card()}>
           <h3 style={{ margin: 0 }}>Diskon & Pajak</h3>
+
           <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
             <label style={label()}>
               Diskon Tipe
@@ -511,6 +396,7 @@ export default function InvoiceNewPage() {
                   if (v === "amount") setDiscountPercent(0);
                 }}
                 style={input()}
+                disabled={isLocked}
               >
                 <option value="percent">Percent (%)</option>
                 <option value="amount">Amount (Rp)</option>
@@ -528,8 +414,8 @@ export default function InvoiceNewPage() {
                   onChange={(e) => setDiscountPercent(clampPercent(digitsToNumber(e.target.value)))}
                   placeholder="0–100"
                   style={input()}
+                  disabled={isLocked}
                 />
-                <small style={{ color: "#666" }}>Diskon dihitung dari subtotal.</small>
               </label>
             ) : (
               <label style={label()}>
@@ -541,8 +427,8 @@ export default function InvoiceNewPage() {
                   onChange={(e) => setDiscountAmountText(formatThousandsID(digitsToNumber(e.target.value)))}
                   placeholder="contoh: 50.000"
                   style={input()}
+                  disabled={isLocked}
                 />
-                <small style={{ color: "#666" }}>Diskon fixed amount (rupiah).</small>
               </label>
             )}
 
@@ -556,8 +442,9 @@ export default function InvoiceNewPage() {
                 onChange={(e) => setTaxPercent(clampPercent(digitsToNumber(e.target.value)))}
                 placeholder="0–100"
                 style={input()}
+                disabled={isLocked}
               />
-              <small style={{ color: "#666" }}>Pajak dihitung setelah diskon (percent only).</small>
+              <small style={{ color: "#666" }}>Pajak dihitung setelah diskon.</small>
             </label>
 
             <div style={{ marginTop: 6, borderTop: "1px solid #eee", paddingTop: 10 }}>
@@ -566,20 +453,18 @@ export default function InvoiceNewPage() {
               <Row k="Pajak" v={rupiah(calc.tax)} />
               <Row k="Total" v={<b>{rupiah(calc.total)}</b>} />
             </div>
-
-            {msg ? <p style={{ color: "#b00", margin: 0 }}>{msg}</p> : null}
           </div>
         </div>
       </div>
 
       <div style={{ marginTop: 12, ...card() }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <h3 style={{ margin: 0 }}>Items</h3>
           <div style={{ display: "flex", gap: 8 }}>
             <a href="/products" style={btn()}>
               + Kelola Barang
             </a>
-            <button onClick={addItem} style={btn()}>
+            <button onClick={addItem} style={btn()} disabled={isLocked}>
               + Tambah Item
             </button>
           </div>
@@ -599,9 +484,14 @@ export default function InvoiceNewPage() {
             </thead>
             <tbody>
               {items.map((it, i) => (
-                <tr key={i}>
+                <tr key={it.id ? it.id : `${id}-${i}`}>
                   <td style={td()}>
-                    <select value={it.product_id || ""} onChange={(e) => onPickProduct(i, e.target.value)} style={input()}>
+                    <select
+                      value={it.product_id || ""}
+                      onChange={(e) => onPickProduct(i, e.target.value)}
+                      style={input()}
+                      disabled={isLocked}
+                    >
                       <option value="">- manual -</option>
                       {(products || []).map((p) => (
                         <option key={p.id} value={p.id}>
@@ -620,6 +510,7 @@ export default function InvoiceNewPage() {
                       onChange={(e) => setItem(i, { name: e.target.value, product_id: "" })}
                       placeholder="Nama item"
                       style={input()}
+                      disabled={isLocked}
                     />
                   </td>
 
@@ -633,6 +524,7 @@ export default function InvoiceNewPage() {
                       onBlur={() => onBlurQty(i)}
                       placeholder="Qty"
                       style={input()}
+                      disabled={isLocked}
                     />
                   </td>
 
@@ -644,19 +536,18 @@ export default function InvoiceNewPage() {
                         value={it.priceText}
                         onChange={(e) => onChangePrice(i, e.target.value)}
                         onBlur={() => onBlurPrice(i)}
-                        placeholder="Harga (contoh: 10.000)"
+                        placeholder="Harga"
                         style={input()}
+                        disabled={isLocked}
                       />
-                      <small style={{ color: "#666" }}>
-                        {it.price > 0 ? `Rp ${it.price.toLocaleString("id-ID")}` : " "}
-                      </small>
+                      <small style={{ color: "#666" }}>{it.price > 0 ? `Rp ${it.price.toLocaleString("id-ID")}` : " "}</small>
                     </div>
                   </td>
 
                   <td style={td()}>{rupiah(num(it.qty) * num(it.price))}</td>
 
                   <td style={td()}>
-                    <button onClick={() => removeItem(i)} disabled={items.length === 1} style={miniBtnDanger()}>
+                    <button onClick={() => removeItem(i)} disabled={isLocked || items.length === 1} style={miniBtnDanger()}>
                       Hapus
                     </button>
                   </td>
@@ -670,6 +561,8 @@ export default function InvoiceNewPage() {
           </p>
         </div>
       </div>
+
+      {loading ? <p style={{ marginTop: 14, color: "#666" }}>Loading...</p> : null}
     </div>
   );
 }
@@ -684,78 +577,26 @@ function Row({ k, v }: { k: string; v: any }) {
 }
 
 function card(): React.CSSProperties {
-  return {
-    border: "1px solid #eee",
-    borderRadius: 12,
-    padding: 14,
-    background: "white",
-    boxSizing: "border-box",
-  };
+  return { border: "1px solid #eee", borderRadius: 12, padding: 14, background: "white", boxSizing: "border-box" };
 }
 function label(): React.CSSProperties {
   return { display: "grid", gap: 6, fontSize: 13, color: "#444" };
 }
 function input(): React.CSSProperties {
-  return {
-    padding: 10,
-    borderRadius: 10,
-    border: "1px solid #ddd",
-    width: "100%",
-    boxSizing: "border-box",
-    outline: "none",
-    background: "white",
-  };
+  return { padding: 10, borderRadius: 10, border: "1px solid #ddd", width: "100%", boxSizing: "border-box", outline: "none", background: "white" };
 }
 function btn(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #ddd",
-    background: "white",
-    cursor: "pointer",
-    textDecoration: "none",
-    color: "#111",
-  };
+  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", textDecoration: "none", color: "#111" };
 }
 function btnPrimary(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #111",
-    background: "#111",
-    color: "white",
-    cursor: "pointer",
-  };
-}
-function pillBtn(active: boolean): React.CSSProperties {
-  return {
-    padding: "8px 10px",
-    borderRadius: 999,
-    border: "1px solid #ddd",
-    background: active ? "#111" : "white",
-    color: active ? "white" : "#111",
-    cursor: "pointer",
-    fontWeight: 700,
-  };
+  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer" };
 }
 function th(): React.CSSProperties {
-  return {
-    textAlign: "left",
-    borderBottom: "1px solid #eee",
-    padding: "8px 6px",
-    color: "#666",
-    fontWeight: 600,
-  };
+  return { textAlign: "left", borderBottom: "1px solid #eee", padding: "8px 6px", color: "#666", fontWeight: 600 };
 }
 function td(): React.CSSProperties {
   return { borderBottom: "1px solid #f2f2f2", padding: "8px 6px", verticalAlign: "top" };
 }
 function miniBtnDanger(): React.CSSProperties {
-  return {
-    padding: "6px 10px",
-    borderRadius: 10,
-    border: "1px solid #b00",
-    background: "#fff5f5",
-    cursor: "pointer",
-  };
+  return { padding: "6px 10px", borderRadius: 10, border: "1px solid #b00", background: "#fff5f5", cursor: "pointer" };
 }
