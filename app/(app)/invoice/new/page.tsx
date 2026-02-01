@@ -1,8 +1,8 @@
 // ✅ FULL REPLACE
-// invoiceku/app/invoice/new/page.tsx
+// invoiceku/app/(app)/invoice/new/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { num, rupiah } from "@/lib/money";
 import { useSearchParams } from "next/navigation";
@@ -74,12 +74,13 @@ type PrefillData = {
   }>;
 };
 
-export default function InvoiceNewPage() {
+// ✅ Inner component: useSearchParams() DI SINI (wajib dalam Suspense)
+function InvoiceNewInner() {
   const supabase = supabaseBrowser();
   const sp = useSearchParams();
 
-  // ✅ FIX: param yang bener itu fromQuotation
-  const fromQuotationId = String(sp.get("fromQuotation") || "").trim();
+  // ✅ support 2 versi param biar aman
+  const fromQuotationId = String(sp.get("fromQuotation") || sp.get("fromQuotationId") || "").trim();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -191,7 +192,6 @@ export default function InvoiceNewPage() {
     } else {
       disc = Math.max(0, num(discountAmount));
     }
-    // guard: jangan lebih dari subtotal
     if (disc > sub) disc = sub;
 
     const afterDisc = Math.max(0, sub - disc);
@@ -647,9 +647,7 @@ export default function InvoiceNewPage() {
                         placeholder="Harga (contoh: 10.000)"
                         style={input()}
                       />
-                      <small style={{ color: "#666" }}>
-                        {it.price > 0 ? `Rp ${it.price.toLocaleString("id-ID")}` : " "}
-                      </small>
+                      <small style={{ color: "#666" }}>{it.price > 0 ? `Rp ${it.price.toLocaleString("id-ID")}` : " "}</small>
                     </div>
                   </td>
 
@@ -671,6 +669,15 @@ export default function InvoiceNewPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function InvoiceNewPage() {
+  // ✅ FIX Vercel: useSearchParams wajib di dalam Suspense
+  return (
+    <Suspense fallback={<div style={{ padding: 18 }}>Loading...</div>}>
+      <InvoiceNewInner />
+    </Suspense>
   );
 }
 
