@@ -1,5 +1,3 @@
-// app/invoice/page.tsx  (FULL REPLACE - percent-only)
-// NOTE: list invoice + quick payment
 export const runtime = "nodejs";
 
 import Link from "next/link";
@@ -32,22 +30,6 @@ function parseIntSafe(v: string | undefined, fallback: number) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-function getPayStatus(grandTotal: number, amountPaid: number) {
-  if (grandTotal <= 0) return "UNPAID";
-  if (amountPaid >= grandTotal) return "PAID";
-  if (amountPaid > 0) return "PARTIAL";
-  return "UNPAID";
-}
-
-function badgeStyle(status: string) {
-  if (status === "PAID")
-    return { bg: "#ecfdf5", border: "#6ee7b7", color: "#065f46" };
-  if (status === "PARTIAL")
-    return { bg: "#eff6ff", border: "#93c5fd", color: "#1e3a8a" };
-  return { bg: "#fff7ed", border: "#fdba74", color: "#9a3412" };
-}
-
-// ✅ percent-only: discount_value & tax_value = persen (0-100)
 function clampPct(v: any) {
   const n = Number(v);
   if (!Number.isFinite(n)) return 0;
@@ -76,6 +58,35 @@ function calcTotals(inv: any) {
   const remaining = Math.max(0, grandTotal - paid);
 
   return { subtotal, grandTotal, paid, remaining };
+}
+
+function getUiPayStatus(rawStatus: any, grandTotal: number, amountPaid: number) {
+  const status = String(rawStatus || "").toLowerCase();
+
+  if (status === "cancelled") return "CANCELLED";
+  if (status === "draft") return "DRAFT";
+  if (status === "paid") return "PAID";
+
+  if (grandTotal <= 0) return "UNPAID";
+  if (amountPaid >= grandTotal) return "PAID";
+  if (amountPaid > 0) return "PARTIAL";
+  return "UNPAID";
+}
+
+function badgeStyle(status: string) {
+  if (status === "PAID") {
+    return { bg: "#ecfdf5", border: "#6ee7b7", color: "#065f46" };
+  }
+  if (status === "PARTIAL") {
+    return { bg: "#eff6ff", border: "#93c5fd", color: "#1e3a8a" };
+  }
+  if (status === "CANCELLED") {
+    return { bg: "#fef2f2", border: "#fca5a5", color: "#991b1b" };
+  }
+  if (status === "DRAFT") {
+    return { bg: "#f3f4f6", border: "#d1d5db", color: "#374151" };
+  }
+  return { bg: "#fff7ed", border: "#fdba74", color: "#9a3412" };
 }
 
 function buildUrl(current: URLSearchParams, patch: Record<string, string>) {
@@ -128,7 +139,6 @@ export default async function InvoiceListPage({
     );
   }
 
-  // Customers for dropdown
   const { data: customers, error: custErr } = await supabase
     .from("customers")
     .select("id, name")
@@ -143,13 +153,11 @@ export default async function InvoiceListPage({
     );
   }
 
-  // current params for pagination links
   const currentParams = new URLSearchParams();
   for (const [k, v] of Object.entries(sp || {})) {
     if (v) currentParams.set(k, String(v));
   }
 
-  // COUNT query (server-side filters only)
   let countQ = supabase
     .from("invoices")
     .select("id", { count: "exact", head: true })
@@ -174,7 +182,6 @@ export default async function InvoiceListPage({
   const totalRows = totalCount || 0;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
 
-  // DATA query (✅ percent-only: ambil discount_value & tax_value saja)
   let dataQ = supabase
     .from("invoices")
     .select(
@@ -185,6 +192,7 @@ export default async function InvoiceListPage({
       invoice_date,
       customer_id,
       customer_name,
+      status,
       amount_paid,
       discount_value,
       tax_value,
@@ -214,7 +222,7 @@ export default async function InvoiceListPage({
   const invoices = (invoicesRaw || [])
     .map((inv: any) => {
       const t = calcTotals(inv);
-      const payStatus = getPayStatus(t.grandTotal, t.paid);
+      const payStatus = getUiPayStatus(inv.status, t.grandTotal, t.paid);
       return { ...inv, ...t, payStatus };
     })
     .filter((inv: any) => {
@@ -222,7 +230,6 @@ export default async function InvoiceListPage({
       return true;
     });
 
-  // pagination links
   const prevUrl = buildUrl(currentParams, { p: String(Math.max(1, page - 1)) });
   const nextUrl = buildUrl(currentParams, { p: String(Math.min(totalPages, page + 1)) });
   const firstUrl = buildUrl(currentParams, { p: "1" });
@@ -230,7 +237,6 @@ export default async function InvoiceListPage({
 
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -279,7 +285,6 @@ export default async function InvoiceListPage({
         </div>
       </div>
 
-      {/* Filters */}
       <div
         style={{
           marginTop: 14,
@@ -292,7 +297,6 @@ export default async function InvoiceListPage({
         <InvoiceFiltersClient customers={(customers || []) as any} />
       </div>
 
-      {/* Pagination top */}
       <div
         style={{
           marginTop: 12,
@@ -318,7 +322,6 @@ export default async function InvoiceListPage({
         </div>
       </div>
 
-      {/* Table */}
       <div
         style={{
           marginTop: 14,
@@ -405,7 +408,6 @@ export default async function InvoiceListPage({
         </table>
       </div>
 
-      {/* Pagination bottom */}
       <div
         style={{
           marginTop: 12,

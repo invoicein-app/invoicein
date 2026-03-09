@@ -11,12 +11,22 @@ type NavItem = { href: string; label: string; adminOnly?: boolean };
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/quotations", label: "Quotations" }, // ✅ NEW
+
+  // Sales
+  { href: "/quotations", label: "Quotations" },
   { href: "/invoice", label: "Invoice" },
   { href: "/delivery-notes", label: "Surat Jalan" },
+
+  // Purchase
+  { href: "/purchase-orders", label: "Purchase Orders" },
+
+  // Master data
   { href: "/customers", label: "Customer" },
   { href: "/products", label: "Barang" },
+  { href: "/vendors", label: "Vendor" },
+  { href: "/warehouses", label: "Warehouse" }, // ✅ NEW
 
+  // Settings
   { href: "/settings/activity", label: "Activity", adminOnly: true },
   { href: "/settings", label: "Pengaturan" },
 ];
@@ -76,7 +86,7 @@ export default function Sidebar() {
 
       <nav style={{ display: "grid", gap: 8 }}>
         {items.map((it) => {
-          const isActive = pathname === it.href;
+          const isActive = pathname === it.href || pathname.startsWith(it.href + "/");
 
           return (
             <Link
@@ -91,14 +101,31 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div style={{ marginTop: 14, borderTop: "1px solid #eee", paddingTop: 12, display: "grid", gap: 8 }}>
+      <div
+        style={{
+          marginTop: 14,
+          borderTop: "1px solid #eee",
+          paddingTop: 12,
+          display: "grid",
+          gap: 8,
+        }}
+      >
+        {/* Quick actions */}
         <Link href="/invoice/new" style={cta()}>
           + Buat Invoice
         </Link>
 
-        {/* ✅ optional quick action */}
         <Link href="/quotations/new" style={ctaSecondary()}>
           + Buat Quotation
+        </Link>
+
+        <Link href="/purchase-orders/new" style={ctaSecondary()}>
+          + Buat PO
+        </Link>
+
+        {/* ✅ NEW quick action */}
+        <Link href="/warehouses/new" style={ctaSecondary()}>
+          + Buat Warehouse
         </Link>
       </div>
     </aside>

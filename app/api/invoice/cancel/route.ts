@@ -1,18 +1,3 @@
-// ✅ FULL REPLACE FILE
-// invoiceku/app/api/invoice/cancel/route.ts
-//
-// POST /api/invoice/cancel
-// body: { invoice_id: string, reason?: string }
-//
-// Rules (human-friendly, tapi tetap profesional):
-// - boleh cancel kalau status invoice: draft | sent | unpaid
-// - TIDAK boleh cancel kalau status = paid atau sudah ada pembayaran (amount_paid > 0)
-// - kalau invoice punya quotation_id -> quotations.status ikut jadi 'cancelled' + is_locked tetap true
-// - kalau ada quotations.invoice_id = invoice_id (fallback legacy) -> ikut cancel juga
-// - tetap pakai org_id filter (membership) biar aman multi-tenant
-//
-// NOTE: enum invoice_status & quotation_status HARUS sudah ada 'cancelled'
-
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
@@ -21,13 +6,15 @@ import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
 
 function isUuid(v: any) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(v || "")
-  );
+  const s = String(v || "").trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+}
+function num(v: any) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 export async function POST(req: Request) {
-  // ✅ cookies compat (Next 15)
   const csAny: any = cookies() as any;
   const cookieStore: any = csAny?.then ? await csAny : csAny;
 
@@ -37,9 +24,9 @@ export async function POST(req: Request) {
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet: any[]) => {
+        setAll: (cookiesToSet) => {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
+            cookiesToSet.forEach(({ name, value, options }: any) =>
               cookieStore.set(name, value, options)
             );
           } catch {}
@@ -48,26 +35,23 @@ export async function POST(req: Request) {
     }
   );
 
-  // auth
   const { data: userRes, error: userErr } = await supabase.auth.getUser();
   if (userErr || !userRes?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const user = userRes.user;
 
-  // body
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-
-  const invoice_id = String(body?.invoice_id || "").trim();
-  const reason = String(body?.reason || "").trim();
-
-  if (!isUuid(invoice_id)) {
-    return NextResponse.json({ error: "invoice_id tidak valid." }, { status: 400 });
+  if (!body) {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // membership
-  const { data: membership, error: memErr } = await supabase
+  const invoiceId = String(body.invoice_id || "").trim();
+  if (!isUuid(invoiceId)) {
+    return NextResponse.json({ error: "Invalid invoice id" }, { status: 400 });
+  }
+
+  const { data: mem, error: memErr } = await supabase
     .from("memberships")
     .select("org_id, role, is_active")
     .eq("user_id", user.id)
@@ -75,142 +59,187 @@ export async function POST(req: Request) {
     .limit(1)
     .maybeSingle();
 
-  if (memErr) return NextResponse.json({ error: memErr.message }, { status: 400 });
-  if (!membership?.org_id) {
-    return NextResponse.json({ error: "Kamu belum punya organisasi aktif." }, { status: 400 });
+  if (memErr) {
+    return NextResponse.json({ error: memErr.message }, { status: 400 });
+  }
+  if (!mem?.org_id) {
+    return NextResponse.json({ error: "Org tidak ditemukan" }, { status: 400 });
   }
 
-  const orgId = String(membership.org_id);
-  const actorRole = String((membership as any).role || "staff");
+  const orgId = String((mem as any).org_id);
+  const actorRole = String((mem as any).role || "staff");
 
-  // load invoice (pastikan milik org ini)
   const { data: inv, error: invErr } = await supabase
     .from("invoices")
-    .select("id, org_id, invoice_number, status, amount_paid, quotation_id")
-    .eq("id", invoice_id)
-    .eq("org_id", orgId)
+    .select("id, org_id, status, warehouse_id, invoice_number, customer_name")
+    .eq("id", invoiceId)
     .maybeSingle();
 
-  if (invErr) return NextResponse.json({ error: invErr.message }, { status: 400 });
+  if (invErr) {
+    return NextResponse.json({ error: invErr.message }, { status: 400 });
+  }
   if (!inv) {
-    return NextResponse.json({ error: "Invoice tidak ditemukan / tidak punya akses." }, { status: 404 });
+    return NextResponse.json({ error: "Invoice tidak ditemukan." }, { status: 404 });
+  }
+  if (String((inv as any).org_id || "") !== orgId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const status = String((inv as any).status || "").toLowerCase();
-  const amountPaid = Number((inv as any).amount_paid || 0);
 
-  // hard rules
   if (status === "cancelled") {
-    return NextResponse.json({ error: "Invoice ini sudah cancelled." }, { status: 400 });
+    return NextResponse.json({ error: "Invoice sudah cancelled." }, { status: 400 });
   }
-  if (status === "paid" || amountPaid > 0) {
+
+  if (status === "paid") {
     return NextResponse.json(
-      { error: "Tidak bisa cancel invoice yang sudah ada pembayaran. (lebih aman pakai refund/credit note nanti)" },
-      { status: 400 }
-    );
-  }
-  if (!["draft", "sent", "unpaid"].includes(status)) {
-    return NextResponse.json(
-      { error: `Status invoice tidak bisa dicancel: ${status || "-"}` },
+      { error: "Invoice paid tidak bisa di-cancel langsung." },
       { status: 400 }
     );
   }
 
-  // ✅ cancel invoice
-  const { error: updErr } = await supabase
+  const warehouseId = String((inv as any).warehouse_id || "").trim();
+
+  const { data: outLedgers, error: ledErr } = await supabase
+    .from("stock_ledger")
+    .select("id, warehouse_id, product_id, ref_type, ref_id, ref_line_id, product_name, qty_in, qty_out")
+    .eq("org_id", orgId)
+    .eq("ref_type", "INVOICE")
+    .eq("ref_id", invoiceId);
+
+  if (ledErr) {
+    return NextResponse.json({ error: ledErr.message }, { status: 400 });
+  }
+
+  const alreadyReversed = await supabase
+    .from("stock_ledger")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("ref_type", "INVOICE_CANCEL")
+    .eq("ref_id", invoiceId)
+    .limit(1)
+    .maybeSingle();
+
+  if (alreadyReversed.error) {
+    return NextResponse.json({ error: alreadyReversed.error.message }, { status: 400 });
+  }
+
+  if (alreadyReversed.data) {
+    return NextResponse.json(
+      { error: "Reversal stok invoice ini sudah pernah diposting." },
+      { status: 400 }
+    );
+  }
+
+  const hasStockMovement = Array.isArray(outLedgers) && outLedgers.length > 0;
+
+  if (hasStockMovement) {
+    for (const row of outLedgers as any[]) {
+      const whId = String(row.warehouse_id || warehouseId || "").trim();
+      const productId = String(row.product_id || "").trim();
+      const productName = String(row.product_name || "").trim();
+      const qtyOut = Math.max(0, Math.floor(num(row.qty_out)));
+
+      if (!whId || !productId || qtyOut <= 0) continue;
+
+      const { data: bal, error: balErr } = await supabase
+        .from("inventory_balances")
+        .select("item_key, item_name, on_hand")
+        .eq("org_id", orgId)
+        .eq("warehouse_id", whId)
+        .eq("product_id", productId)
+        .maybeSingle();
+
+      if (balErr) {
+        return NextResponse.json({ error: balErr.message }, { status: 400 });
+      }
+
+      if (!bal) {
+        return NextResponse.json(
+          { error: `Balance stok untuk barang "${productName}" tidak ditemukan.` },
+          { status: 400 }
+        );
+      }
+
+      const currentOnHand = Math.max(0, Math.floor(num((bal as any).on_hand)));
+      const nextOnHand = currentOnHand + qtyOut;
+
+      const { error: upBalErr } = await supabase
+        .from("inventory_balances")
+        .upsert(
+          {
+            org_id: orgId,
+            warehouse_id: whId,
+            product_id: productId,
+            item_key: String((bal as any).item_key || "").trim(),
+            item_name: String((bal as any).item_name || productName).trim(),
+            on_hand: nextOnHand,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "org_id,warehouse_id,item_key" }
+        );
+
+      if (upBalErr) {
+        return NextResponse.json({ error: upBalErr.message }, { status: 400 });
+      }
+
+      const { error: revLedErr } = await supabase
+        .from("stock_ledger")
+        .insert({
+          org_id: orgId,
+          warehouse_id: whId,
+          product_id: productId,
+          ref_type: "INVOICE_CANCEL",
+          ref_id: invoiceId,
+          ref_line_id: String(row.ref_line_id || row.id || ""),
+          product_name: productName,
+          qty_in: qtyOut,
+          qty_out: 0,
+        });
+
+      if (revLedErr) {
+        return NextResponse.json({ error: revLedErr.message }, { status: 400 });
+      }
+    }
+  }
+
+  const { error: upInvErr } = await supabase
     .from("invoices")
     .update({
       status: "cancelled",
-      // optional: kamu bisa set paid_at null, tapi karena amount_paid=0, biarin aja
-      updated_at: new Date().toISOString(),
+      cancelled_at: new Date().toISOString(),
     })
-    .eq("id", invoice_id)
+    .eq("id", invoiceId)
     .eq("org_id", orgId);
 
-  if (updErr) return NextResponse.json({ error: updErr.message }, { status: 400 });
-
-  // ✅ cancel quotation terkait (2 jalur: quotation_id di invoice, atau quotations.invoice_id legacy)
-  let quotationId: string | null = null;
-  let quotationNumber: string | null = null;
-
-  try {
-    const qId = String((inv as any).quotation_id || "").trim();
-
-    // A) kalau invoices.quotation_id ada -> update row itu
-    if (isUuid(qId)) {
-      const { data: qRow } = await supabase
-        .from("quotations")
-        .select("id, quotation_number")
-        .eq("id", qId)
-        .maybeSingle();
-
-      if (qRow?.id) {
-        quotationId = String(qRow.id);
-        quotationNumber = (qRow as any).quotation_number ?? null;
-
-        await supabase
-          .from("quotations")
-          .update({
-            status: "cancelled",
-            // invoice_id biarkan tetap ada biar audit rapi (one-way)
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", quotationId);
-      }
-    } else {
-      // B) fallback: cari quotation yang invoice_id = invoice_id
-      const { data: qRow2 } = await supabase
-        .from("quotations")
-        .select("id, quotation_number")
-        .eq("invoice_id", invoice_id)
-        .limit(1)
-        .maybeSingle();
-
-      if (qRow2?.id) {
-        quotationId = String(qRow2.id);
-        quotationNumber = (qRow2 as any).quotation_number ?? null;
-
-        await supabase
-          .from("quotations")
-          .update({
-            status: "cancelled",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", quotationId);
-      }
-    }
-  } catch {
-    // best-effort: jangan gagalkan cancel invoice kalau update quotation gagal
+  if (upInvErr) {
+    return NextResponse.json({ error: upInvErr.message }, { status: 400 });
   }
 
-  // activity log
   await logActivity({
     org_id: orgId,
     actor_user_id: user.id,
     actor_role: actorRole,
     action: "invoice.cancel",
     entity_type: "invoice",
-    entity_id: invoice_id,
-    summary: `Cancel invoice ${(inv as any).invoice_number || invoice_id}`,
+    entity_id: invoiceId,
+    summary: `Cancel invoice ${String((inv as any).invoice_number || invoiceId)}`,
     meta: {
-      invoice_id,
-      invoice_number: (inv as any).invoice_number ?? null,
-      prev_status: status,
-      new_status: "cancelled",
-      reason: reason || null,
-      quotation_id: quotationId,
-      quotation_number: quotationNumber,
+      invoice_id: invoiceId,
+      invoice_number: (inv as any).invoice_number || null,
+      previous_status: status,
+      stock_reversed: hasStockMovement,
+      warehouse_id: warehouseId || null,
+      reversal_lines: hasStockMovement ? outLedgers.length : 0,
     },
   });
 
   return NextResponse.json(
     {
       ok: true,
-      invoice_id,
-      invoice_number: (inv as any).invoice_number ?? null,
       status: "cancelled",
-      quotation_id: quotationId,
-      quotation_number: quotationNumber,
+      stock_reversed: hasStockMovement,
+      reversal_lines: hasStockMovement ? outLedgers.length : 0,
     },
     { status: 200 }
   );

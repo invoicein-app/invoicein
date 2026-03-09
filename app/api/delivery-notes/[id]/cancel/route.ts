@@ -1,0 +1,350 @@
+export const runtime = "nodejs";
+
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
+import { logActivity } from "@/lib/log-activity";
+
+function isUuid(v: any) {
+  const s = String(v || "").trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+}
+
+function num(v: any) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+export async function POST(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const { id } = await ctx.params;
+  const deliveryNoteId = String(id || "").trim();
+
+  if (!isUuid(deliveryNoteId)) {
+    return NextResponse.json({ error: "Invalid delivery note id" }, { status: 400 });
+  }
+
+  const csAny: any = cookies() as any;
+  const cookieStore: any = csAny?.then ? await csAny : csAny;
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet) => {
+          try {
+            cookiesToSet.forEach(({ name, value, options }: any) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {}
+        },
+      },
+    }
+  );
+
+  const { data: userRes, error: userErr } = await supabase.auth.getUser();
+  if (userErr || !userRes?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const user = userRes.user;
+
+  const { data: mem, error: memErr } = await supabase
+    .from("memberships")
+    .select("org_id, role, is_active")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (memErr) {
+    return NextResponse.json({ error: memErr.message }, { status: 400 });
+  }
+  if (!mem?.org_id) {
+    return NextResponse.json({ error: "Org tidak ditemukan" }, { status: 400 });
+  }
+
+  const orgId = String((mem as any).org_id);
+  const actorRole = String((mem as any).role || "staff");
+
+  const { data: dn, error: dnErr } = await supabase
+    .from("delivery_notes")
+    .select("id, org_id, invoice_id, sj_number, status, warehouse_id")
+    .eq("id", deliveryNoteId)
+    .maybeSingle();
+
+  if (dnErr) {
+    return NextResponse.json({ error: dnErr.message }, { status: 400 });
+  }
+  if (!dn) {
+    return NextResponse.json({ error: "Surat jalan tidak ditemukan." }, { status: 404 });
+  }
+  if (String((dn as any).org_id || "") !== orgId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const dnStatus = String((dn as any).status || "draft").toLowerCase();
+
+  if (dnStatus === "cancelled") {
+    return NextResponse.json({ error: "Surat jalan sudah cancelled." }, { status: 400 });
+  }
+
+  const { data: settings, error: settingsErr } = await supabase
+    .from("org_settings")
+    .select("stock_issue_trigger")
+    .eq("org_id", orgId)
+    .maybeSingle();
+
+  if (settingsErr) {
+    return NextResponse.json({ error: settingsErr.message }, { status: 400 });
+  }
+
+  const stockIssueTrigger = String(
+    settings?.stock_issue_trigger || "invoice_sent"
+  );
+
+  const warehouseId = String((dn as any).warehouse_id || "").trim();
+
+  // kalau SJ draft => cancel biasa, belum ada stok
+  if (dnStatus === "draft") {
+    const { error: upErr } = await supabase
+      .from("delivery_notes")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+      })
+      .eq("id", deliveryNoteId)
+      .eq("org_id", orgId);
+
+    if (upErr) {
+      return NextResponse.json({ error: upErr.message }, { status: 400 });
+    }
+
+    await logActivity({
+      org_id: orgId,
+      actor_user_id: user.id,
+      actor_role: actorRole,
+      action: "delivery_note.cancel",
+      entity_type: "delivery_note",
+      entity_id: deliveryNoteId,
+      summary: `Cancel delivery note ${String((dn as any).sj_number || deliveryNoteId)}`,
+      meta: {
+        delivery_note_id: deliveryNoteId,
+        sj_number: (dn as any).sj_number || null,
+        previous_status: dnStatus,
+        stock_reversed: false,
+      },
+    });
+
+    return NextResponse.json(
+      {
+        ok: true,
+        status: "cancelled",
+        stock_reversed: false,
+      },
+      { status: 200 }
+    );
+  }
+
+  // posted + trigger bukan delivery_note_posted => cancel tanpa reversal stok
+  if (stockIssueTrigger !== "delivery_note_posted") {
+    const { error: upErr } = await supabase
+      .from("delivery_notes")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+      })
+      .eq("id", deliveryNoteId)
+      .eq("org_id", orgId);
+
+    if (upErr) {
+      return NextResponse.json({ error: upErr.message }, { status: 400 });
+    }
+
+    await logActivity({
+      org_id: orgId,
+      actor_user_id: user.id,
+      actor_role: actorRole,
+      action: "delivery_note.cancel",
+      entity_type: "delivery_note",
+      entity_id: deliveryNoteId,
+      summary: `Cancel delivery note ${String((dn as any).sj_number || deliveryNoteId)}`,
+      meta: {
+        delivery_note_id: deliveryNoteId,
+        sj_number: (dn as any).sj_number || null,
+        previous_status: dnStatus,
+        stock_issue_trigger: stockIssueTrigger,
+        stock_reversed: false,
+        reason: "trigger is not delivery_note_posted",
+      },
+    });
+
+    return NextResponse.json(
+      {
+        ok: true,
+        status: "cancelled",
+        stock_reversed: false,
+      },
+      { status: 200 }
+    );
+  }
+
+  // trigger = delivery_note_posted => reversal stok
+  if (!warehouseId) {
+    return NextResponse.json(
+      { error: "warehouse_id surat jalan kosong, tidak bisa reversal stok." },
+      { status: 400 }
+    );
+  }
+
+  const { data: outLedgers, error: outLedgersErr } = await supabase
+    .from("stock_ledger")
+    .select("id, warehouse_id, product_id, ref_type, ref_id, ref_line_id, product_name, qty_in, qty_out")
+    .eq("org_id", orgId)
+    .eq("ref_type", "DELIVERY_NOTE")
+    .eq("ref_id", deliveryNoteId);
+
+  if (outLedgersErr) {
+    return NextResponse.json({ error: outLedgersErr.message }, { status: 400 });
+  }
+
+  if (!outLedgers || outLedgers.length === 0) {
+    return NextResponse.json(
+      { error: "Stock movement DELIVERY_NOTE untuk SJ ini tidak ditemukan." },
+      { status: 400 }
+    );
+  }
+
+  const { data: alreadyReversed, error: alreadyRevErr } = await supabase
+    .from("stock_ledger")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("ref_type", "DELIVERY_NOTE_CANCEL")
+    .eq("ref_id", deliveryNoteId)
+    .limit(1)
+    .maybeSingle();
+
+  if (alreadyRevErr) {
+    return NextResponse.json({ error: alreadyRevErr.message }, { status: 400 });
+  }
+
+  if (alreadyReversed) {
+    return NextResponse.json(
+      { error: "Reversal stok SJ ini sudah pernah diposting." },
+      { status: 400 }
+    );
+  }
+
+  for (const row of outLedgers as any[]) {
+    const whId = String(row.warehouse_id || warehouseId || "").trim();
+    const productId = String(row.product_id || "").trim();
+    const productName = String(row.product_name || "").trim();
+    const qtyOut = Math.max(0, Math.floor(num(row.qty_out)));
+
+    if (!whId || !productId || qtyOut <= 0) continue;
+
+    const { data: bal, error: balErr } = await supabase
+      .from("inventory_balances")
+      .select("item_key, item_name, on_hand")
+      .eq("org_id", orgId)
+      .eq("warehouse_id", whId)
+      .eq("product_id", productId)
+      .maybeSingle();
+
+    if (balErr) {
+      return NextResponse.json({ error: balErr.message }, { status: 400 });
+    }
+
+    if (!bal) {
+      return NextResponse.json(
+        { error: `Balance stok untuk barang "${productName}" tidak ditemukan.` },
+        { status: 400 }
+      );
+    }
+
+    const currentOnHand = Math.max(0, Math.floor(num((bal as any).on_hand)));
+    const nextOnHand = currentOnHand + qtyOut;
+
+    const { error: upBalErr } = await supabase
+      .from("inventory_balances")
+      .upsert(
+        {
+          org_id: orgId,
+          warehouse_id: whId,
+          product_id: productId,
+          item_key: String((bal as any).item_key || "").trim(),
+          item_name: String((bal as any).item_name || productName).trim(),
+          on_hand: nextOnHand,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "org_id,warehouse_id,item_key" }
+      );
+
+    if (upBalErr) {
+      return NextResponse.json({ error: upBalErr.message }, { status: 400 });
+    }
+
+    const { error: ledErr } = await supabase
+      .from("stock_ledger")
+      .insert({
+        org_id: orgId,
+        warehouse_id: whId,
+        product_id: productId,
+        ref_type: "DELIVERY_NOTE_CANCEL",
+        ref_id: deliveryNoteId,
+        ref_line_id: String(row.ref_line_id || row.id || ""),
+        product_name: productName,
+        qty_in: qtyOut,
+        qty_out: 0,
+      });
+
+    if (ledErr) {
+      return NextResponse.json({ error: ledErr.message }, { status: 400 });
+    }
+  }
+
+  const { error: upErr } = await supabase
+    .from("delivery_notes")
+    .update({
+      status: "cancelled",
+      cancelled_at: new Date().toISOString(),
+    })
+    .eq("id", deliveryNoteId)
+    .eq("org_id", orgId);
+
+  if (upErr) {
+    return NextResponse.json({ error: upErr.message }, { status: 400 });
+  }
+
+  await logActivity({
+    org_id: orgId,
+    actor_user_id: user.id,
+    actor_role: actorRole,
+    action: "delivery_note.cancel",
+    entity_type: "delivery_note",
+    entity_id: deliveryNoteId,
+    summary: `Cancel delivery note ${String((dn as any).sj_number || deliveryNoteId)}`,
+    meta: {
+      delivery_note_id: deliveryNoteId,
+      sj_number: (dn as any).sj_number || null,
+      previous_status: dnStatus,
+      stock_issue_trigger: stockIssueTrigger,
+      stock_reversed: true,
+      reversal_lines: outLedgers.length,
+      warehouse_id: warehouseId,
+    },
+  });
+
+  return NextResponse.json(
+    {
+      ok: true,
+      status: "cancelled",
+      stock_reversed: true,
+      reversal_lines: outLedgers.length,
+    },
+    { status: 200 }
+  );
+}

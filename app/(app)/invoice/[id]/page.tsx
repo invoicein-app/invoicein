@@ -1,12 +1,3 @@
-// ✅ FULL REPLACE
-// invoiceku/app/invoice/[id]/page.tsx
-// + Tombol "Cancel Invoice" (confirm + alasan optional)
-// + Panggil API: POST /api/invoice/cancel
-//
-// NOTE:
-// - Cancel hanya muncul kalau invoice belum PAID dan amount_paid masih 0
-// - Setelah cancel sukses: refresh page
-
 export const runtime = "nodejs";
 
 import { cookies } from "next/headers";
@@ -18,6 +9,7 @@ import PdfButtonClient from "../pdf-button-client";
 import SjButtonClient from "../sj-button-client";
 import DotmatrixButtonClient from "../dotmatrix-button-client";
 import CancelInvoiceButtonClient from "../cancel-invoice-button-client";
+import SentInvoiceButtonClient from "../sent-invoice-button-client";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -47,7 +39,11 @@ function fmtDate(iso: any) {
   if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("id-ID", { year: "numeric", month: "2-digit", day: "2-digit" });
+  return d.toLocaleDateString("id-ID", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
 export default async function InvoiceViewPage({ params }: PageProps) {
@@ -62,7 +58,9 @@ export default async function InvoiceViewPage({ params }: PageProps) {
         getAll: () => cookieStore.getAll(),
         setAll: (cookiesToSet) => {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
           } catch {}
         },
       },
@@ -80,7 +78,6 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     );
   }
 
-  // ✅ Invoice header: include discount_type
   const { data: invoice, error: invErr } = await supabase
     .from("invoices")
     .select(
@@ -98,7 +95,9 @@ export default async function InvoiceViewPage({ params }: PageProps) {
       discount_value,
       tax_value,
       amount_paid,
-      quotation_id
+      quotation_id,
+      warehouse_id,
+      sent_at
     `
     )
     .eq("id", id)
@@ -113,19 +112,21 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     );
   }
 
-  // Items
   const { data: items } = await supabase
     .from("invoice_items")
-    .select("id, name, qty, price, sort_order")
+    .select("id, name, item_key, unit, qty, price, sort_order")
     .eq("invoice_id", id)
     .order("sort_order", { ascending: true });
 
   const subtotal =
-    (items || []).reduce((acc, it: any) => acc + Number(it.qty || 0) * Number(it.price || 0), 0) || 0;
+    (items || []).reduce(
+      (acc, it: any) => acc + Number(it.qty || 0) * Number(it.price || 0),
+      0
+    ) || 0;
 
-  // ✅ discount: percent OR amount (based on discount_type)
   const dtRaw = String((invoice as any).discount_type || "percent").toLowerCase();
-  const discountType: "percent" | "amount" = dtRaw === "amount" || dtRaw === "fixed" ? "amount" : "percent";
+  const discountType: "percent" | "amount" =
+    dtRaw === "amount" || dtRaw === "fixed" ? "amount" : "percent";
 
   const rawDiscountValue = safeInt((invoice as any).discount_value);
   const discPct = discountType === "percent" ? clampPercent(rawDiscountValue) : 0;
@@ -135,7 +136,6 @@ export default async function InvoiceViewPage({ params }: PageProps) {
       ? Math.max(0, Math.floor(subtotal * (discPct / 100)))
       : Math.max(0, Math.min(subtotal, Math.floor(rawDiscountValue)));
 
-  // ✅ tax percent-only
   const taxPct = clampPercent((invoice as any).tax_value);
 
   const afterDisc = Math.max(0, subtotal - discount);
@@ -145,7 +145,6 @@ export default async function InvoiceViewPage({ params }: PageProps) {
   const amountPaid = Math.max(0, Number((invoice as any).amount_paid || 0));
   const remaining = Math.max(0, grandTotal - amountPaid);
 
-  // Badge status (unpaid/partial/paid)
   let payLabel = "UNPAID";
   let payBg = "#fff7ed";
   let payBorder = "#fdba74";
@@ -163,109 +162,133 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     payColor = "#1e3a8a";
   }
 
-  // label diskon
-  const discountLabel = discountType === "percent" ? `Diskon (${discPct}%)` : "Diskon";
+  const discountLabel =
+    discountType === "percent" ? `Diskon (${discPct}%)` : "Diskon";
 
-  // ✅ show cancel button only if safe
   const docStatus = String((invoice as any).status || "").toLowerCase();
-  const canCancel = amountPaid <= 0 && docStatus !== "paid" && docStatus !== "cancelled";
+  const canCancel =
+    amountPaid <= 0 &&
+    docStatus !== "paid" &&
+    docStatus !== "cancelled";
 
   return (
     <div style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <BackButton />
 
           <PdfButtonClient href={`/api/invoice/pdf/${id}`} />
           <DotmatrixButtonClient href={`/api/invoice/pdf-dotmatrix/${id}`} />
-
-          {/* ✅ cancel button */}
+          <SentInvoiceButtonClient
+            invoiceId={id}
+            invoiceNumber={(invoice as any).invoice_number || null}
+            currentStatus={String((invoice as any).status || "")}
+          />
           <CancelInvoiceButtonClient
             invoiceId={id}
-            invoiceNumber={(invoice as any).invoice_number ?? null}
+            invoiceNumber={(invoice as any).invoice_number || null}
             disabled={!canCancel}
           />
+        </div>
+      </div>
 
+      <div style={{ marginTop: 14 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800 }}>
-              Invoice {(invoice as any).invoice_number || "(tanpa nomor)"}
-            </div>
-            <div style={{ color: "#666", marginTop: 4 }}>
-              Tanggal: {(invoice as any).invoice_date ? fmtDate((invoice as any).invoice_date) : "-"}
-              {" • "}
-              Jatuh tempo: {(invoice as any).due_date ? fmtDate((invoice as any).due_date) : "-"}
-              {" • "}
-              Status dokumen: {(invoice as any).status || "-"}
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>
+              Invoice {(invoice as any).invoice_number || "-"}
+            </h1>
+            <div style={{ color: "#666", marginTop: 6 }}>
+              Tanggal: {fmtDate((invoice as any).invoice_date)} • Jatuh tempo:{" "}
+              {fmtDate((invoice as any).due_date)} • Status dokumen:{" "}
+              {String((invoice as any).status || "-")}
             </div>
           </div>
 
-          <div
-            style={{
-              alignSelf: "center",
-              padding: "6px 10px",
-              borderRadius: 999,
-              background: payBg,
-              border: `1px solid ${payBorder}`,
-              color: payColor,
-              fontWeight: 800,
-              fontSize: 12,
-              letterSpacing: 0.4,
-              whiteSpace: "nowrap",
-              height: 32,
-              display: "inline-flex",
-              alignItems: "center",
-            }}
-          >
-            {payLabel}
+          <div>
+            <span
+              style={{
+                padding: "6px 12px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 800,
+                background: payBg,
+                border: `1px solid ${payBorder}`,
+                color: payColor,
+              }}
+            >
+              {payLabel}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Ringkasan pembayaran */}
       <div
         style={{
           marginTop: 16,
-          padding: 14,
-          borderRadius: 14,
-          border: "1px solid #eee",
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
           gap: 12,
         }}
       >
-        <div style={{ padding: 12, borderRadius: 12, border: "1px solid #f1f1f1" }}>
-          <div style={{ fontSize: 12, color: "#666" }}>Total Invoice</div>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{rupiah(grandTotal)}</div>
+        <div style={summaryCard()}>
+          <div style={summaryLabel()}>Total Invoice</div>
+          <div style={summaryValue()}>{rupiah(grandTotal)}</div>
         </div>
 
-        <div style={{ padding: 12, borderRadius: 12, border: "1px solid #f1f1f1" }}>
-          <div style={{ fontSize: 12, color: "#666" }}>Terbayar</div>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{rupiah(amountPaid)}</div>
+        <div style={summaryCard()}>
+          <div style={summaryLabel()}>Terbayar</div>
+          <div style={summaryValue()}>{rupiah(amountPaid)}</div>
         </div>
 
-        <div style={{ padding: 12, borderRadius: 12, border: "1px solid #f1f1f1" }}>
-          <div style={{ fontSize: 12, color: "#666" }}>Sisa Belum Dibayar</div>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{rupiah(remaining)}</div>
+        <div style={summaryCard()}>
+          <div style={summaryLabel()}>Sisa Belum Dibayar</div>
+          <div style={summaryValue()}>{rupiah(remaining)}</div>
         </div>
       </div>
 
-      {/* Customer */}
       <div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px solid #eee" }}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Customer</div>
         <div style={{ display: "grid", gap: 4 }}>
           <div>
-            <span style={{ color: "#666" }}>Nama:</span> {(invoice as any).customer_name || "-"}
+            <span style={{ color: "#666" }}>Nama:</span>{" "}
+            {(invoice as any).customer_name || "-"}
           </div>
           <div>
-            <span style={{ color: "#666" }}>Telepon:</span> {(invoice as any).customer_phone || "-"}
+            <span style={{ color: "#666" }}>Telepon:</span>{" "}
+            {(invoice as any).customer_phone || "-"}
           </div>
           <div>
-            <span style={{ color: "#666" }}>Alamat:</span> {(invoice as any).customer_address || "-"}
+            <span style={{ color: "#666" }}>Alamat:</span>{" "}
+            {(invoice as any).customer_address || "-"}
+          </div>
+          <div>
+            <span style={{ color: "#666" }}>Gudang:</span>{" "}
+            {(invoice as any).warehouse_id || "-"}
+          </div>
+          <div>
+            <span style={{ color: "#666" }}>Sent At:</span>{" "}
+            {(invoice as any).sent_at ? fmtDate((invoice as any).sent_at) : "-"}
           </div>
         </div>
       </div>
 
-      {/* Items */}
       <div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px solid #eee" }}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Items</div>
 
@@ -274,7 +297,9 @@ export default async function InvoiceViewPage({ params }: PageProps) {
             <thead>
               <tr style={{ textAlign: "left", color: "#666" }}>
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee" }}>Nama</th>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 180 }}>Key</th>
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 100 }}>Qty</th>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 100 }}>Unit</th>
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 160 }}>Harga</th>
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 180 }}>Total</th>
               </tr>
@@ -284,17 +309,38 @@ export default async function InvoiceViewPage({ params }: PageProps) {
                 const lineTotal = Number(it.qty || 0) * Number(it.price || 0);
                 return (
                   <tr key={it.id}>
-                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>{it.name}</td>
-                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>{Number(it.qty || 0)}</td>
-                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>{rupiah(Number(it.price || 0))}</td>
-                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>{rupiah(lineTotal)}</td>
+                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>
+                      {it.name}
+                    </td>
+                    <td
+                      style={{
+                        padding: "10px 8px",
+                        borderBottom: "1px solid #f3f3f3",
+                        fontFamily:
+                          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                      }}
+                    >
+                      {it.item_key || "-"}
+                    </td>
+                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>
+                      {Number(it.qty || 0)}
+                    </td>
+                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>
+                      {it.unit || "-"}
+                    </td>
+                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>
+                      {rupiah(Number(it.price || 0))}
+                    </td>
+                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>
+                      {rupiah(lineTotal)}
+                    </td>
                   </tr>
                 );
               })}
 
               {!items?.length && (
                 <tr>
-                  <td colSpan={4} style={{ padding: 12, color: "#666" }}>
+                  <td colSpan={6} style={{ padding: 12, color: "#666" }}>
                     Belum ada item.
                   </td>
                 </tr>
@@ -303,7 +349,6 @@ export default async function InvoiceViewPage({ params }: PageProps) {
           </table>
         </div>
 
-        {/* Summary bawah */}
         <div style={{ marginTop: 12, display: "grid", gap: 6, maxWidth: 420, marginLeft: "auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span style={{ color: "#666" }}>Subtotal</span>
@@ -329,22 +374,43 @@ export default async function InvoiceViewPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Note */}
       <div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px solid #eee" }}>
         <div style={{ fontWeight: 800, marginBottom: 6 }}>Catatan</div>
         <div style={{ color: "#333" }}>{(invoice as any).note || "-"}</div>
       </div>
 
-      {/* Actions */}
-      <div style={{ marginTop: 16, display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
-        <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-          <SjButtonClient invoiceId={id} />
+      <div style={{ marginTop: 16 }}>
+        <SjButtonClient invoiceId={id} />
+      </div>
 
-          <div style={{ flex: "1 1 740px", minWidth: 320 }}>
-            <PaymentsClient invoiceId={id} />
-          </div>
-        </div>
+      <div style={{ marginTop: 16 }}>
+        <PaymentsClient invoiceId={id} />
       </div>
     </div>
   );
+}
+
+function summaryCard(): React.CSSProperties {
+  return {
+    border: "1px solid #eee",
+    borderRadius: 14,
+    padding: 14,
+    background: "white",
+  };
+}
+
+function summaryLabel(): React.CSSProperties {
+  return {
+    color: "#666",
+    fontSize: 13,
+    marginBottom: 4,
+  };
+}
+
+function summaryValue(): React.CSSProperties {
+  return {
+    fontWeight: 800,
+    fontSize: 16,
+    color: "#111",
+  };
 }

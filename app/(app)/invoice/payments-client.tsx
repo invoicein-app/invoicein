@@ -1,4 +1,3 @@
-// app/invoice/payments-client.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -6,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 type Payment = {
   id: string;
   invoice_id: string;
-  paid_at: string; // YYYY-MM-DD
+  paid_at: string;
   amount: number;
   note: string | null;
   created_at: string;
@@ -44,7 +43,10 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
   });
 
   const [amountDigits, setAmountDigits] = useState("");
-  const amountNum = useMemo(() => (amountDigits ? parseInt(amountDigits, 10) : 0), [amountDigits]);
+  const amountNum = useMemo(
+    () => (amountDigits ? parseInt(amountDigits, 10) : 0),
+    [amountDigits]
+  );
 
   async function load() {
     setErr(null);
@@ -63,7 +65,6 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceId]);
 
   async function addPayment() {
@@ -82,7 +83,7 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
       if (!res.ok) throw new Error(json?.error || "Gagal tambah pembayaran");
       setAmountDigits("");
       await load();
-      window.location.reload(); // refresh total Terbayar/Sisa
+      window.location.reload();
     } catch (e: any) {
       alert(e?.message || "error");
     } finally {
@@ -90,7 +91,10 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
     }
   }
 
-  async function updatePayment(p: Payment, patch: Partial<Pick<Payment, "paid_at" | "amount">>) {
+  async function updatePayment(
+    p: Payment,
+    patch: Partial<Pick<Payment, "paid_at" | "amount">>
+  ) {
     setLoading(true);
     try {
       const res = await fetch(`/api/invoice/payment/${p.id}`, {
@@ -130,7 +134,6 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
     }
   }
 
-  // ✅ wrapper cuma spacing kecil, tanpa kotak/border luar
   return (
     <div style={{ width: "100%", marginTop: 8 }}>
       <div style={{ fontWeight: 900, marginBottom: 10 }}>Pembayaran (Bisa Cicil)</div>
@@ -171,7 +174,9 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
               fontWeight: 800,
             }}
           />
-          <div style={{ fontSize: 12, color: "#666" }}>Ketik angka saja: 10000 → Rp 10.000</div>
+          <div style={{ fontSize: 12, color: "#666" }}>
+            Ketik angka saja: 10000 → Rp 10.000
+          </div>
         </div>
 
         <button
@@ -205,123 +210,130 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 170 }}>
                   Tanggal
                 </th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee" }}>Nominal</th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 140 }}>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee" }}>
+                  Nominal
+                </th>
+                <th
+                  style={{
+                    padding: "10px 8px 10px 18px",
+                    borderBottom: "1px solid #eee",
+                    width: 170,
+                  }}
+                >
                   Aksi
                 </th>
               </tr>
             </thead>
 
             <tbody>
-  {!payments.length && (
-    <tr>
-      <td colSpan={3} style={{ padding: 12, color: "#666" }}>
-        Belum ada pembayaran.
-      </td>
-    </tr>
-  )}
+              {!payments.length && (
+                <tr>
+                  <td colSpan={3} style={{ padding: 12, color: "#666" }}>
+                    Belum ada pembayaran.
+                  </td>
+                </tr>
+              )}
 
-  {payments.map((p) => (
-    <tr key={p.id}>
-      {/* TANGGAL */}
-      <td
-        style={{
-          padding: "10px 8px",
-          borderBottom: "1px solid #f3f3f3",
-          verticalAlign: "top",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "flex-start" }}>
-          <input
-            type="date"
-            value={p.paid_at}
-            disabled={loading}
-            onChange={(e) => updatePayment(p, { paid_at: e.target.value })}
-            style={{
-              width: "100%",
-              maxWidth: 170,
-              height: 36,
-              padding: "0 8px",
-              borderRadius: 10,
-              border: "1px solid #ddd",
-              fontWeight: 700,
-            }}
-          />
-        </div>
-      </td>
+              {payments.map((p) => (
+                <tr key={p.id}>
+                  <td
+                    style={{
+                      padding: "10px 8px",
+                      borderBottom: "1px solid #f3f3f3",
+                      verticalAlign: "top",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start" }}>
+                      <input
+                        type="date"
+                        value={p.paid_at}
+                        disabled={loading}
+                        onChange={(e) => updatePayment(p, { paid_at: e.target.value })}
+                        style={{
+                          width: "100%",
+                          maxWidth: 170,
+                          height: 36,
+                          padding: "0 8px",
+                          borderRadius: 10,
+                          border: "1px solid #ddd",
+                          fontWeight: 700,
+                        }}
+                      />
+                    </div>
+                  </td>
 
-      {/* NOMINAL */}
-      <td
-        style={{
-          padding: "10px 8px",
-          borderBottom: "1px solid #f3f3f3",
-          verticalAlign: "top",
-        }}
-      >
-        <div style={{ display: "grid", gap: 6 }}>
-          <input
-            defaultValue={rupiah(Number(p.amount))}
-            disabled={loading}
-            onBlur={(e) => {
-              const d = digitsOnly(e.target.value);
-              const n = d ? parseInt(d, 10) : 0;
-              updatePayment(p, { amount: n });
-              e.currentTarget.value = rupiah(n);
-            }}
-            placeholder="Rp 0"
-            inputMode="numeric"
-            style={{
-              width: "100%",
-              height: 36,
-              padding: "0 10px",
-              borderRadius: 10,
-              border: "1px solid #ddd",
-              fontWeight: 800,
-            }}
-          />
+                  <td
+                    style={{
+                      padding: "10px 8px",
+                      borderBottom: "1px solid #f3f3f3",
+                      verticalAlign: "top",
+                    }}
+                  >
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <input
+                        defaultValue={rupiah(Number(p.amount))}
+                        disabled={loading}
+                        onBlur={(e) => {
+                          const d = digitsOnly(e.target.value);
+                          const n = d ? parseInt(d, 10) : 0;
+                          updatePayment(p, { amount: n });
+                          e.currentTarget.value = rupiah(n);
+                        }}
+                        placeholder="Rp 0"
+                        inputMode="numeric"
+                        style={{
+                          width: "100%",
+                          height: 36,
+                          padding: "0 10px",
+                          borderRadius: 10,
+                          border: "1px solid #ddd",
+                          fontWeight: 800,
+                        }}
+                      />
 
-          <div style={{ fontSize: 12, color: "#666", lineHeight: 1.2 }}>
-            Edit nominal → klik keluar (blur) untuk simpan.
-          </div>
-        </div>
-      </td>
+                      <div style={{ fontSize: 12, color: "#666", lineHeight: 1.2 }}>
+                        Edit nominal → klik keluar (blur) untuk simpan.
+                      </div>
+                    </div>
+                  </td>
 
-      {/* AKSI */}
-      <td
-        style={{
-          padding: "10px 8px",
-          borderBottom: "1px solid #f3f3f3",
-          verticalAlign: "top",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "flex-start" }}>
-          <button
-            type="button"
-            onClick={() => deletePayment(p)}
-            disabled={loading}
-            style={{
-              height: 36,
-              width: "100%",
-              borderRadius: 10,
-              border: "1px solid #ef4444",
-              background: "white",
-              color: "#b91c1c",
-              cursor: loading ? "not-allowed" : "pointer",
-              fontWeight: 900,
-            }}
-          >
-            Hapus
-          </button>
-        </div>
-      </td>
-    </tr>
-  ))}
-</tbody>
+                  <td
+                    style={{
+                      padding: "10px 8px 10px 18px",
+                      borderBottom: "1px solid #f3f3f3",
+                      verticalAlign: "top",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start" }}>
+                      <button
+                        type="button"
+                        onClick={() => deletePayment(p)}
+                        disabled={loading}
+                        style={{
+                          height: 36,
+                          minWidth: 140,
+                          padding: "0 18px",
+                          borderRadius: 10,
+                          border: "1px solid #ef4444",
+                          background: "white",
+                          color: "#b91c1c",
+                          cursor: loading ? "not-allowed" : "pointer",
+                          fontWeight: 900,
+                        }}
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
 
         <div style={{ marginTop: 10, fontSize: 12, color: "#666" }}>
-          Catatan: total “Terbayar” di invoice otomatis dihitung dari seluruh pembayaran (bisa edit/hapus kapan pun).
+          Catatan: total “Terbayar” di invoice otomatis dihitung dari seluruh pembayaran
+          (bisa edit/hapus kapan pun).
         </div>
       </div>
     </div>

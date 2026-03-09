@@ -1,5 +1,3 @@
-// ✅ FULL REPLACE
-// invoiceku/app/(app)/invoice/new/page.tsx
 "use client";
 
 import React, { Suspense, useEffect, useMemo, useState } from "react";
@@ -7,7 +5,13 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { num, rupiah } from "@/lib/money";
 import { useSearchParams } from "next/navigation";
 
-type Customer = { id: string; name: string; phone: string; address: string };
+type Customer = {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+};
+
 type Product = {
   id: string;
   name: string;
@@ -17,15 +21,48 @@ type Product = {
   is_active: boolean | null;
 };
 
-type Item = {
-  product_id?: string;
+type Warehouse = {
+  id: string;
   name: string;
+};
 
+type BalanceRow = {
+  item_key: string;
+  item_name: string | null;
+  product_id: string | null;
+  on_hand: number;
+};
+
+type Item = {
+  product_id: string;
+  name: string;
+  item_key: string;
   qty: number;
   price: number;
-
   qtyText: string;
   priceText: string;
+  openSug?: boolean;
+};
+
+type PrefillData = {
+  quotation_id: string;
+  quotation_number: string | null;
+  quotation_date: string | null;
+  customer_id: string | null;
+  customer_name: string;
+  customer_phone: string;
+  customer_address: string;
+  note: string;
+  discount_type: "percent" | "amount";
+  discount_value: number;
+  tax_value: number;
+  items: Array<{
+    product_id: string | null;
+    name: string;
+    qty: number;
+    price: number;
+    sort_order: number;
+  }>;
 };
 
 function digitsOnlyString(raw: string) {
@@ -49,52 +86,53 @@ function clampPercent(n: number) {
   return Math.floor(n);
 }
 
-type PrefillData = {
-  quotation_id: string;
-  quotation_number: string | null;
-  quotation_date: string | null;
+function toKey(raw: string) {
+  const s = String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return s || "";
+}
 
-  customer_id: string | null;
-  customer_name: string;
-  customer_phone: string;
-  customer_address: string;
-  note: string;
+function productToItemKey(p: Pick<Product, "sku" | "name">) {
+  const sku = String(p.sku || "").trim();
+  if (sku) return toKey(sku);
+  return toKey(String(p.name || ""));
+}
 
-  discount_type: "percent" | "amount";
-  discount_value: number;
-
-  tax_value: number; // percent-only
-
-  items: Array<{
-    product_id: string | null;
-    name: string;
-    qty: number;
-    price: number;
-    sort_order: number;
-  }>;
-};
-
-// ✅ Inner component: useSearchParams() DI SINI (wajib dalam Suspense)
 function InvoiceNewInner() {
   const supabase = supabaseBrowser();
   const sp = useSearchParams();
 
-  // ✅ support 2 versi param biar aman
-  const fromQuotationId = String(sp.get("fromQuotation") || sp.get("fromQuotationId") || "").trim();
+  const fromQuotationId = String(
+    sp.get("fromQuotation") || sp.get("fromQuotationId") || ""
+  ).trim();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+
+  const [balancesMap, setBalancesMap] = useState<Record<string, number>>({});
+  const [warehouseProductIds, setWarehouseProductIds] = useState<Set<string>>(new Set());
+
   const [loadingCust, setLoadingCust] = useState(true);
   const [loadingProd, setLoadingProd] = useState(true);
+  const [loadingWh, setLoadingWh] = useState(true);
+  const [loadingBalances, setLoadingBalances] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [prefilling, setPrefilling] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const [invoiceDate, setInvoiceDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [orgId, setOrgId] = useState<string>("");
 
-  // ✅ Due date + terms
-  const [dueDate, setDueDate] = useState<string>(() => "");
+  const [invoiceDate, setInvoiceDate] = useState<string>(
+    () => new Date().toISOString().slice(0, 10)
+  );
+  const [dueDate, setDueDate] = useState<string>("");
   const [termsDays, setTermsDays] = useState<number>(14);
 
   const [customerId, setCustomerId] = useState<string>("");
@@ -102,22 +140,33 @@ function InvoiceNewInner() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
 
+  const [warehouseId, setWarehouseId] = useState<string>("");
+
   const [note, setNote] = useState("");
 
-  // ✅ DISCOUNT: type + value
   const [discountType, setDiscountType] = useState<"percent" | "amount">("percent");
-  const [discountPercent, setDiscountPercent] = useState<number>(0); // percent
-  const [discountAmountText, setDiscountAmountText] = useState<string>(""); // amount input text
-  const discountAmount = useMemo(() => digitsToNumber(discountAmountText), [discountAmountText]);
+  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountAmountText, setDiscountAmountText] = useState<string>("");
+  const discountAmount = useMemo(
+    () => digitsToNumber(discountAmountText),
+    [discountAmountText]
+  );
 
-  // ✅ TAX fix percent only
   const [taxPercent, setTaxPercent] = useState<number>(0);
 
   const [items, setItems] = useState<Item[]>([
-    { product_id: "", name: "", qty: 1, qtyText: "1", price: 0, priceText: "" },
+    {
+      product_id: "",
+      name: "",
+      item_key: "",
+      qty: 1,
+      qtyText: "1",
+      price: 0,
+      priceText: "",
+      openSug: false,
+    },
   ]);
 
-  // pointer quotation (optional)
   const [sourceQuotationId, setSourceQuotationId] = useState<string>("");
 
   function applyTerms(days: number) {
@@ -134,42 +183,146 @@ function InvoiceNewInner() {
 
   useEffect(() => {
     applyTerms(termsDays);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!invoiceDate) return;
     applyTerms(termsDays);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceDate]);
 
   async function loadCustomers() {
     setLoadingCust(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("customers")
       .select("id,name,phone,address")
       .order("created_at", { ascending: false });
 
-    setCustomers((data || []) as any);
+    if (error) {
+      console.error("loadCustomers error:", error);
+      setCustomers([]);
+    } else {
+      setCustomers((data || []) as any);
+    }
     setLoadingCust(false);
   }
 
   async function loadProducts() {
     setLoadingProd(true);
-    const { data } = await supabase
+
+    const { data, error } = await supabase
       .from("products")
       .select("id,name,sku,unit,price,is_active")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
+    if (error) {
+      console.error("loadProducts error:", error);
+      setProducts([]);
+      setLoadingProd(false);
+      return;
+    }
+
     setProducts((data || []) as any);
     setLoadingProd(false);
+  }
+
+  async function loadWarehouses() {
+    setLoadingWh(true);
+
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = userRes.user;
+    if (!user) {
+      setLoadingWh(false);
+      return;
+    }
+
+    const { data: mem, error: memErr } = await supabase
+      .from("memberships")
+      .select("org_id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (memErr) {
+      console.error("load membership error:", memErr);
+      setLoadingWh(false);
+      return;
+    }
+
+    const nextOrgId = String((mem as any)?.org_id || "");
+    setOrgId(nextOrgId);
+
+    if (!nextOrgId) {
+      setLoadingWh(false);
+      return;
+    }
+
+    const { data: wh, error: whErr } = await supabase
+      .from("warehouses")
+      .select("id,name")
+      .eq("org_id", nextOrgId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true });
+
+    if (whErr) {
+      console.error("loadWarehouses error:", whErr);
+      setWarehouses([]);
+    } else {
+      setWarehouses(((wh || []) as any) as Warehouse[]);
+    }
+
+    setLoadingWh(false);
+  }
+
+  async function loadBalancesForWarehouse(nextWarehouseId: string) {
+    if (!orgId || !nextWarehouseId) {
+      setBalancesMap({});
+      setWarehouseProductIds(new Set());
+      return;
+    }
+
+    setLoadingBalances(true);
+    try {
+      const { data, error } = await supabase
+        .from("inventory_balances")
+        .select("item_key,item_name,product_id,on_hand")
+        .eq("org_id", orgId)
+        .eq("warehouse_id", nextWarehouseId)
+        .limit(3000);
+
+      if (error) throw error;
+
+      const map: Record<string, number> = {};
+      const productIds = new Set<string>();
+
+      ((data || []) as BalanceRow[]).forEach((r) => {
+        const key = String(r.item_key || "").trim().toLowerCase();
+        if (key) {
+          map[key] = Math.floor(num(r.on_hand));
+        }
+
+        const pid = String(r.product_id || "").trim();
+        if (pid && Math.floor(num(r.on_hand)) > 0) {
+          productIds.add(pid);
+        }
+      });
+
+      setBalancesMap(map);
+      setWarehouseProductIds(productIds);
+    } catch (e) {
+      console.error("loadBalancesForWarehouse error:", e);
+      setBalancesMap({});
+      setWarehouseProductIds(new Set());
+    } finally {
+      setLoadingBalances(false);
+    }
   }
 
   useEffect(() => {
     loadCustomers();
     loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadWarehouses();
   }, []);
 
   useEffect(() => {
@@ -181,10 +334,36 @@ function InvoiceNewInner() {
     setCustomerAddress(c.address || "");
   }, [customerId, customers]);
 
+  useEffect(() => {
+    loadBalancesForWarehouse(warehouseId);
+  }, [warehouseId, orgId]);
+
+  useEffect(() => {
+    if (!warehouseId) return;
+
+    setItems((prev) =>
+      prev.map((it) => {
+        if (!it.product_id) return it;
+        if (warehouseProductIds.has(it.product_id)) return it;
+
+        return {
+          ...it,
+          product_id: "",
+          name: "",
+          item_key: "",
+          qty: 1,
+          qtyText: "1",
+          price: 0,
+          priceText: "",
+          openSug: false,
+        };
+      })
+    );
+  }, [warehouseId, warehouseProductIds]);
+
   const calc = useMemo(() => {
     const sub = items.reduce((a, it) => a + num(it.qty) * num(it.price), 0);
 
-    // discount
     let disc = 0;
     if (discountType === "percent") {
       const discPct = clampPercent(num(discountPercent));
@@ -211,30 +390,21 @@ function InvoiceNewInner() {
   function addItem() {
     setItems((prev) => [
       ...prev,
-      { product_id: "", name: "", qty: 1, qtyText: "1", price: 0, priceText: "" },
+      {
+        product_id: "",
+        name: "",
+        item_key: "",
+        qty: 1,
+        qtyText: "1",
+        price: 0,
+        priceText: "",
+        openSug: false,
+      },
     ]);
   }
 
   function removeItem(i: number) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
-  }
-
-  function onPickProduct(rowIdx: number, productId: string) {
-    if (!productId) {
-      setItem(rowIdx, { product_id: "", name: "", price: 0, priceText: "" });
-      return;
-    }
-
-    const p = products.find((x) => x.id === productId);
-    if (!p) return;
-
-    const pPrice = Math.max(0, Math.floor(Number(p.price || 0)));
-    setItem(rowIdx, {
-      product_id: p.id,
-      name: p.name,
-      price: pPrice,
-      priceText: formatThousandsID(pPrice),
-    });
   }
 
   function onChangeQty(rowIdx: number, raw: string) {
@@ -252,8 +422,7 @@ function InvoiceNewInner() {
 
   function onChangePrice(rowIdx: number, raw: string) {
     const n = digitsToNumber(raw);
-    const formatted = formatThousandsID(n);
-    setItem(rowIdx, { product_id: "", price: n, priceText: formatted });
+    setItem(rowIdx, { price: n, priceText: formatThousandsID(n) });
   }
 
   function onBlurPrice(rowIdx: number) {
@@ -262,10 +431,55 @@ function InvoiceNewInner() {
     setItem(rowIdx, { price: n, priceText: formatThousandsID(n) });
   }
 
-  // ✅ PREFILL: pakai API convert (single source of truth)
+  const availableProducts = useMemo(() => {
+    if (!warehouseId) return products;
+    return products.filter((p) => warehouseProductIds.has(String(p.id || "")));
+  }, [products, warehouseId, warehouseProductIds]);
+
+  function getSuggestionsFor(raw: string) {
+    const s = String(raw || "").trim().toLowerCase();
+    const list = availableProducts || [];
+
+    if (!s) return list.slice(0, 10);
+
+    return list
+      .filter((p) =>
+        `${p.name} ${p.sku || ""} ${p.unit || ""}`.toLowerCase().includes(s)
+      )
+      .slice(0, 10);
+  }
+
+  function getStockHint(itemKey: string) {
+    const key = String(itemKey || "").trim().toLowerCase();
+    if (!key) return undefined;
+    return balancesMap[key];
+  }
+
+  function pickSuggestion(rowIdx: number, p: Product) {
+    const priceN = Math.max(0, Math.floor(Number(p.price || 0)));
+    const itemKey = productToItemKey(p);
+
+    setItems((prev) =>
+      prev.map((it, idx) =>
+        idx === rowIdx
+          ? {
+              ...it,
+              product_id: p.id,
+              name: String(p.name || ""),
+              item_key: itemKey,
+              price: priceN,
+              priceText: priceN ? formatThousandsID(priceN) : "",
+              openSug: false,
+            }
+          : it
+      )
+    );
+  }
+
   async function prefillFromQuotation(qid: string) {
     if (!qid) return;
     setPrefilling(true);
+
     try {
       setMsg("");
 
@@ -278,7 +492,6 @@ function InvoiceNewInner() {
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok) throw new Error(json?.error || `Gagal prefill (${res.status})`);
 
-      // kalau udah ada invoice, langsung buka invoice itu
       if (json?.invoice_id) {
         window.location.href = `/invoice/${json.invoice_id}`;
         return;
@@ -290,20 +503,18 @@ function InvoiceNewInner() {
 
       const p: PrefillData = json.prefill_data as any;
 
-      // customer + note
       setCustomerId(p.customer_id || "");
       setCustomerName(p.customer_name || "");
       setCustomerPhone(p.customer_phone || "");
       setCustomerAddress(p.customer_address || "");
       setNote(p.note || "");
+      setSourceQuotationId(p.quotation_id || "");
 
-      // pointer
-      setSourceQuotationId(p.quotation_id);
-
-      // discount
       if (p.discount_type === "amount") {
         setDiscountType("amount");
-        setDiscountAmountText(formatThousandsID(Math.max(0, Math.floor(num(p.discount_value || 0)))));
+        setDiscountAmountText(
+          formatThousandsID(Math.max(0, Math.floor(num(p.discount_value || 0))))
+        );
         setDiscountPercent(0);
       } else {
         setDiscountType("percent");
@@ -311,29 +522,54 @@ function InvoiceNewInner() {
         setDiscountAmountText("");
       }
 
-      // tax percent only
       setTaxPercent(clampPercent(num(p.tax_value || 0)));
 
-      // items
-      const mappedItems =
+      const mappedItems: Item[] =
         (p.items || []).length > 0
-          ? (p.items || []).map((x) => {
-              const qtyN = Math.max(0, Math.floor(num(x.qty || 0)));
-              const priceN = Math.max(0, Math.floor(num(x.price || 0)));
-              return {
-                product_id: x.product_id || "",
-                name: String(x.name || ""),
-                qty: qtyN,
-                qtyText: qtyN ? String(qtyN) : "",
-                price: priceN,
-                priceText: priceN ? formatThousandsID(priceN) : "",
-              } as Item;
-            })
-          : [{ product_id: "", name: "", qty: 1, qtyText: "1", price: 0, priceText: "" }];
+          ? (p.items || []).map((x) => ({
+              product_id: x.product_id || "",
+              name: String(x.name || ""),
+              item_key: "",
+              qty: Math.max(0, Math.floor(num(x.qty || 0))),
+              qtyText: String(Math.max(0, Math.floor(num(x.qty || 0))) || ""),
+              price: Math.max(0, Math.floor(num(x.price || 0))),
+              priceText: formatThousandsID(Math.max(0, Math.floor(num(x.price || 0)))),
+              openSug: false,
+            }))
+          : [
+              {
+                product_id: "",
+                name: "",
+                item_key: "",
+                qty: 1,
+                qtyText: "1",
+                price: 0,
+                priceText: "",
+                openSug: false,
+              },
+            ];
 
-      setItems(mappedItems);
+      const normalized = mappedItems.map((it) => {
+        if (!it.product_id) {
+          return { ...it, item_key: "" };
+        }
 
-      setMsg("Prefill dari quotation berhasil. Silakan cek & edit (isi due date) sebelum simpan.");
+        const prod = products.find((p2) => p2.id === it.product_id);
+        if (!prod) {
+          return { ...it, item_key: "" };
+        }
+
+        return {
+          ...it,
+          name: prod.name,
+          item_key: productToItemKey(prod),
+        };
+      });
+
+      setItems(normalized);
+      setMsg(
+        "Prefill dari quotation berhasil. Cek item yang belum linked ke product sebelum simpan."
+      );
     } catch (e: any) {
       setMsg(e?.message || "Gagal prefill dari quotation.");
     } finally {
@@ -343,21 +579,54 @@ function InvoiceNewInner() {
 
   useEffect(() => {
     if (!fromQuotationId) return;
+    if (products.length === 0) return;
     prefillFromQuotation(fromQuotationId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromQuotationId]);
+  }, [fromQuotationId, products.length]);
 
   async function save() {
     setMsg("");
 
-    if (prefilling) return setMsg("Tunggu prefill selesai dulu ya.");
-    if (!customerName.trim()) return setMsg("Customer name wajib diisi.");
-    if (items.length === 0) return setMsg("Minimal 1 item.");
-    if (items.some((it) => !it.name.trim())) return setMsg("Nama item tidak boleh kosong.");
+    if (prefilling) {
+      setMsg("Tunggu prefill selesai dulu ya.");
+      return;
+    }
+
+    if (!customerName.trim()) {
+      setMsg("Customer name wajib diisi.");
+      return;
+    }
+
+    if (items.length === 0) {
+      setMsg("Minimal 1 item.");
+      return;
+    }
+
+    const badIdx = items.findIndex(
+      (it) =>
+        !String(it.product_id || "").trim() ||
+        !String(it.item_key || "").trim() ||
+        !String(it.name || "").trim()
+    );
+
+    if (badIdx >= 0) {
+      setMsg(`Item baris ${badIdx + 1} wajib pilih dari master barang.`);
+      return;
+    }
+
+    if (warehouseId) {
+      const wrongWarehouseIdx = items.findIndex(
+        (it) => !warehouseProductIds.has(String(it.product_id || ""))
+      );
+
+      if (wrongWarehouseIdx >= 0) {
+        setMsg(`Item baris ${wrongWarehouseIdx + 1} tidak tersedia di gudang yang dipilih.`);
+        return;
+      }
+    }
 
     setSaving(true);
     try {
-      const payload: any = {
+      const payload = {
         invoice_date: invoiceDate,
         due_date: dueDate || null,
         quotation_id: sourceQuotationId || null,
@@ -368,16 +637,19 @@ function InvoiceNewInner() {
         customer_address: customerAddress || "",
         note: note || "",
 
+        warehouse_id: warehouseId || null,
+
         discount_type: discountType,
         discount_value:
           discountType === "percent"
             ? clampPercent(num(discountPercent))
             : Math.max(0, Math.floor(num(discountAmount))),
-
         tax_value: clampPercent(num(taxPercent)),
 
         items: items.map((it) => ({
-          name: String(it.name || ""),
+          product_id: it.product_id,
+          name: String(it.name || "").trim(),
+          item_key: String(it.item_key || "").trim(),
           qty: Math.max(0, Math.floor(num(it.qty))),
           price: Math.max(0, Math.floor(num(it.price))),
         })),
@@ -391,7 +663,10 @@ function InvoiceNewInner() {
       });
 
       const json = await res.json().catch(() => ({} as any));
-      if (!res.ok) return setMsg(json?.error || `Gagal simpan (${res.status})`);
+      if (!res.ok) {
+        setMsg(json?.error || `Gagal simpan (${res.status})`);
+        return;
+      }
 
       window.location.href = `/invoice/${json.id}`;
     } catch (e: any) {
@@ -403,20 +678,19 @@ function InvoiceNewInner() {
 
   return (
     <div style={{ padding: 18, maxWidth: 980, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
         <div>
           <h1 style={{ margin: 0 }}>Invoice Baru</h1>
-          <p style={{ marginTop: 6, color: "#666" }}>Simpan dulu, nanti bisa view & download PDF</p>
-
-          {fromQuotationId ? (
-            <p style={{ marginTop: 6, color: "#111", fontWeight: 700 }}>
-              Prefill dari Quotation:{" "}
-              <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
-                {fromQuotationId.slice(0, 8)}...
-              </span>
-              {prefilling ? <span style={{ marginLeft: 8, color: "#666" }}>loading...</span> : null}
-            </p>
-          ) : null}
+          <p style={{ marginTop: 6, color: "#666" }}>
+            Pilih item dari master barang. Gudang opsional.
+          </p>
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
@@ -424,7 +698,7 @@ function InvoiceNewInner() {
             Kembali
           </a>
           <button onClick={save} disabled={saving || prefilling} style={btnPrimary()}>
-            {saving ? "Menyimpan..." : prefilling ? "Prefilling..." : "Simpan Invoice"}
+            {saving ? "Menyimpan..." : "Simpan Invoice"}
           </button>
         </div>
       </div>
@@ -432,16 +706,27 @@ function InvoiceNewInner() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
         <div style={card()}>
           <h3 style={{ margin: 0 }}>Info Invoice</h3>
+
           <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
             <label style={label()}>
               Tanggal
-              <input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={input()} />
+              <input
+                type="date"
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                style={input()}
+              />
             </label>
 
             <div style={{ display: "grid", gap: 8 }}>
               <label style={label()}>
                 Due Date
-                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={input()} />
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  style={input()}
+                />
               </label>
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -455,14 +740,13 @@ function InvoiceNewInner() {
                   Terms 30 hari
                 </button>
               </div>
-              <small style={{ color: "#666" }}>Klik terms untuk otomatis hitung due date dari tanggal invoice.</small>
             </div>
 
             <label style={label()}>
               Pilih Customer (optional)
               <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={input()}>
                 <option value="">- manual -</option>
-                {(customers || []).map((c) => (
+                {customers.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} ({c.phone})
                   </option>
@@ -482,12 +766,35 @@ function InvoiceNewInner() {
             </label>
 
             <label style={label()}>
-              Alamat Customer (tersimpan di invoice)
+              Alamat Customer
               <textarea
                 value={customerAddress}
                 onChange={(e) => setCustomerAddress(e.target.value)}
                 style={{ ...input(), minHeight: 80, resize: "vertical" }}
               />
+            </label>
+
+            <label style={label()}>
+              Gudang (optional)
+              <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={input()}>
+                <option value="">- tanpa gudang / invoice only -</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+              {loadingWh ? (
+                <small style={{ color: "#666" }}>Loading gudang...</small>
+              ) : warehouseId ? (
+                <small style={{ color: "#666" }}>
+                  Autocomplete item dibatasi ke barang yang ada di gudang ini.
+                </small>
+              ) : (
+                <small style={{ color: "#666" }}>
+                  Kalau kosong, semua barang aktif bisa dipilih dan invoice tidak dipakai untuk movement stok.
+                </small>
+              )}
             </label>
 
             <label style={label()}>
@@ -499,6 +806,7 @@ function InvoiceNewInner() {
 
         <div style={card()}>
           <h3 style={{ margin: 0 }}>Diskon & Pajak</h3>
+
           <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
             <label style={label()}>
               Diskon Tipe
@@ -529,7 +837,6 @@ function InvoiceNewInner() {
                   placeholder="0–100"
                   style={input()}
                 />
-                <small style={{ color: "#666" }}>Diskon dihitung dari subtotal.</small>
               </label>
             ) : (
               <label style={label()}>
@@ -542,7 +849,6 @@ function InvoiceNewInner() {
                   placeholder="contoh: 50.000"
                   style={input()}
                 />
-                <small style={{ color: "#666" }}>Diskon fixed amount (rupiah).</small>
               </label>
             )}
 
@@ -557,7 +863,6 @@ function InvoiceNewInner() {
                 placeholder="0–100"
                 style={input()}
               />
-              <small style={{ color: "#666" }}>Pajak dihitung setelah diskon (percent only).</small>
             </label>
 
             <div style={{ marginTop: 6, borderTop: "1px solid #eee", paddingTop: 10 }}>
@@ -585,12 +890,12 @@ function InvoiceNewInner() {
           </div>
         </div>
 
-        <div style={{ marginTop: 10, overflowX: "auto" }}>
+        <div style={{ marginTop: 10, overflowX: "auto", overflowY: "visible", position: "relative" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                <th style={th()}>Pilih Barang</th>
-                <th style={th()}>Nama</th>
+                <th style={th()}>Barang</th>
+                <th style={th()}>Key</th>
                 <th style={th()}>Qty</th>
                 <th style={th()}>Harga</th>
                 <th style={th()}>Total</th>
@@ -598,73 +903,148 @@ function InvoiceNewInner() {
               </tr>
             </thead>
             <tbody>
-              {items.map((it, i) => (
-                <tr key={i}>
-                  <td style={td()}>
-                    <select value={it.product_id || ""} onChange={(e) => onPickProduct(i, e.target.value)} style={input()}>
-                      <option value="">- manual -</option>
-                      {(products || []).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                          {p.sku ? ` • ${p.sku}` : ""}
-                          {p.unit ? ` (${p.unit})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                    {loadingProd ? <small style={{ color: "#666" }}>Loading barang...</small> : null}
-                  </td>
+              {items.map((it, i) => {
+                const sug = it.openSug ? getSuggestionsFor(it.name) : [];
+                const total = num(it.qty) * num(it.price);
 
-                  <td style={td()}>
-                    <input
-                      value={it.name}
-                      onChange={(e) => setItem(i, { name: e.target.value, product_id: "" })}
-                      placeholder="Nama item"
-                      style={input()}
-                    />
-                  </td>
+                return (
+                  <tr key={i}>
+                    <td style={{ ...td(), position: "relative", minWidth: 360 }}>
+                      <input
+                        value={it.name}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setItem(i, {
+                            name: v,
+                            product_id: "",
+                            item_key: "",
+                            openSug: true,
+                          });
+                        }}
+                        onFocus={() => setItem(i, { openSug: true })}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            setItem(i, { openSug: false });
+                          }, 140);
+                        }}
+                        placeholder={
+                          warehouseId
+                            ? "Pilih barang yang ada di gudang ini"
+                            : "Pilih barang dari autocomplete"
+                        }
+                        style={input()}
+                      />
 
-                  <td style={td()}>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={it.qtyText}
-                      onChange={(e) => onChangeQty(i, e.target.value)}
-                      onBlur={() => onBlurQty(i)}
-                      placeholder="Qty"
-                      style={input()}
-                    />
-                  </td>
+                      {it.product_id ? (
+                        <div style={{ fontSize: 12, color: "#166534", marginTop: 6 }}>
+                          Barang sudah linked ke master product
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: "#b45309", marginTop: 6 }}>
+                          Wajib pilih dari daftar barang
+                        </div>
+                      )}
 
-                  <td style={td()}>
-                    <div style={{ display: "grid", gap: 6 }}>
+                      {it.openSug && sug.length > 0 ? (
+                        <div style={sugBox()}>
+                          {sug.map((p) => {
+                            const itemKey = productToItemKey(p);
+                            const onHand = warehouseId ? getStockHint(itemKey) : undefined;
+                            const priceN = Math.max(0, Math.floor(Number(p.price || 0)));
+
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onMouseDown={(ev) => ev.preventDefault()}
+                                onClick={() => pickSuggestion(i, p)}
+                                style={sugBtn()}
+                              >
+                                <div style={{ fontWeight: 900 }}>
+                                  {p.name}
+                                  <span style={{ color: "#6b7280", fontWeight: 700 }}>
+                                    {p.sku ? ` • ${p.sku}` : ""}
+                                    {p.unit ? ` (${p.unit})` : ""}
+                                  </span>
+                                </div>
+
+                                <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                  key: <span style={{ fontFamily: "monospace" }}>{itemKey}</span>
+                                  {priceN ? ` • harga: Rp ${priceN.toLocaleString("id-ID")}` : ""}
+                                  {warehouseId && typeof onHand === "number"
+                                    ? ` • stok gudang ini: ${onHand}`
+                                    : ""}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+
+                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+                        {loadingProd
+                          ? "Loading barang..."
+                          : warehouseId
+                          ? loadingBalances
+                            ? "Loading stok gudang..."
+                            : `Barang tersedia di gudang ini: ${availableProducts.length}`
+                          : `Semua barang aktif: ${products.length}`}
+                      </div>
+                    </td>
+
+                    <td style={td()}>
+                      <div style={{ fontFamily: "monospace", fontWeight: 800 }}>
+                        {it.item_key || "-"}
+                      </div>
+                    </td>
+
+                    <td style={td()}>
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={it.priceText}
-                        onChange={(e) => onChangePrice(i, e.target.value)}
-                        onBlur={() => onBlurPrice(i)}
-                        placeholder="Harga (contoh: 10.000)"
+                        pattern="[0-9]*"
+                        value={it.qtyText}
+                        onChange={(e) => onChangeQty(i, e.target.value)}
+                        onBlur={() => onBlurQty(i)}
+                        placeholder="Qty"
                         style={input()}
                       />
-                      <small style={{ color: "#666" }}>{it.price > 0 ? `Rp ${it.price.toLocaleString("id-ID")}` : " "}</small>
-                    </div>
-                  </td>
+                    </td>
 
-                  <td style={td()}>{rupiah(num(it.qty) * num(it.price))}</td>
+                    <td style={td()}>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={it.priceText}
+                          onChange={(e) => onChangePrice(i, e.target.value)}
+                          onBlur={() => onBlurPrice(i)}
+                          placeholder="Harga"
+                          style={input()}
+                        />
+                        <small style={{ color: "#666" }}>
+                          {it.price > 0 ? `Rp ${it.price.toLocaleString("id-ID")}` : " "}
+                        </small>
+                      </div>
+                    </td>
 
-                  <td style={td()}>
-                    <button onClick={() => removeItem(i)} disabled={items.length === 1} style={miniBtnDanger()}>
-                      Hapus
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    <td style={td()}>{rupiah(total)}</td>
+
+                    <td style={td()}>
+                      <button onClick={() => removeItem(i)} disabled={items.length === 1} style={miniBtnDanger()}>
+                        Hapus
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
           <p style={{ marginTop: 10, color: "#666" }}>
-            Kalau pilih barang dari daftar, nama + harga otomatis keisi. Harga input pakai pemisah ribuan.
+            {warehouseId
+              ? "Karena gudang dipilih, item dibatasi hanya ke barang yang ada di gudang tersebut."
+              : "Kalau gudang tidak dipilih, semua barang aktif tetap bisa dipakai untuk invoice only."}
           </p>
         </div>
       </div>
@@ -673,7 +1053,6 @@ function InvoiceNewInner() {
 }
 
 export default function InvoiceNewPage() {
-  // ✅ FIX Vercel: useSearchParams wajib di dalam Suspense
   return (
     <Suspense fallback={<div style={{ padding: 18 }}>Loading...</div>}>
       <InvoiceNewInner />
@@ -699,9 +1078,11 @@ function card(): React.CSSProperties {
     boxSizing: "border-box",
   };
 }
+
 function label(): React.CSSProperties {
   return { display: "grid", gap: 6, fontSize: 13, color: "#444" };
 }
+
 function input(): React.CSSProperties {
   return {
     padding: 10,
@@ -713,6 +1094,7 @@ function input(): React.CSSProperties {
     background: "white",
   };
 }
+
 function btn(): React.CSSProperties {
   return {
     padding: "10px 12px",
@@ -724,6 +1106,7 @@ function btn(): React.CSSProperties {
     color: "#111",
   };
 }
+
 function btnPrimary(): React.CSSProperties {
   return {
     padding: "10px 12px",
@@ -734,6 +1117,7 @@ function btnPrimary(): React.CSSProperties {
     cursor: "pointer",
   };
 }
+
 function pillBtn(active: boolean): React.CSSProperties {
   return {
     padding: "8px 10px",
@@ -745,6 +1129,7 @@ function pillBtn(active: boolean): React.CSSProperties {
     fontWeight: 700,
   };
 }
+
 function th(): React.CSSProperties {
   return {
     textAlign: "left",
@@ -752,11 +1137,18 @@ function th(): React.CSSProperties {
     padding: "8px 6px",
     color: "#666",
     fontWeight: 600,
+    whiteSpace: "nowrap",
   };
 }
+
 function td(): React.CSSProperties {
-  return { borderBottom: "1px solid #f2f2f2", padding: "8px 6px", verticalAlign: "top" };
+  return {
+    borderBottom: "1px solid #f2f2f2",
+    padding: "8px 6px",
+    verticalAlign: "top",
+  };
 }
+
 function miniBtnDanger(): React.CSSProperties {
   return {
     padding: "6px 10px",
@@ -764,5 +1156,34 @@ function miniBtnDanger(): React.CSSProperties {
     border: "1px solid #b00",
     background: "#fff5f5",
     cursor: "pointer",
+  };
+}
+
+function sugBox(): React.CSSProperties {
+  return {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 44,
+    zIndex: 50,
+    border: "1px solid #e5e7eb",
+    background: "white",
+    borderRadius: 12,
+    boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
+    overflow: "hidden",
+    maxHeight: 260,
+    overflowY: "auto",
+  };
+}
+
+function sugBtn(): React.CSSProperties {
+  return {
+    width: "100%",
+    textAlign: "left",
+    border: "none",
+    background: "white",
+    padding: "10px 12px",
+    cursor: "pointer",
+    borderBottom: "1px solid #f1f5f9",
   };
 }

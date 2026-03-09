@@ -1,7 +1,7 @@
 // ✅ REPLACE FULL FILE
 // app/settings/page.tsx
-// Tambah card "Invoice Template" dan hanya bisa diklik admin.
-// (staff tetap bisa lihat settings page, tapi card invoice-template disable)
+// Tambah card "Inventory Settings" (admin only)
+// Tetap pertahankan card Invoice Template + PO Settings
 
 "use client";
 
@@ -129,6 +129,52 @@ export default function SettingsHome() {
           ) : null}
         </a>
 
+        {/* PO Settings (admin only) */}
+        <a
+          href="/settings/po"
+          style={!isAdmin ? disabledCard : cardBase}
+          title={!isAdmin ? "Hanya Admin yang bisa mengubah PO settings" : "Atur tampilan Ship To di PDF PO"}
+          aria-disabled={!isAdmin}
+        >
+          <div style={{ fontSize: 14, fontWeight: 900 }}>
+            📦 PO Settings {!isAdmin ? "(Admin only)" : ""}
+          </div>
+          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
+            Toggle tampilkan nama gudang (Ship To) di PDF Purchase Order.
+          </div>
+
+          {!isAdmin ? (
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
+              Kamu login sebagai <b>STAFF</b>. Menu ini hanya untuk <b>ADMIN</b>.
+            </div>
+          ) : null}
+        </a>
+
+        {/* ✅ Inventory Settings (admin only) */}
+        <a
+          href="/settings/inventory"
+          style={!isAdmin ? disabledCard : cardBase}
+          title={
+            !isAdmin
+              ? "Hanya Admin yang bisa mengubah inventory settings"
+              : "Atur trigger stock out, default warehouse, dan stok minus"
+          }
+          aria-disabled={!isAdmin}
+        >
+          <div style={{ fontSize: 14, fontWeight: 900 }}>
+            📊 Inventory Settings {!isAdmin ? "(Admin only)" : ""}
+          </div>
+          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
+            Atur kapan stok berkurang (Invoice Sent / Surat Jalan), default gudang, dan izin stok minus.
+          </div>
+
+          {!isAdmin ? (
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
+              Kamu login sebagai <b>STAFF</b>. Menu ini hanya untuk <b>ADMIN</b>.
+            </div>
+          ) : null}
+        </a>
+
         {/* Manajemen Staff (disabled kalau staff) */}
         <a
           href="/settings/staff"
@@ -137,7 +183,9 @@ export default function SettingsHome() {
           aria-disabled={isStaff}
         >
           <div style={{ fontSize: 14, fontWeight: 900 }}>👥 Manajemen Staff {isStaff ? "(Admin only)" : ""}</div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>Tambah staff, reset password, nonaktifkan staff.</div>
+          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
+            Tambah staff, reset password, nonaktifkan staff.
+          </div>
 
           {isStaff ? (
             <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
