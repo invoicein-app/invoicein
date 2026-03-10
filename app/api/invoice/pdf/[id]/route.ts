@@ -44,6 +44,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const isDownload = url.searchParams.get("download") === "1";
 
   // 1) User client (RLS gate)
+  console.log("PDF ENV CHECK", {
+  url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+  anon: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  service: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+});
   const supabaseUser = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
