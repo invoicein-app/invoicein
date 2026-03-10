@@ -310,7 +310,7 @@ export default function QuotationEditPage() {
   }
 
   return (
-    <div style={{ padding: 18, maxWidth: 980, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ margin: 0 }}>

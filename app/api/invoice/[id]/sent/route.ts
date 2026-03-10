@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 function isUuid(v: any) {
   const s = String(v || "").trim();
@@ -68,6 +69,9 @@ export async function POST(
 
   const orgId = String((mem as any).org_id);
   const actorRole = String((mem as any).role || "staff");
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const { data: inv, error: invErr } = await supabase
     .from("invoices")
@@ -186,6 +190,7 @@ export async function POST(
       meta: {
         invoice_id: invoiceId,
         invoice_number: (inv as any).invoice_number || null,
+        customer_name: (inv as any).customer_name || null,
         stock_issue_trigger: stockIssueTrigger,
         stock_movement: "skipped",
         reason: "trigger is not invoice_sent",
@@ -235,6 +240,7 @@ export async function POST(
       meta: {
         invoice_id: invoiceId,
         invoice_number: (inv as any).invoice_number || null,
+        customer_name: (inv as any).customer_name || null,
         stock_issue_trigger: stockIssueTrigger,
         stock_movement: "skipped",
         reason: "warehouse_id is null",
@@ -413,6 +419,7 @@ export async function POST(
     meta: {
       invoice_id: invoiceId,
       invoice_number: (inv as any).invoice_number || null,
+      customer_name: (inv as any).customer_name || null,
       warehouse_id: warehouseId,
       stock_issue_trigger: stockIssueTrigger,
       stock_moved: true,

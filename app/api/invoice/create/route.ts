@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 type Item = {
   product_id: string;
@@ -164,6 +165,9 @@ export async function POST(req: Request) {
 
   const orgId = String(membership.org_id);
   const actorRole = String((membership as any).role || "staff");
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const dt = normalizeDiscountType(discount_type, discount_value);
 
@@ -361,6 +365,7 @@ export async function POST(req: Request) {
     meta: {
       invoice_id: inv.id,
       invoice_number: inv.invoice_number ?? null,
+      customer_name: String(customer_name || "").trim() || null,
       quotation_id: quotation_id || null,
       quotation_number: quotationNumber,
       warehouse_id: warehouse_id || null,

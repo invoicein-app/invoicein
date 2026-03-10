@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 export async function POST(req: Request) {
   const cookieStore = await cookies();
@@ -40,6 +41,9 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+
+  const subBlock = await requireCanWrite(supabase, mem.org_id);
+  if (subBlock) return subBlock;
 
   // Only allow updating fields we expect (biar aman)
   const payload = {

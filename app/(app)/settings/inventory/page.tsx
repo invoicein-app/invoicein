@@ -152,7 +152,7 @@ export default function InventorySettingsPage() {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 760, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <h2 style={{ marginBottom: 4 }}>Inventory Settings</h2>
       <div style={{ color: "#6b7280", marginBottom: 18 }}>
         Atur bagaimana sistem mengurangi stok barang.

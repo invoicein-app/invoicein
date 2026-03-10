@@ -83,8 +83,9 @@ export default function StaffSettingsClient() {
   }
 
   const box: React.CSSProperties = {
-    maxWidth: 920,
-    margin: "24px auto",
+    width: "100%",
+    maxWidth: 1400,
+    margin: "24px 0",
     background: "#fff",
     border: "1px solid #e5e7eb",
     borderRadius: 16,

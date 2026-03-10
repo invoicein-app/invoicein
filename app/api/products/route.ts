@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 function num(v: any) {
   const n = Number(v);
@@ -119,6 +120,9 @@ export async function POST(req: NextRequest) {
 
   const { user, orgId, actorRole } = auth as any;
 
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
+
   const body = await req.json().catch(() => null);
   if (!body) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
@@ -173,6 +177,9 @@ export async function PATCH(req: NextRequest) {
   if ((auth as any).error) return (auth as any).error;
 
   const { user, orgId, actorRole } = auth as any;
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const body = await req.json().catch(() => null);
   if (!body) {
@@ -251,6 +258,9 @@ export async function DELETE(req: NextRequest) {
   if ((auth as any).error) return (auth as any).error;
 
   const { user, orgId, actorRole } = auth as any;
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const { searchParams } = new URL(req.url);
   const id = asText(searchParams.get("id"));

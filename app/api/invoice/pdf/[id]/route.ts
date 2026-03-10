@@ -1,10 +1,6 @@
 // app/api/invoice/pdf/[id]/route.ts
 export const runtime = "nodejs";
-console.log("PDF ENV CHECK", {
-  url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-  anon: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  service: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-});
+
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
@@ -43,12 +39,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const url = new URL(req.url);
   const isDownload = url.searchParams.get("download") === "1";
 
-  // 1) User client (RLS gate)
-  console.log("PDF ENV CHECK", {
-  url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-  anon: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  service: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-});
   const supabaseUser = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -76,8 +66,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   if (invGateErr) return NextResponse.json({ error: invGateErr.message }, { status: 403 });
   if (!invGate) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  // 2) Admin client
-  const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   const { data: inv, error: invErr } = await admin.from("invoices").select("*").eq("id", id).single();
   if (invErr || !inv) return NextResponse.json({ error: invErr?.message || "Invoice not found" }, { status: 400 });
@@ -111,7 +103,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     org = (orgData as any) || null;
   }
 
-  // ✅ NEW: ambil toggle pdf dari invoice_settings (per org)
   let pdfOpt: PdfOpt = {
     show_tax: true,
     show_discount: true,
@@ -146,7 +137,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     org,
     logoSrc,
     sjNumber,
-    pdfOpt, // ✅ NEW
+    pdfOpt,
   }) as any;
 
   const buffer = await pdf(element).toBuffer();
@@ -256,6 +247,7 @@ function InvoicePDF(props: {
 }) {
   const { inv, items, org, logoSrc, sjNumber, pdfOpt } = props;
 
+  // JANGAN DIUBAH: ratio pagination sudah fix
   const ITEMS_FIRST_PAGE = 10;
   const ITEMS_NEXT_PAGES = 18;
   const ITEMS_LAST_PAGE = 12;
@@ -269,10 +261,13 @@ function InvoicePDF(props: {
   const orgAddress = org?.address || "";
   const orgPhone = org?.phone || "";
   const orgEmail = org?.email || "";
+  const footerText = String(org?.invoice_footer || "").trim();
 
   const bankName = org?.bank_name || "";
   const bankAcc = org?.bank_account || "";
   const bankAccName = org?.bank_account_name || "";
+
+  const hasBankInfo = Boolean(bankName || bankAcc || bankAccName);
 
   const customerName = String(inv.customer_name || "-");
   const customerPhone = String(inv.customer_phone || "");
@@ -281,11 +276,14 @@ function InvoicePDF(props: {
   const invNo = String(inv.invoice_number || "-");
   const invDate = fmtDateIndo(inv.invoice_date);
 
-  const showSJ = pdfOpt?.show_delivery_note ?? true;
+  const showSJ = (pdfOpt?.show_delivery_note ?? true) && Boolean(sjNumber && sjNumber !== "-");
   const showBank = pdfOpt?.show_bank_info ?? true;
   const showDisc = pdfOpt?.show_discount ?? true;
   const showTax = pdfOpt?.show_tax ?? true;
   const showNote = pdfOpt?.show_note ?? true;
+
+  const noteText = String(inv.note || "").trim();
+  const hasNote = Boolean(noteText);
 
   return React.createElement(
     Document,
@@ -299,16 +297,15 @@ function InvoicePDF(props: {
         { key: pageIndex, size: "A4", style: styles.page },
 
         React.createElement(View, { style: styles.topBar }),
+        React.createElement(View, { style: styles.topLineAccent }),
 
         React.createElement(
           View,
           { style: styles.header },
           React.createElement(
             View,
-            { style: { flexDirection: "row", gap: 12, alignItems: "center", flex: 1 } },
-            logoSrc
-              ? React.createElement(Image, { src: logoSrc, style: styles.logo })
-              : React.createElement(View, { style: styles.logoPlaceholder }),
+            { style: styles.headerLeft },
+            logoSrc ? React.createElement(Image, { src: logoSrc, style: styles.logo }) : null,
 
             React.createElement(
               View,
@@ -327,12 +324,12 @@ function InvoicePDF(props: {
 
           React.createElement(
             View,
-            { style: { alignItems: "flex-end" } },
+            { style: styles.headerRight },
             React.createElement(Text, { style: styles.invLabel }, "INVOICE"),
             React.createElement(Text, { style: styles.invNo }, invNo),
             React.createElement(Text, { style: styles.muted }, `Tanggal: ${invDate}`),
-            showSJ ? React.createElement(Text, { style: styles.muted }, `NO SJ: ${sjNumber || "-"}`) : null,
-            React.createElement(Text, { style: styles.muted }, `Halaman ${pageIndex + 1}/${totalPages}`)
+            showSJ ? React.createElement(Text, { style: styles.muted }, `NO SJ: ${sjNumber}`) : null,
+            React.createElement(Text, { style: styles.pageNo }, `Halaman ${pageIndex + 1}/${totalPages}`)
           )
         ),
 
@@ -350,39 +347,41 @@ function InvoicePDF(props: {
                 customerAddr ? React.createElement(Text, { style: styles.muted }, customerAddr) : null
               ),
 
-              // ✅ Informasi Pembayaran bisa di-hide
               showBank
                 ? React.createElement(
                     View,
                     { style: styles.card },
                     React.createElement(Text, { style: styles.cardTitleBlue }, "Informasi Pembayaran"),
-                    bankName
+                    hasBankInfo
                       ? React.createElement(
                           View,
-                          { style: styles.infoRow },
-                          React.createElement(Text, { style: styles.infoKey }, "Bank"),
-                          React.createElement(Text, { style: styles.infoVal }, bankName)
+                          null,
+                          bankName
+                            ? React.createElement(
+                                View,
+                                { style: styles.infoRow },
+                                React.createElement(Text, { style: styles.infoKey }, "Bank"),
+                                React.createElement(Text, { style: styles.infoVal }, bankName)
+                              )
+                            : null,
+                          bankAcc
+                            ? React.createElement(
+                                View,
+                                { style: styles.infoRow },
+                                React.createElement(Text, { style: styles.infoKey }, "No Rekening"),
+                                React.createElement(Text, { style: styles.infoVal }, bankAcc)
+                              )
+                            : null,
+                          bankAccName
+                            ? React.createElement(
+                                View,
+                                { style: styles.infoRow },
+                                React.createElement(Text, { style: styles.infoKey }, "Atas Nama"),
+                                React.createElement(Text, { style: styles.infoVal }, bankAccName)
+                              )
+                            : null
                         )
-                      : null,
-                    bankAcc
-                      ? React.createElement(
-                          View,
-                          { style: styles.infoRow },
-                          React.createElement(Text, { style: styles.infoKey }, "No Rekening"),
-                          React.createElement(Text, { style: styles.infoVal }, bankAcc)
-                        )
-                      : null,
-                    bankAccName
-                      ? React.createElement(
-                          View,
-                          { style: styles.infoRow },
-                          React.createElement(Text, { style: styles.infoKey }, "Atas Nama"),
-                          React.createElement(Text, { style: styles.infoVal }, bankAccName)
-                        )
-                      : null,
-                    !bankName && !bankAcc && !bankAccName
-                      ? React.createElement(Text, { style: styles.muted }, "Belum diisi di Pengaturan Organisasi.")
-                      : null
+                      : React.createElement(Text, { style: styles.muted }, "Belum diisi di Pengaturan Organisasi.")
                   )
                 : null
             )
@@ -422,27 +421,27 @@ function InvoicePDF(props: {
                 View,
                 { style: styles.bottomGrid },
 
-                // ✅ Catatan bisa di-hide
                 showNote
                   ? React.createElement(
                       View,
-                      { style: styles.card },
+                      { style: [styles.card, styles.noteCard] },
                       React.createElement(Text, { style: styles.cardTitle }, "Catatan"),
-                      React.createElement(Text, { style: styles.muted }, String(inv.note || "-"))
+                      React.createElement(
+                        Text,
+                        { style: styles.noteText },
+                        hasNote
+                          ? noteText
+                          : "Pembayaran mohon ditransfer ke rekening yang tertera.\nHarap cantumkan nomor invoice pada berita transfer."
+                      )
                     )
-                  : React.createElement(View, { style: styles.card }), // biar grid tetap rapih
+                  : React.createElement(View, { style: [styles.card, styles.noteCard] }),
 
                 React.createElement(
                   View,
                   { style: [styles.card, styles.totalCard] },
                   RowPDF("Subtotal", rupiah(t.sub)),
-
-                  // ✅ Diskon bisa di-hide
                   showDisc ? RowPDF("Diskon", rupiah(t.disc)) : null,
-
-                  // ✅ Pajak bisa di-hide
                   showTax ? RowPDF("Pajak", rupiah(t.tax)) : null,
-
                   React.createElement(View, { style: styles.divider }),
                   RowPDF("Grand Total", rupiah(t.total), true, true)
                 )
@@ -454,7 +453,15 @@ function InvoicePDF(props: {
                 React.createElement(Text, { style: styles.signatureDate }, fmtLongDate(inv.invoice_date)),
                 React.createElement(Text, { style: styles.signatureRespect }, "Dengan Hormat,"),
                 React.createElement(View, { style: styles.signatureSpace })
-              )
+              ),
+
+              footerText
+                ? React.createElement(
+                    View,
+                    { style: styles.footerInlineWrap },
+                    React.createElement(Text, { style: styles.footerInlineText }, footerText)
+                  )
+                : null
             )
           : null
       );
@@ -476,41 +483,259 @@ function RowPDF(k: string, v: string, strong?: boolean, blueStrong?: boolean) {
 }
 
 const BLUE = "#2563eb";
-const BLUE_SOFT = "#eaf2ff";
-const BORDER = "#e6e6e6";
+const BLUE_SOFT = "#eef4ff";
+const BLUE_PALE = "#f7faff";
+const BORDER = "#e5e7eb";
+const TEXT_SOFT = "#6b7280";
+const TEXT_DARK = "#111827";
 
 const styles = StyleSheet.create({
-  page: { padding: 28, fontSize: 11, color: "#111", backgroundColor: "white" },
-  topBar: { height: 6, backgroundColor: BLUE, borderRadius: 999, marginBottom: 14 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  logo: { width: 54, height: 54, borderRadius: 999 },
-  logoPlaceholder: { width: 54, height: 54, borderRadius: 999, borderWidth: 1, borderColor: BORDER },
-  orgName: { fontSize: 14, fontWeight: 800 },
-  invLabel: { color: BLUE, fontWeight: 900, letterSpacing: 0.6 },
-  invNo: { fontSize: 13, fontWeight: 900, marginTop: 2 },
-  twoCols: { marginTop: 14, flexDirection: "row", gap: 12 },
-  card: { flex: 1, borderWidth: 1, borderColor: BORDER, borderRadius: 12, padding: 12 },
-  cardTitleBlue: { fontSize: 11, fontWeight: 900, color: BLUE, marginBottom: 6 },
-  cardTitle: { fontSize: 11, fontWeight: 900, marginBottom: 6 },
-  infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
-  infoKey: { color: "#666" },
-  infoVal: { fontWeight: 700 },
-  tableWrap: { marginTop: 12, borderWidth: 1, borderColor: BORDER, borderRadius: 12, overflow: "hidden" },
-  trHead: { flexDirection: "row", backgroundColor: BLUE_SOFT, padding: 10, borderBottomWidth: 1, borderBottomColor: BORDER },
-  tr: { flexDirection: "row", padding: 10, borderBottomWidth: 1, borderBottomColor: "#f0f0f0" },
-  th: { fontWeight: 900, color: "#1f2a44" },
-  td: {},
-  bottomGrid: { marginTop: 12, flexDirection: "row", gap: 12, alignItems: "stretch" },
-  totalCard: { backgroundColor: "#f6faff", borderColor: "#cfe1ff" },
-  divider: { height: 1, backgroundColor: "#cfe1ff", marginVertical: 6 },
-  rowKey: { color: "#334155", fontWeight: 700 },
-  rowVal: { color: "#111" },
-  rowValStrong: { color: "#111", fontWeight: 900 },
-  rowValStrongBlue: { color: BLUE, fontWeight: 900 },
-  signatureWrap: { marginTop: 36, alignSelf: "flex-end", width: 260, paddingRight: 24, paddingBottom: 10 },
-  signatureDate: { fontSize: 10, color: "#111", marginBottom: 6, textAlign: "right" },
-  signatureRespect: { fontSize: 10, color: "#111", marginBottom: 26, textAlign: "right" },
-  signatureSpace: { height: 44, borderBottomWidth: 1, borderBottomColor: "#111", width: 170, marginLeft: "auto", marginBottom: 6 },
-  muted: { color: "#666" },
-  bold: { fontWeight: 800 },
+  page: {
+    paddingTop: 26,
+    paddingRight: 28,
+    paddingBottom: 24,
+    paddingLeft: 28,
+    fontSize: 11,
+    color: TEXT_DARK,
+    backgroundColor: "white",
+  },
+
+  topBar: {
+    height: 6,
+    backgroundColor: BLUE,
+    borderRadius: 999,
+    marginBottom: 6,
+  },
+
+  topLineAccent: {
+    height: 1,
+    backgroundColor: "#dbe7ff",
+    marginBottom: 14,
+  },
+
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  headerRight: {
+    alignItems: "flex-end",
+    minWidth: 165,
+  },
+
+  logo: {
+    width: 54,
+    height: 54,
+    borderRadius: 999,
+    objectFit: "cover",
+    marginRight: 12,
+  },
+
+  orgName: {
+    fontSize: 14,
+    fontWeight: 800,
+    color: TEXT_DARK,
+  },
+
+  invLabel: {
+    color: BLUE,
+    fontWeight: 900,
+    letterSpacing: 0.6,
+    fontSize: 10.5,
+  },
+
+  invNo: {
+    fontSize: 13,
+    fontWeight: 900,
+    marginTop: 2,
+    color: TEXT_DARK,
+  },
+
+  pageNo: {
+    color: TEXT_SOFT,
+    marginTop: 1,
+  },
+
+  twoCols: {
+    marginTop: 14,
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  card: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "white",
+  },
+
+  noteCard: {
+    backgroundColor: "#fcfcfd",
+  },
+
+  cardTitleBlue: {
+    fontSize: 11,
+    fontWeight: 900,
+    color: BLUE,
+    marginBottom: 6,
+  },
+
+  cardTitle: {
+    fontSize: 11,
+    fontWeight: 900,
+    marginBottom: 6,
+    color: TEXT_DARK,
+  },
+
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 3,
+    gap: 12,
+  },
+
+  infoKey: {
+    color: TEXT_SOFT,
+  },
+
+  infoVal: {
+    fontWeight: 700,
+    textAlign: "right",
+    maxWidth: 160,
+  },
+
+  tableWrap: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+
+  trHead: {
+    flexDirection: "row",
+    backgroundColor: BLUE_SOFT,
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+  },
+
+  tr: {
+    flexDirection: "row",
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+
+  th: {
+    fontWeight: 900,
+    color: "#1f2a44",
+  },
+
+  td: {
+    color: TEXT_DARK,
+  },
+
+  bottomGrid: {
+    marginTop: 12,
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "stretch",
+  },
+
+  totalCard: {
+    backgroundColor: BLUE_PALE,
+    borderColor: "#cfe1ff",
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: "#cfe1ff",
+    marginVertical: 6,
+  },
+
+  rowKey: {
+    color: "#334155",
+    fontWeight: 700,
+  },
+
+  rowVal: {
+    color: TEXT_DARK,
+  },
+
+  rowValStrong: {
+    color: TEXT_DARK,
+    fontWeight: 900,
+  },
+
+  rowValStrongBlue: {
+    color: BLUE,
+    fontWeight: 900,
+  },
+
+  noteText: {
+    color: TEXT_SOFT,
+    lineHeight: 1.2,
+  },
+
+  signatureWrap: {
+    marginTop: 18,
+    alignSelf: "flex-end",
+    width: 260,
+    paddingRight: 24,
+    paddingBottom: 6,
+  },
+
+  signatureDate: {
+    fontSize: 10,
+    color: TEXT_DARK,
+    marginBottom: 6,
+    textAlign: "right",
+  },
+
+  signatureRespect: {
+    fontSize: 10,
+    color: TEXT_DARK,
+    marginBottom: 22,
+    textAlign: "right",
+  },
+
+  signatureSpace: {
+    height: 36,
+    borderBottomWidth: 1,
+    borderBottomColor: "#111",
+    width: 170,
+    marginLeft: "auto",
+    marginBottom: 6,
+  },
+
+  footerInlineWrap: {
+    marginTop: 10,
+    alignItems: "center",
+  },
+
+  footerInlineText: {
+    fontSize: 9.5,
+    color: TEXT_SOFT,
+    textAlign: "center",
+  },
+
+  muted: {
+    color: TEXT_SOFT,
+  },
+
+  bold: {
+    fontWeight: 800,
+    color: TEXT_DARK,
+  },
 });

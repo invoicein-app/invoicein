@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 function safeStr(v: any) {
   return String(v ?? "").trim();
@@ -99,6 +100,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
   const { orgId, actorRole } = await getMembership(supabase, user.id);
 
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
+
   const id = await getId(ctx);
   if (!id || !isUuid(id)) {
     return NextResponse.json({ error: "Invalid vendor id" }, { status: 400 });
@@ -152,6 +156,9 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   const user = userRes.user;
 
   const { orgId, actorRole } = await getMembership(supabase, user.id);
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const id = await getId(ctx);
   if (!id || !isUuid(id)) {

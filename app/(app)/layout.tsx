@@ -11,13 +11,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <div
         style={{
-          maxWidth: 1200,
+          width: "100%",
+          maxWidth: 1600,
           margin: "0 auto",
-          padding: "14px 18px 28px",
+          padding: "14px 24px 28px",
           display: "grid",
           gridTemplateColumns: "260px 1fr",
           gap: 14,
           alignItems: "start",
+          boxSizing: "border-box",
         }}
       >
         <Sidebar />

@@ -36,12 +36,15 @@ function todayInput() {
 
 function btnBase(): React.CSSProperties {
   return {
-    padding: "8px 14px",
-    borderRadius: 10,
-    fontWeight: 800,
+    padding: "6px 10px",
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 700,
     border: "1px solid #d1d5db",
     background: "white",
     cursor: "pointer",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
   };
 }
 
@@ -214,7 +217,14 @@ export default function InvoiceActionsClient({
 
   return (
     <>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          flexWrap: "nowrap",
+        }}
+      >
         <button
           type="button"
           onClick={() => {

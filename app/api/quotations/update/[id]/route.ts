@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 type Item = { product_id?: string | null; name: string; qty: number; price: number; sort_order?: number };
 
@@ -71,6 +72,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // auth
   const { data: userRes, error: userErr } = await supabase.auth.getUser();
   if (userErr || !userRes?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: mem } = await supabase
+    .from("memberships")
+    .select("org_id")
+    .eq("user_id", userRes.user.id)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+  const orgId = String((mem as any)?.org_id || "");
+  if (orgId) {
+    const subBlock = await requireCanWrite(supabase, orgId);
+    if (subBlock) return subBlock;
+  }
 
   // body
   const body = await req.json().catch(() => null);

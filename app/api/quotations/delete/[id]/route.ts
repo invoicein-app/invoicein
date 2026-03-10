@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+import { requireCanWrite } from "@/lib/subscription";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -37,12 +38,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // 2) pastikan user punya akses quotation ini (RLS)
   const { data: qGate, error: qGateErr } = await supabaseUser
     .from("quotations")
-    .select("id,is_locked,invoice_id")
+    .select("id, organization_id, is_locked, invoice_id")
     .eq("id", id)
     .maybeSingle();
 
   if (qGateErr) return NextResponse.json({ error: qGateErr.message }, { status: 403 });
   if (!qGate) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const orgId = (qGate as any).organization_id;
+  if (orgId) {
+    const subBlock = await requireCanWrite(supabaseUser, orgId);
+    if (subBlock) return subBlock;
+  }
 
   // blok delete kalau sudah locked / sudah linked invoice
   const locked = !!(qGate as any).is_locked;

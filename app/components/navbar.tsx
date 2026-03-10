@@ -56,15 +56,43 @@ export default async function Navbar() {
 
   const { data: membership } = await supabase
     .from("memberships")
-    .select("role, organizations:organizations(name)")
+    .select("role, organizations:organizations(name, org_code, subscription_status, trial_ends_at, expires_at)")
     .eq("user_id", user.id)
     .eq("is_active", true)
     .limit(1)
     .maybeSingle();
 
   const orgName = (membership as any)?.organizations?.name || "";
+  const orgCode = (membership as any)?.organizations?.org_code || "";
+  const subStatus = (membership as any)?.organizations?.subscription_status || "";
+  const trialEndsAt = (membership as any)?.organizations?.trial_ends_at || "";
+  const expiresAt = (membership as any)?.organizations?.expires_at || "";
   const role = (membership as any)?.role || "";
   const isAdmin = isAdminRole(role);
+  const roleDisplay = role ? String(role).charAt(0).toUpperCase() + String(role).slice(1).toLowerCase() : "—";
+
+  const now = new Date();
+  const periodEndRaw = expiresAt || trialEndsAt;
+  const endDate = periodEndRaw ? new Date(periodEndRaw) : null;
+  const expired = endDate ? endDate <= now : false;
+  const daysLeft =
+    endDate === null
+      ? null
+      : expired
+        ? 0
+        : Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
+  const subLabel =
+    expired
+      ? "Kadaluarsa"
+      : subStatus === "trial"
+        ? "Trial"
+        : subStatus === "active"
+          ? "Aktif"
+          : subStatus || "—";
+  const expiresLabel =
+    periodEndRaw
+      ? new Date(periodEndRaw).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+      : "";
 
   return (
     <div style={wrap()}>
@@ -74,13 +102,35 @@ export default async function Navbar() {
         </Link>
 
         <div style={right()}>
-          <div style={{ textAlign: "right", lineHeight: 1.1 }}>
+          <div style={{ textAlign: "right", lineHeight: 1.25 }}>
             <div style={{ fontWeight: 900, fontSize: 13 }}>
               {orgName || "—"}
             </div>
-            <div style={{ color: "#666", fontSize: 12 }}>
-              Role: {role || "-"}
-              {isAdmin ? " • Admin" : ""}
+            <div style={{ color: "#64748b", fontSize: 12 }}>
+              {orgCode ? (
+                <>
+                  <span style={{ fontWeight: 600 }}>Code: {orgCode}</span>
+                  {daysLeft !== null ? (
+                    <>
+                      <span style={{ margin: "0 4px", color: "#94a3b8" }}>•</span>
+                      <span style={expired ? { color: "#b91c1c", fontWeight: 600 } : {}}>
+                        Sisa {daysLeft} hari
+                      </span>
+                    </>
+                  ) : null}
+                  <span style={{ margin: "0 4px", color: "#94a3b8" }}>•</span>
+                </>
+              ) : null}
+              <span>Role: {roleDisplay}</span>
+              {subLabel ? (
+                <>
+                  <span style={{ margin: "0 4px", color: "#94a3b8" }}>•</span>
+                  <span style={expired ? { color: "#b91c1c", fontWeight: 600 } : {}}>
+                    {subLabel}
+                    {expiresLabel ? ` s/d ${expiresLabel}` : ""}
+                  </span>
+                </>
+              ) : null}
             </div>
           </div>
 
@@ -107,13 +157,15 @@ function wrap(): React.CSSProperties {
 
 function inner(): React.CSSProperties {
   return {
-    maxWidth: 1200,
+    width: "100%",
+    maxWidth: 1600,
     margin: "0 auto",
-    padding: "12px 18px",
+    padding: "12px 24px",
     display: "flex",
     alignItems: "center",
     gap: 10,
     flexWrap: "nowrap",
+    boxSizing: "border-box",
   };
 }
 

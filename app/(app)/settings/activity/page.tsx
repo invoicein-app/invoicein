@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import ActivityFeedClient from "./activity-feed-client";
 
 export default async function ActivityLogPage() {
   const cookieStore = await cookies();
@@ -57,71 +58,65 @@ export default async function ActivityLogPage() {
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box", maxWidth: 900 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
         <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900 }}>Activity Log</h1>
-          <div style={{ marginTop: 6, color: "#64748b" }}>
-            Hanya admin/owner yang bisa melihat.
-          </div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#0f172a" }}>
+            Activity Log
+          </h1>
+          <p style={{ marginTop: 6, marginBottom: 0, fontSize: 14, color: "#64748b" }}>
+            Riwayat aktivitas organisasi. Hanya admin/owner yang bisa melihat.
+          </p>
         </div>
-        <Link href="/settings" style={btn()}>Kembali</Link>
+        <Link href="/settings" style={btn()}>
+          ← Kembali
+        </Link>
       </div>
 
-      <div style={{ marginTop: 14, border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden", background: "white" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "180px 120px 220px 1fr", background: "#f8fafc", padding: 12, fontWeight: 900 }}>
-          <div>Waktu</div>
-          <div>Role</div>
-          <div>Action</div>
-          <div>Summary</div>
-        </div>
-
-        {(logs || []).length === 0 ? (
-          <div style={{ padding: 12, color: "#64748b" }}>Belum ada aktivitas.</div>
-        ) : (
-          logs!.map((l: any) => (
-            <div
-              key={l.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "180px 120px 220px 1fr",
-                padding: 12,
-                borderTop: "1px solid #e5e7eb",
-                gap: 10,
-                alignItems: "start",
-              }}
-            >
-              <div style={{ color: "#0f172a", fontWeight: 800 }}>
-                {String(l.created_at).replace("T", " ").slice(0, 16)}
-              </div>
-              <div style={{ color: "#334155" }}>{l.actor_role}</div>
-              <div style={{ fontFamily: "monospace", fontSize: 12, color: "#0f172a" }}>
-                {l.action}
-              </div>
-              <div style={{ color: "#0f172a" }}>
-                <div style={{ fontWeight: 800 }}>{l.summary || "-"}</div>
-                {l.meta ? (
-                  <pre style={{ marginTop: 6, background: "#f8fafc", border: "1px solid #e5e7eb", padding: 10, borderRadius: 12, fontSize: 12, overflowX: "auto" }}>
-                    {JSON.stringify(l.meta, null, 2)}
-                  </pre>
-                ) : null}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      <section
+        style={{
+          marginTop: 24,
+          padding: "20px 24px",
+          background: "#f8fafc",
+          borderRadius: 14,
+          border: "1px solid #e2e8f0",
+        }}
+      >
+        <h2
+          style={{
+            margin: "0 0 16px 0",
+            fontSize: 13,
+            fontWeight: 700,
+            color: "#64748b",
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+          }}
+        >
+          Riwayat aktivitas
+        </h2>
+        <ActivityFeedClient logs={(logs || []) as any} />
+      </section>
     </div>
   );
 }
 
 function btn(): React.CSSProperties {
   return {
-    padding: "10px 12px",
+    padding: "10px 14px",
     borderRadius: 10,
-    border: "1px solid #e5e7eb",
+    border: "1px solid #e2e8f0",
     background: "white",
     textDecoration: "none",
     color: "#0f172a",
-    fontWeight: 900,
+    fontWeight: 600,
+    fontSize: 14,
   };
 }

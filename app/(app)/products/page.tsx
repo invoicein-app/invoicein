@@ -1,9 +1,10 @@
-// invoiceku/app/products/page.tsx  (FULL REPLACE)
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/money";
+import ListFiltersClient from "../components/list-filters-client";
+import { listTableStyles } from "../components/list-page-layout";
 
 type Product = {
   id: string;
@@ -51,6 +52,8 @@ export default function ProductsPage() {
 
   const [isActive, setIsActive] = useState(true);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   async function load() {
     setLoading(true);
@@ -97,6 +100,11 @@ export default function ProductsPage() {
       return hay.includes(qq);
     });
   }, [rows, q]);
+
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const fromIdx = (page - 1) * pageSize;
+  const paginated = useMemo(() => filtered.slice(fromIdx, fromIdx + pageSize), [filtered, fromIdx, pageSize]);
 
   // ✅ CREATE / UPDATE via API (biar activity log masuk)
   async function upsert() {
@@ -158,7 +166,7 @@ export default function ProductsPage() {
   }
 
   return (
-    <div style={{ padding: 18, maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div
         style={{
           display: "flex",
@@ -242,65 +250,73 @@ export default function ProductsPage() {
 
         {/* List */}
         <div style={card()}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-            <h3 style={{ margin: 0 }}>Daftar Barang</h3>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Cari nama / sku / satuan..."
-              style={input()}
-            />
+          <h3 style={{ margin: 0 }}>Daftar Barang</h3>
+          <div style={{ marginTop: 14, padding: 14, borderRadius: 14, border: "1px solid #eee", background: "white" }}>
+            <ListFiltersClient
+              searchPlaceholder="Cari nama / sku / satuan..."
+              searchValue={q}
+              onSearchChange={setQ}
+              onReset={() => { setQ(""); setPage(1); }}
+              perPage={pageSize}
+              onPerPageChange={(v) => { setPageSize(v); setPage(1); }}
+              perPageOptions={[10, 20, 30, 50]}
+            >
+              <button type="button" onClick={load} disabled={loading || saving} style={btn()}>Refresh</button>
+            </ListFiltersClient>
           </div>
-
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, color: "#666", fontSize: 13 }}>
+            <div>Total: <b>{totalRows}</b> • Page: <b>{Math.min(page, totalPages)}</b> / <b>{totalPages}</b> • Per page: <b>{pageSize}</b></div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={() => setPage(1)} style={pagerBtn()}>« First</button>
+              <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} style={pagerBtn()}>‹ Prev</button>
+              <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} style={pagerBtn()}>Next ›</button>
+              <button type="button" onClick={() => setPage(totalPages)} style={pagerBtn()}>Last »</button>
+            </div>
+          </div>
+          <div style={{ marginTop: 14, border: "1px solid #eee", borderRadius: 14, overflowX: "auto", background: "white" }}>
             {loading ? (
-              <p style={{ color: "#666" }}>Loading...</p>
-            ) : filtered.length === 0 ? (
-              <p style={{ color: "#666" }}>Belum ada barang.</p>
+              <p style={{ padding: 20, color: "#666" }}>Loading...</p>
+            ) : paginated.length === 0 ? (
+              <p style={{ padding: 20, color: "#666" }}>Belum ada barang.</p>
             ) : (
-              <div style={{ border: "1px solid #eee", borderRadius: 12, overflow: "hidden" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                  <thead>
-                    <tr style={{ background: "#fafafa", color: "#555" }}>
-                      <th style={th()}>Nama</th>
-                      <th style={th()}>SKU</th>
-                      <th style={th()}>Satuan</th>
-                      <th style={{ ...th(), textAlign: "right" }}>Harga</th>
-                      <th style={th()}>Aktif</th>
-                      <th style={th()}>Aksi</th>
+              <table style={listTableStyles.table}>
+                <thead>
+                  <tr style={listTableStyles.thead}>
+                    <th style={listTableStyles.th}>Nama</th>
+                    <th style={listTableStyles.th}>SKU</th>
+                    <th style={listTableStyles.th}>Satuan</th>
+                    <th style={{ ...listTableStyles.th, textAlign: "right" }}>Harga</th>
+                    <th style={listTableStyles.th}>Aktif</th>
+                    <th style={listTableStyles.th}>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map((p) => (
+                    <tr key={p.id}>
+                      <td style={listTableStyles.td}><b>{p.name}</b></td>
+                      <td style={listTableStyles.td}>{p.sku || "-"}</td>
+                      <td style={listTableStyles.td}>{p.unit || "-"}</td>
+                      <td style={{ ...listTableStyles.td, textAlign: "right" }}>{rupiah(Number(p.price || 0))}</td>
+                      <td style={listTableStyles.td}>{p.is_active === false ? "No" : "Yes"}</td>
+                      <td style={listTableStyles.td}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button onClick={() => startEdit(p)} disabled={saving} style={miniBtn()}>Edit</button>
+                          <button onClick={() => remove(p.id)} disabled={saving} style={miniBtnDanger()}>Hapus</button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((p) => (
-                      <tr key={p.id} style={{ borderTop: "1px solid #eee" }}>
-                        <td style={td()}>
-                          <b>{p.name}</b>
-                        </td>
-                        <td style={td()}>{p.sku || "-"}</td>
-                        <td style={td()}>{p.unit || "-"}</td>
-                        <td style={{ ...td(), textAlign: "right" }}>{rupiah(Number(p.price || 0))}</td>
-                        <td style={td()}>{p.is_active === false ? "No" : "Yes"}</td>
-                        <td style={td()}>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <button onClick={() => startEdit(p)} disabled={saving} style={miniBtn()}>
-                              Edit
-                            </button>
-                            <button onClick={() => remove(p.id)} disabled={saving} style={miniBtnDanger()}>
-                              Hapus
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             )}
-
-            <div style={{ marginTop: 10 }}>
-              <button onClick={load} disabled={loading || saving} style={btn()}>
-                Refresh
-              </button>
+          </div>
+          <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, color: "#666", fontSize: 13 }}>
+            <div>Menampilkan <b>{Math.min(fromIdx + 1, totalRows)}</b>–<b>{Math.min(fromIdx + paginated.length, totalRows)}</b> dari <b>{totalRows}</b></div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={() => setPage(1)} style={pagerBtn()}>« First</button>
+              <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} style={pagerBtn()}>‹ Prev</button>
+              <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} style={pagerBtn()}>Next ›</button>
+              <button type="button" onClick={() => setPage(totalPages)} style={pagerBtn()}>Last »</button>
             </div>
           </div>
         </div>
@@ -335,4 +351,7 @@ function miniBtn(): React.CSSProperties {
 }
 function miniBtnDanger(): React.CSSProperties {
   return { padding: "6px 10px", borderRadius: 10, border: "1px solid #b00", background: "#fff5f5", cursor: "pointer" };
+}
+function pagerBtn(): React.CSSProperties {
+  return { padding: "8px 10px", borderRadius: 10, border: "1px solid #eee", background: "white", cursor: "pointer", color: "#111", fontWeight: 600 };
 }

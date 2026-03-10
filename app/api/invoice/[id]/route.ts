@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 type UpdateInvoiceBody = {
   header?: Record<string, any>;
@@ -158,6 +159,9 @@ export async function PATCH(
   if ((auth as any).error) return (auth as any).error;
 
   const { supabase, user, orgId, actorRole } = auth as any;
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const body = (await req.json().catch(() => null)) as UpdateInvoiceBody | null;
   if (!body) {
@@ -373,6 +377,9 @@ export async function DELETE(
   if ((auth as any).error) return (auth as any).error;
 
   const { supabase, user, orgId, actorRole } = auth as any;
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const { data: before, error: invErr } = await supabase
     .from("invoices")

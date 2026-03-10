@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+import { requireCanWrite } from "@/lib/subscription";
 
 export async function POST(req: Request) {
   // 1) Auth user (pakai cookie session)
@@ -41,6 +42,9 @@ export async function POST(req: Request) {
   if (memErr || !mem?.org_id) {
     return Response.json({ error: "No organization found for this user" }, { status: 400 });
   }
+
+  const subBlock = await requireCanWrite(supabase, mem.org_id);
+  if (subBlock) return subBlock;
 
   // 3) Terima file dari form-data
   const formData = await req.formData();

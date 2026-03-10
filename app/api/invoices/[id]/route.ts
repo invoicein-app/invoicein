@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 type UpdateInvoiceBody = {
   header?: Record<string, any>;
@@ -141,6 +142,9 @@ export async function PATCH(
 
   const orgId = String(membership.org_id);
   const actorRole = String(membership.role || "staff");
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   // ambil nomor invoice untuk summary/meta
   const { data: invRow } = await supabase

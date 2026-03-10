@@ -68,7 +68,7 @@ export default function WarehouseDetailPage() {
   }, [id]);
 
   return (
-    <div style={{ padding: 18, maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div style={topbar()}>
         <div>
           <h1 style={{ margin: 0 }}>Detail Gudang</h1>

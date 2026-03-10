@@ -345,7 +345,7 @@ export default function WarehouseStockPage() {
   const filteredLed = filteredLedger(ledger, ledgerQ);
 
   return (
-    <div style={{ padding: 18, maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
           <h1 style={{ margin: 0 }}>Stock Gudang</h1>

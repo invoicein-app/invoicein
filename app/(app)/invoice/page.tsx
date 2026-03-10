@@ -236,7 +236,7 @@ export default async function InvoiceListPage({
   const lastUrl = buildUrl(currentParams, { p: String(totalPages) });
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div
         style={{
           display: "flex",
@@ -334,14 +334,14 @@ export default async function InvoiceListPage({
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
             <tr style={{ background: "#fafafa", color: "#555" }}>
-              <th style={{ padding: 12, textAlign: "left" }}>Invoice No.</th>
-              <th style={{ padding: 12, textAlign: "left" }}>Pelanggan</th>
-              <th style={{ padding: 12, textAlign: "center" }}>Status</th>
-              <th style={{ padding: 12, textAlign: "right" }}>Jumlah</th>
-              <th style={{ padding: 12, textAlign: "right" }}>Terbayar</th>
-              <th style={{ padding: 12, textAlign: "right" }}>Terhutang</th>
-              <th style={{ padding: 12, textAlign: "left" }}>Tanggal</th>
-              <th style={{ padding: 12, textAlign: "left" }}>Aksi</th>
+              <th style={{ padding: "10px 12px", textAlign: "left" }}>Invoice No.</th>
+              <th style={{ padding: "10px 12px", textAlign: "left" }}>Pelanggan</th>
+              <th style={{ padding: "10px 8px", textAlign: "center", width: 88, minWidth: 88 }}>Status</th>
+              <th style={{ padding: "10px 12px", textAlign: "right" }}>Jumlah</th>
+              <th style={{ padding: "10px 12px", textAlign: "right" }}>Terbayar</th>
+              <th style={{ padding: "10px 12px", textAlign: "right" }}>Terhutang</th>
+              <th style={{ padding: "10px 12px", textAlign: "left" }}>Tanggal</th>
+              <th style={{ padding: "10px 12px", textAlign: "left", width: 280, minWidth: 280 }}>Aksi</th>
             </tr>
           </thead>
 
@@ -352,7 +352,7 @@ export default async function InvoiceListPage({
 
               return (
                 <tr key={inv.id} style={{ borderTop: "1px solid #eee" }}>
-                  <td style={{ padding: 12 }}>
+                  <td style={{ padding: "10px 12px" }}>
                     <Link
                       href={`/invoice/${inv.id}`}
                       style={{ fontWeight: 800, textDecoration: "none", color: "#111" }}
@@ -361,30 +361,32 @@ export default async function InvoiceListPage({
                     </Link>
                   </td>
 
-                  <td style={{ padding: 12 }}>{customerName}</td>
+                  <td style={{ padding: "10px 12px" }}>{customerName}</td>
 
-                  <td style={{ padding: 12, textAlign: "center" }}>
+                  <td style={{ padding: "10px 8px", textAlign: "center", width: 88 }}>
                     <span
                       style={{
-                        padding: "4px 10px",
+                        padding: "3px 8px",
                         borderRadius: 999,
-                        fontSize: 12,
-                        fontWeight: 800,
+                        fontSize: 11,
+                        fontWeight: 700,
                         background: badge.bg,
                         border: `1px solid ${badge.border}`,
                         color: badge.color,
+                        whiteSpace: "nowrap",
+                        display: "inline-block",
                       }}
                     >
                       {inv.payStatus}
                     </span>
                   </td>
 
-                  <td style={{ padding: 12, textAlign: "right" }}>{rupiah(inv.grandTotal)}</td>
-                  <td style={{ padding: 12, textAlign: "right" }}>{rupiah(inv.paid)}</td>
-                  <td style={{ padding: 12, textAlign: "right" }}>{rupiah(inv.remaining)}</td>
-                  <td style={{ padding: 12 }}>{inv.invoice_date || "-"}</td>
+                  <td style={{ padding: "10px 12px", textAlign: "right" }}>{rupiah(inv.grandTotal)}</td>
+                  <td style={{ padding: "10px 12px", textAlign: "right" }}>{rupiah(inv.paid)}</td>
+                  <td style={{ padding: "10px 12px", textAlign: "right" }}>{rupiah(inv.remaining)}</td>
+                  <td style={{ padding: "10px 12px" }}>{inv.invoice_date || "-"}</td>
 
-                  <td style={{ padding: 12, width: 260 }}>
+                  <td style={{ padding: "10px 12px", width: 280, verticalAlign: "middle" }}>
                     <InvoiceActionsClient
                       id={inv.id}
                       invoiceNumber={inv.invoice_number}
@@ -435,7 +437,6 @@ export default async function InvoiceListPage({
     </div>
   );
 }
-
 function pagerBtn(): React.CSSProperties {
   return {
     padding: "8px 10px",

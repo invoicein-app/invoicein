@@ -15,6 +15,11 @@ export default function SettingsHome() {
 
   const [role, setRole] = useState<Role>(null);
   const [loading, setLoading] = useState(true);
+  const [sub, setSub] = useState<{
+    org_code: string;
+    subscription_status: string;
+    expires_at: string | null;
+  } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -26,6 +31,7 @@ export default function SettingsHome() {
         if (!user) {
           if (alive) {
             setRole(null);
+            setSub(null);
             setLoading(false);
           }
           return;
@@ -33,7 +39,7 @@ export default function SettingsHome() {
 
         const { data: mem } = await supabase
           .from("memberships")
-          .select("role")
+          .select("role, organizations(org_code, subscription_status, expires_at)")
           .eq("user_id", user.id)
           .order("created_at", { ascending: true })
           .limit(1)
@@ -41,11 +47,22 @@ export default function SettingsHome() {
 
         if (alive) {
           setRole((mem?.role as Role) ?? null);
+          const org = (mem as any)?.organizations;
+          setSub(
+            org
+              ? {
+                  org_code: org.org_code || "",
+                  subscription_status: org.subscription_status || "",
+                  expires_at: org.expires_at || null,
+                }
+              : null
+          );
           setLoading(false);
         }
       } catch {
         if (alive) {
           setRole(null);
+          setSub(null);
           setLoading(false);
         }
       }
@@ -89,7 +106,7 @@ export default function SettingsHome() {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
         <div>
           <h2 style={{ margin: 0 }}>Settings</h2>
@@ -100,6 +117,32 @@ export default function SettingsHome() {
       </div>
 
       <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+        {/* Langganan / Kode organisasi */}
+        <div style={cardBase}>
+          <div style={{ fontSize: 14, fontWeight: 900 }}>📋 Langganan</div>
+          <div style={{ marginTop: 8, color: "#4b5563", fontSize: 13 }}>
+            Kode organisasi: <strong style={{ fontFamily: "monospace", letterSpacing: 1 }}>{sub?.org_code || "—"}</strong>
+            {sub?.org_code ? (
+              <span style={{ marginLeft: 8, fontSize: 12 }}>
+                (gunakan saat konfirmasi pembayaran)
+              </span>
+            ) : null}
+          </div>
+          {sub?.subscription_status || sub?.expires_at ? (
+            <div style={{ marginTop: 8, fontSize: 13 }}>
+              Status: <strong>{sub?.subscription_status === "trial" ? "Trial" : sub?.subscription_status === "active" ? "Aktif" : sub?.subscription_status || "—"}</strong>
+              {sub?.expires_at ? (
+                <span style={{ color: "#6b7280" }}>
+                  {" "}• Berakhir: {new Date(sub.expires_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
+            Perpanjangan manual: transfer lalu kirim bukti + kode org ke admin.
+          </div>
+        </div>
+
         {/* Pengaturan Usaha */}
         <a href="/settings/organization" style={cardBase}>
           <div style={{ fontSize: 14, fontWeight: 900 }}>🏪 Pengaturan Usaha</div>

@@ -47,7 +47,7 @@ export default async function DashboardPage() {
 
   if (!user) {
     return (
-      <div style={{ padding: 18, maxWidth: 1050, margin: "0 auto" }}>
+      <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
         <h1 style={{ margin: 0 }}>Dashboard</h1>
         <p style={{ marginTop: 6, color: "#666" }}>Kamu belum login.</p>
       </div>
@@ -69,7 +69,7 @@ export default async function DashboardPage() {
 
   if (!orgId) {
     return (
-      <div style={{ padding: 18, maxWidth: 1050, margin: "0 auto" }}>
+      <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
         <h1 style={{ margin: 0 }}>Dashboard</h1>
         <p style={{ marginTop: 6, color: "#666" }}>
           Organisasi belum ter-set. (Belum ada membership aktif)
@@ -211,7 +211,7 @@ export default async function DashboardPage() {
   const maxBar = Math.max(1, ...monthBars.map((x) => x.value));
 
   return (
-    <div style={{ padding: 18, maxWidth: 1050, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div
         style={{
           display: "flex",

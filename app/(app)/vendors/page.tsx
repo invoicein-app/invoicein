@@ -1,11 +1,12 @@
-// ✅ NEW FILE
-// invoiceku/app/(app)/vendors/page.tsx
 "use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import ListPageLayout from "../components/list-page-layout";
+import ListFiltersClient from "../components/list-filters-client";
+import { listTableStyles } from "../components/list-page-layout";
 
 type VendorRow = {
   id: string;
@@ -31,6 +32,8 @@ export default function VendorsListPage() {
   const [err, setErr] = useState<string>("");
   const [rows, setRows] = useState<VendorRow[]>([]);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   async function load() {
     setLoading(true);
@@ -92,6 +95,22 @@ export default function VendorsListPage() {
     });
   }, [rows, q]);
 
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const fromIdx = (page - 1) * pageSize;
+  const toIdx = fromIdx + pageSize - 1;
+  const paginated = useMemo(() => filtered.slice(fromIdx, fromIdx + pageSize), [filtered, fromIdx, pageSize]);
+
+  const clientPagination = useMemo(
+    () => ({
+      onFirst: () => setPage(1),
+      onPrev: () => setPage((p) => Math.max(1, p - 1)),
+      onNext: () => setPage((p) => Math.min(totalPages, p + 1)),
+      onLast: () => setPage(totalPages),
+    }),
+    [totalPages]
+  );
+
   async function deactivateVendor(id: string) {
     const v = rows.find((x) => x.id === id);
     if (!v) return;
@@ -108,111 +127,86 @@ export default function VendorsListPage() {
     await load();
   }
 
-  return (
-    <div style={{ padding: 6 }}>
-      <div style={topbar()}>
-        <div>
-          <div style={{ fontWeight: 1000, fontSize: 18 }}>Vendors</div>
-          <div style={{ color: "#6b7280", marginTop: 4, fontSize: 13 }}>
-            Master vendor (dengan vendor code otomatis).
-          </div>
-        </div>
+  const filters = (
+    <ListFiltersClient
+      searchPlaceholder="Cari vendor code / nama / phone..."
+      searchValue={q}
+      onSearchChange={setQ}
+      onReset={() => { setQ(""); setPage(1); }}
+      perPage={pageSize}
+      onPerPageChange={(v) => { setPageSize(v); setPage(1); }}
+      perPageOptions={[10, 20, 30, 50]}
+    >
+      <button type="button" onClick={load} style={btnSoft()} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
+    </ListFiltersClient>
+  );
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={load} style={btnSoft()} disabled={loading}>
-            {loading ? "Loading..." : "Refresh"}
-          </button>
-          <Link href="/vendors/new" style={btnPrimaryLink()}>
-            + Buat Vendor
-          </Link>
-        </div>
-      </div>
-
-      {err ? <div style={errBox()}>{err}</div> : null}
-
-      <div style={card()}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Cari vendor code / nama / phone..."
-            style={inpFull()}
-          />
-          <div style={{ fontWeight: 900, color: "#6b7280", whiteSpace: "nowrap" }}>
-            {filtered.length} data
-          </div>
-        </div>
-
-        <div style={tableWrap()}>
-          <table style={table()}>
-            <thead>
-              <tr>
-                <th style={th()}>Vendor Code</th>
-                <th style={th()}>Nama</th>
-                <th style={th()}>Phone</th>
-                <th style={th()}>Status</th>
-                <th style={th()}>Created</th>
-                <th style={th()}>Aksi</th>
+  const tableContent = (
+    <table style={{ ...listTableStyles.table, minWidth: 920 }}>
+      <thead>
+        <tr style={listTableStyles.thead}>
+          <th style={listTableStyles.th}>Vendor Code</th>
+          <th style={listTableStyles.th}>Nama</th>
+          <th style={listTableStyles.th}>Phone</th>
+          <th style={listTableStyles.th}>Status</th>
+          <th style={listTableStyles.th}>Created</th>
+          <th style={listTableStyles.th}>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {loading ? (
+          <tr><td colSpan={6} style={listTableStyles.td}>Loading...</td></tr>
+        ) : paginated.length === 0 ? (
+          <tr><td colSpan={6} style={listTableStyles.empty}>Tidak ada data.</td></tr>
+        ) : (
+          paginated.map((r) => {
+            const active = r.is_active !== false;
+            return (
+              <tr key={r.id}>
+                <td style={{ ...listTableStyles.td, fontFamily: "ui-monospace, monospace" }}>
+                  <Link href={`/vendors/${r.id}`} style={linkClick()}>{r.vendor_code || "-"}</Link>
+                </td>
+                <td style={listTableStyles.td}><div style={{ fontWeight: 700 }}>{r.name}</div></td>
+                <td style={listTableStyles.td}>{r.phone || "-"}</td>
+                <td style={listTableStyles.td}>
+                  <span style={{ ...pill(), ...(active ? pillOk() : pillBad()) }}>{active ? "active" : "inactive"}</span>
+                </td>
+                <td style={listTableStyles.td}>{fmtDate(r.created_at)}</td>
+                <td style={listTableStyles.td}>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => router.push(`/vendors/${r.id}`)} style={btnSoftSmall()}>Detail</button>
+                    <button type="button" onClick={() => router.push(`/vendors/${r.id}/edit`)} style={btnSoftSmall()}>Edit</button>
+                    <button type="button" onClick={() => deactivateVendor(r.id)} disabled={!active} style={{ ...btnDangerSmall(), cursor: !active ? "not-allowed" : "pointer", opacity: !active ? 0.5 : 1 }} title={!active ? "Sudah inactive" : "Nonaktifkan vendor"}>Deactivate</button>
+                  </div>
+                </td>
               </tr>
-            </thead>
+            );
+          })
+        )}
+      </tbody>
+    </table>
+  );
 
-            <tbody>
-              {loading ? (
-                <tr><td style={td()} colSpan={6}>Loading...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td style={td()} colSpan={6}>Tidak ada data.</td></tr>
-              ) : (
-                filtered.map((r) => {
-                  const active = r.is_active !== false;
-                  return (
-                    <tr key={r.id}>
-                      <td style={tdMono()}>
-                        <Link href={`/vendors/${r.id}`} style={linkClick()}>
-                          {r.vendor_code || "-"}
-                        </Link>
-                      </td>
-                      <td style={td()}>
-                        <div style={{ fontWeight: 950 }}>{r.name}</div>
-                      </td>
-                      <td style={td()}>{r.phone || "-"}</td>
-                      <td style={td()}>
-                        <span style={{ ...pill(), ...(active ? pillOk() : pillBad()) }}>
-                          {active ? "active" : "inactive"}
-                        </span>
-                      </td>
-                      <td style={td()}>{fmtDate(r.created_at)}</td>
-                      <td style={td()}>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button type="button" onClick={() => router.push(`/vendors/${r.id}`)} style={btnSoftSmall()}>
-                            Detail
-                          </button>
-                          <button type="button" onClick={() => router.push(`/vendors/${r.id}/edit`)} style={btnSoftSmall()}>
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deactivateVendor(r.id)}
-                            disabled={!active}
-                            style={{
-                              ...btnDangerSmall(),
-                              cursor: !active ? "not-allowed" : "pointer",
-                              opacity: !active ? 0.5 : 1,
-                            }}
-                            title={!active ? "Sudah inactive" : "Nonaktifkan vendor"}
-                          >
-                            Deactivate
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+  return (
+    <>
+      {err ? <div style={{ ...errBox(), margin: "24px 0" }}>{err}</div> : null}
+      <ListPageLayout
+        title="Vendors"
+        subtitle="Master vendor (dengan vendor code otomatis)."
+        primaryLink={{ href: "/vendors/new", label: "+ Buat Vendor" }}
+        secondaryLink={{ href: "/invoice", label: "Invoice" }}
+        filters={filters}
+        totalRows={totalRows}
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        fromIdx={fromIdx}
+        toIdx={toIdx}
+        clientPagination={clientPagination}
+        tableContent={tableContent}
+        emptyMessage="Tidak ada data."
+      />
+    </>
   );
 }
 

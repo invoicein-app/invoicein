@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 function safeStr(v: any) {
   return String(v ?? "").trim();
@@ -91,6 +92,9 @@ export async function POST(req: Request) {
   try {
     const { orgId } = await getMembershipOrg(supabase, userRes.user.id);
     if (!orgId) return NextResponse.json({ error: "Org tidak ditemukan." }, { status: 400 });
+
+    const subBlock = await requireCanWrite(supabase, orgId);
+    if (subBlock) return subBlock;
 
     const name = safeStr(body?.name);
     const address = safeStr(body?.address);

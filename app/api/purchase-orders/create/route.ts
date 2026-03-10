@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 type POItemInput = {
   product_id: string;
@@ -124,6 +125,9 @@ export async function POST(req: Request) {
 
   const orgId = String(membership.org_id);
   const actorRole = String((membership as any).role || "staff");
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const normItems: POItemInput[] = (items as any[]).map((it: any) => ({
     product_id: asText(it?.product_id),

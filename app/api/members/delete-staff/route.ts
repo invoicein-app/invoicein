@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { requireCanWrite } from "@/lib/subscription";
 
 type Body = { memberId?: string };
 
@@ -52,6 +53,9 @@ export async function POST(req: NextRequest) {
 
   if (targetErr) return NextResponse.json({ error: targetErr.message }, { status: 400 });
   if (!target) return NextResponse.json({ error: "Member tidak ditemukan" }, { status: 404 });
+
+  const subBlock = await requireCanWrite(supabaseUser, target.org_id);
+  if (subBlock) return subBlock;
 
   // gate admin org
   const { data: myMem, error: myMemErr } = await admin

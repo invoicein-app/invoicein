@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 function isAdminRole(role: string) {
   const r = String(role || "").toLowerCase();
@@ -60,6 +61,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const orgId = String(membership.org_id);
   const role = String(membership.role || "staff");
   const isAdmin = isAdminRole(role);
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   // ambil PO (RLS tetap jalan)
   const { data: po, error: poErr } = await supabase

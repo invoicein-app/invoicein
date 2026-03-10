@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -25,6 +26,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { data: userRes } = await supabase.auth.getUser();
   if (!userRes.user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: poRow } = await supabase
+    .from("purchase_orders")
+    .select("org_id")
+    .eq("id", poId)
+    .maybeSingle();
+  const orgId = (poRow as any)?.org_id;
+  if (orgId) {
+    const subBlock = await requireCanWrite(supabase, orgId);
+    if (subBlock) return subBlock;
+  }
 
   const body = await req.json();
 

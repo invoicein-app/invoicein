@@ -61,7 +61,6 @@ export default function CancelInvoiceButtonClient(props: {
     </button>
   );
 }
-
 function btnDanger(): React.CSSProperties {
   return {
     padding: "10px 12px",
@@ -87,3 +86,4 @@ function btnDisabled(): React.CSSProperties {
     whiteSpace: "nowrap",
   };
 }
+

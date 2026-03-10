@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+import { requireCanWrite } from "@/lib/subscription";
 
 type ItemIn = { product_id?: string | null; name: string; qty: number; price: number };
 
@@ -114,6 +115,9 @@ export async function POST(req: Request) {
 
   const orgId = String((membership as any)?.org_id || "");
   if (!orgId) return NextResponse.json({ error: "Kamu belum punya organisasi aktif." }, { status: 400 });
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   // body
   const body = await req.json().catch(() => null);

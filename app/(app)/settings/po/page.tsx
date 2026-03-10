@@ -100,7 +100,7 @@ export default function POSettingsPage() {
   }, []);
 
   return (
-    <div style={{ padding: 18, maxWidth: 820, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
         <div>
           <h1 style={{ margin: 0 }}>PO Settings</h1>

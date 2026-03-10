@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 function num(v: any) {
   const n = Number(v);
@@ -110,6 +111,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const orgId = String((mem as any).org_id);
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const { data: po, error: poErr } = await supabase
     .from("purchase_orders")

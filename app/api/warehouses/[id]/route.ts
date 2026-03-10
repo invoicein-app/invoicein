@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 function safeStr(v: any) {
   return String(v ?? "").trim();
@@ -99,6 +100,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const { orgId } = await getMembershipOrg(supabase, userRes.user.id);
     if (!orgId) return NextResponse.json({ error: "Org tidak ditemukan." }, { status: 400 });
 
+    const subBlock = await requireCanWrite(supabase, orgId);
+    if (subBlock) return subBlock;
+
     const patch: any = {};
 
     // ✅ code sengaja diabaikan (read-only)
@@ -145,6 +149,9 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   try {
     const { orgId } = await getMembershipOrg(supabase, userRes.user.id);
     if (!orgId) return NextResponse.json({ error: "Org tidak ditemukan." }, { status: 400 });
+
+    const subBlock = await requireCanWrite(supabase, orgId);
+    if (subBlock) return subBlock;
 
     const { data, error } = await supabase
       .from("warehouses")

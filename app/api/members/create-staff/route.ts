@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { requireCanWrite } from "@/lib/subscription";
 
 function normalizeUsername(raw: string) {
   return String(raw || "")
@@ -81,6 +82,9 @@ export async function POST(req: NextRequest) {
     if (!myOrg?.org_id) return NextResponse.json({ error: "Org tidak ditemukan" }, { status: 400 });
     orgId = myOrg.org_id;
   }
+
+  const subBlock = await requireCanWrite(supabaseUser, orgId);
+  if (subBlock) return subBlock;
 
   // 2) pastikan requester adalah admin org tsb (RLS gate)
   const { data: me, error: meErr } = await supabaseUser

@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 function isAdminRole(role: string) {
   const r = String(role || "").toLowerCase();
@@ -60,6 +61,9 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   const orgId = String((membership as any)?.org_id || "");
   const role = String((membership as any)?.role || "staff");
   if (!orgId) return NextResponse.json({ error: "Org tidak ditemukan. Pastikan membership aktif." }, { status: 400 });
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   // gate: org + status
   const { data: po, error: poErr } = await supabase

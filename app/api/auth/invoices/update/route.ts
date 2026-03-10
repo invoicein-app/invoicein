@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 type UpdateInvoiceBody = {
   invoiceId?: string;
@@ -110,6 +111,9 @@ export async function POST(req: NextRequest) {
 
   const orgId = String(membership.org_id);
   const actorRole = String(membership.role || "staff");
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   // ===== header FINAL (tanpa *_type) =====
   // NOTE:

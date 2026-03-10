@@ -122,7 +122,7 @@ export default function DeliveryNoteViewPage() {
   const isCancelled = statusLower === "cancelled";
 
   return (
-    <div style={{ padding: 18, maxWidth: 980, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
         <div>
           <h1 style={{ margin: 0 }}>{dn.sj_number}</h1>

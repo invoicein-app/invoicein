@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -28,14 +29,22 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     }
   );
 
+  const { data: userRes } = await supabase.auth.getUser();
+  if (!userRes?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { data: po } = await supabase
     .from("purchase_orders")
-    .select("id,status")
+    .select("id, org_id, status")
     .eq("id", poId)
     .maybeSingle();
 
   if (!po) return NextResponse.json({ error: "PO tidak ditemukan." }, { status: 404 });
-  if (po.status !== "draft")
+  const orgId = (po as any).org_id;
+  if (orgId) {
+    const subBlock = await requireCanWrite(supabase, orgId);
+    if (subBlock) return subBlock;
+  }
+  if ((po as any).status !== "draft")
     return NextResponse.json({ error: "Hanya DRAFT yang bisa di-SEND." }, { status: 400 });
 
   const { error } = await supabase

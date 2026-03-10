@@ -31,14 +31,27 @@ function makeOrgCodeFromName(name: string) {
   return merged.length >= 4 ? merged : normalizeOrgCode(`ORG${randomCode(3)}`);
 }
 
+function trialEndsAt(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  return d.toISOString();
+}
+
 async function createOrgWithUniqueCode(admin: any, orgName: string) {
+  const endsAt = trialEndsAt();
   // retry beberapa kali kalau collision (karena UNIQUE)
   for (let attempt = 0; attempt < 8; attempt++) {
     const orgCode = makeOrgCodeFromName(orgName);
 
     const { data: org, error: orgErr } = await admin
       .from("organizations")
-      .insert({ name: orgName, org_code: orgCode })
+      .insert({
+        name: orgName,
+        org_code: orgCode,
+        subscription_status: "trial",
+        trial_ends_at: endsAt,
+        expires_at: endsAt,
+      })
       .select("id, org_code")
       .single();
 

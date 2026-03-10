@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
@@ -129,12 +130,18 @@ export async function POST(
 
   const { data: invoice, error: invErr } = await supabase
     .from("invoices")
-    .select("id, status, discount_type, discount_value, tax_value, amount_paid")
+    .select("id, org_id, status, discount_type, discount_value, tax_value, amount_paid")
     .eq("id", invoiceId)
     .maybeSingle();
 
   if (invErr) return json({ error: invErr.message }, 400);
   if (!invoice) return json({ error: "Invoice tidak ditemukan" }, 404);
+
+  const orgId = (invoice as any).org_id;
+  if (orgId) {
+    const subBlock = await requireCanWrite(supabase, orgId);
+    if (subBlock) return subBlock;
+  }
 
   const status = String(invoice.status || "").toLowerCase();
 

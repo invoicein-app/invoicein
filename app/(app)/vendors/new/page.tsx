@@ -61,7 +61,7 @@ export default function VendorNewPage() {
   }
 
   return (
-    <div style={{ padding: 18, maxWidth: 980, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <div>
           <h1 style={{ margin: 0 }}>Vendor Baru</h1>

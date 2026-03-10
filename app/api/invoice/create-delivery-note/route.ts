@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 type CookieToSet = { name: string; value: string; options: any };
 
@@ -96,6 +97,14 @@ export async function POST(req: NextRequest) {
         response.cookies.set(name, value, options)
       );
       return response;
+    }
+
+    const subBlock = await requireCanWrite(supabaseUser, inv.org_id);
+    if (subBlock) {
+      cookieJar.forEach(({ name, value, options }) =>
+        subBlock.cookies.set(name, value, options)
+      );
+      return subBlock;
     }
 
     const invStatus = String(inv.status || "").toLowerCase();

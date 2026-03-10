@@ -1,16 +1,12 @@
-// ✅ FULL REPLACE FILE
-// app/(app)/quotations/page.tsx
-//
-// FIX: tampilkan invoice_number (bukan UUID) di bawah customer, untuk quotation yang sudah linked invoice
-// - Tanpa join berat / tanpa N+1 query
-// - Strategy: load quotations dulu → ambil semua invoice_id → batch fetch invoices (id, invoice_number) → map
-
 "use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import ListPageLayout from "../components/list-page-layout";
+import ListFiltersClient from "../components/list-filters-client";
+import { listTableStyles } from "../components/list-page-layout";
 
 type QuotationRow = {
   id: string;
@@ -65,6 +61,8 @@ export default function QuotationsListPage() {
   const [err, setErr] = useState<string>("");
   const [rows, setRows] = useState<QuotationRow[]>([]);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [convertingId, setConvertingId] = useState<string>("");
 
   // ✅ map invoice_id -> invoice_number
@@ -162,6 +160,22 @@ export default function QuotationsListPage() {
     });
   }, [rows, q]);
 
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const fromIdx = (page - 1) * pageSize;
+  const toIdx = fromIdx + pageSize - 1;
+  const paginated = useMemo(() => filtered.slice(fromIdx, fromIdx + pageSize), [filtered, fromIdx, pageSize]);
+
+  const clientPagination = useMemo(
+    () => ({
+      onFirst: () => setPage(1),
+      onPrev: () => setPage((p) => Math.max(1, p - 1)),
+      onNext: () => setPage((p) => Math.min(totalPages, p + 1)),
+      onLast: () => setPage(totalPages),
+    }),
+    [totalPages]
+  );
+
   async function convertToInvoice(id: string) {
     const row = rows.find((x) => x.id === id);
     if (!row) return;
@@ -230,60 +244,39 @@ export default function QuotationsListPage() {
     }
   }
 
-  return (
-    <div style={{ padding: 6 }}>
-      <div style={topbar()}>
-        <div>
-          <div style={{ fontWeight: 1000, fontSize: 18 }}>Quotations</div>
-          <div style={{ color: "#6b7280", marginTop: 4, fontSize: 13 }}>List quotation yang bisa di-convert jadi invoice.</div>
-        </div>
+  const filters = (
+    <ListFiltersClient
+      searchPlaceholder="Cari quotation number / customer / status..."
+      searchValue={q}
+      onSearchChange={setQ}
+      onReset={() => { setQ(""); setPage(1); }}
+      perPage={pageSize}
+      onPerPageChange={(v) => { setPageSize(v); setPage(1); }}
+      perPageOptions={[10, 20, 30, 50]}
+    >
+      <button type="button" onClick={load} style={btnSoft()} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
+    </ListFiltersClient>
+  );
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={load} style={btnSoft()} disabled={loading}>
-            {loading ? "Loading..." : "Refresh"}
-          </button>
-          <Link href="/quotations/new" style={btnPrimaryLink()}>
-            + Buat Quotation
-          </Link>
-        </div>
-      </div>
-
-      {err ? <div style={errBox()}>{err}</div> : null}
-
-      <div style={card()}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari quotation number / customer / status..." style={inpFull()} />
-          <div style={{ fontWeight: 900, color: "#6b7280", whiteSpace: "nowrap" }}>{filtered.length} data</div>
-        </div>
-
-        <div style={tableWrap()}>
-          <table style={table()}>
-            <thead>
-              <tr>
-                <th style={th()}>No</th>
-                <th style={th()}>Tanggal</th>
-                <th style={th()}>Customer</th>
-                <th style={thRight()}>Total</th>
-                <th style={th()}>Status</th>
-                <th style={th()}>Aksi</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td style={td()} colSpan={6}>
-                    Loading...
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td style={td()} colSpan={6}>
-                    Tidak ada data.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((r) => {
+  const tableContent = (
+    <table style={{ ...listTableStyles.table, minWidth: 960 }}>
+      <thead>
+        <tr style={listTableStyles.thead}>
+          <th style={listTableStyles.th}>No</th>
+          <th style={listTableStyles.th}>Tanggal</th>
+          <th style={listTableStyles.th}>Customer</th>
+          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Total</th>
+          <th style={listTableStyles.th}>Status</th>
+          <th style={listTableStyles.th}>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {loading ? (
+          <tr><td colSpan={6} style={listTableStyles.td}>Loading...</td></tr>
+        ) : paginated.length === 0 ? (
+          <tr><td colSpan={6} style={listTableStyles.empty}>Tidak ada data.</td></tr>
+        ) : (
+          paginated.map((r) => {
                   const st = String(r.status || "draft");
                   const isBusy = convertingId === r.id;
 
@@ -297,15 +290,15 @@ export default function QuotationsListPage() {
 
                   return (
                     <tr key={r.id}>
-                      <td style={tdMono()}>
+                      <td style={{ ...listTableStyles.td, fontFamily: "ui-monospace, monospace" }}>
                         <Link href={`/quotations/${r.id}`} style={linkClick()}>
                           {r.quotation_number || "-"}
                         </Link>
                       </td>
 
-                      <td style={td()}>{fmtDate(r.quotation_date)}</td>
+                      <td style={listTableStyles.td}>{fmtDate(r.quotation_date)}</td>
 
-                      <td style={td()}>
+                      <td style={listTableStyles.td}>
                         <div style={{ fontWeight: 900 }}>{r.customer_name || "-"}</div>
 
                         {hasInvoice ? (
@@ -318,14 +311,14 @@ export default function QuotationsListPage() {
                         ) : null}
                       </td>
 
-                      <td style={tdRight()}>Rp {fmtMoney(r.total)}</td>
+                      <td style={{ ...listTableStyles.td, textAlign: "right" }}>Rp {fmtMoney(r.total)}</td>
 
-                      <td style={td()}>
+                      <td style={listTableStyles.td}>
                         <span style={{ ...badge(), ...badgeStyle(st) }}>{statusLabel(st)}</span>
                         {locked ? <span style={{ marginLeft: 8, ...miniPill() }}>locked</span> : null}
                       </td>
 
-                      <td style={td()}>
+                      <td style={listTableStyles.td}>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           <a
                             href={`/api/quotations/pdf/${r.id}?download=1`}
@@ -384,12 +377,31 @@ export default function QuotationsListPage() {
                     </tr>
                   );
                 })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+        )}
+      </tbody>
+    </table>
+  );
+
+  return (
+    <>
+      {err ? <div style={{ ...errBox(), margin: "24px 0" }}>{err}</div> : null}
+      <ListPageLayout
+        title="Quotations"
+        subtitle="List quotation yang bisa di-convert jadi invoice."
+        primaryLink={{ href: "/quotations/new", label: "+ Buat Quotation" }}
+        secondaryLink={{ href: "/invoice", label: "Invoice" }}
+        filters={filters}
+        totalRows={totalRows}
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        fromIdx={fromIdx}
+        toIdx={toIdx}
+        clientPagination={clientPagination}
+        tableContent={tableContent}
+        emptyMessage="Tidak ada data."
+      />
+    </>
   );
 }
 

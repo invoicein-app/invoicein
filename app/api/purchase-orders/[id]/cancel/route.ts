@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -44,12 +45,18 @@ export async function POST(req: Request, { params }: Params) {
   // ambil dulu biar bisa guard status
   const { data: po, error: poErr } = await supabase
     .from("purchase_orders")
-    .select("id,status")
+    .select("id, org_id, status")
     .eq("id", id)
     .maybeSingle();
 
   if (poErr) return NextResponse.json({ error: poErr.message }, { status: 400 });
   if (!po) return NextResponse.json({ error: "PO tidak ditemukan" }, { status: 404 });
+
+  const orgId = (po as any).org_id;
+  if (orgId) {
+    const subBlock = await requireCanWrite(supabase, orgId);
+    if (subBlock) return subBlock;
+  }
 
   const st = String((po as any).status || "draft").toLowerCase();
   if (st === "cancelled") {

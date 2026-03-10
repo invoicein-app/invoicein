@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
+import { requireCanWrite } from "@/lib/subscription";
 
 function isUuid(v: any) {
   const s = String(v || "").trim();
@@ -68,6 +69,9 @@ export async function POST(req: Request) {
 
   const orgId = String((mem as any).org_id);
   const actorRole = String((mem as any).role || "staff");
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const { data: inv, error: invErr } = await supabase
     .from("invoices")

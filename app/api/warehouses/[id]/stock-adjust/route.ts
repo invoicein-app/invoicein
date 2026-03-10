@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import crypto from "crypto";
+import { requireCanWrite } from "@/lib/subscription";
 
 function isUuid(v: any) {
   const s = String(v || "").trim();
@@ -113,6 +114,9 @@ export async function POST(
       { status: 403 }
     );
   }
+
+  const subBlock = await requireCanWrite(supabase, orgId);
+  if (subBlock) return subBlock;
 
   const { data: wh, error: whErr } = await supabase
     .from("warehouses")

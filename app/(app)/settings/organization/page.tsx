@@ -43,7 +43,7 @@ export default async function OrganizationSettingsPage() {
 
   if (!user) {
     return (
-      <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
+      <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
         <h2>Kamu belum login</h2>
       </div>
     );
@@ -59,7 +59,7 @@ export default async function OrganizationSettingsPage() {
 
   if (memErr) {
     return (
-      <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
+      <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
         <h2>Gagal ambil membership</h2>
         <div style={{ marginTop: 8, color: "#666" }}>{memErr.message}</div>
       </div>
@@ -68,7 +68,7 @@ export default async function OrganizationSettingsPage() {
 
   if (!mem?.org_id) {
     return (
-      <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
+      <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
         <h2>No organization found for this user.</h2>
         <div style={{ marginTop: 8, color: "#666" }}>
           User ini belum punya memberships.org_id.
@@ -99,7 +99,7 @@ export default async function OrganizationSettingsPage() {
 
   if (orgErr || !org) {
     return (
-      <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
+      <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
         <h2>Gagal ambil data organisasi</h2>
         <div style={{ marginTop: 8, color: "#666" }}>{orgErr?.message}</div>
       </div>
@@ -120,7 +120,7 @@ export default async function OrganizationSettingsPage() {
   };
 
   return (
-    <div style={{ padding: 18, maxWidth: 980, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <h2 style={{ margin: 0 }}>Pengaturan Organisasi</h2>
       <div style={{ color: "#666", marginTop: 6 }}>
         Update identitas usaha untuk header invoice & surat jalan.

@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 async function sb() {
   const cookieStore = await cookies(); // ✅ await
@@ -44,6 +45,25 @@ export async function PATCH(
   const paid_at = body?.paid_at !== undefined ? String(body.paid_at) : undefined;
   const note =
     body?.note !== undefined ? (body.note ? String(body.note) : null) : undefined;
+
+  const { data: payRow } = await supabase
+    .from("invoice_payments")
+    .select("invoice_id")
+    .eq("id", paymentId)
+    .maybeSingle();
+  const invoiceId = (payRow as any)?.invoice_id;
+  if (invoiceId) {
+    const { data: invRow } = await supabase
+      .from("invoices")
+      .select("org_id")
+      .eq("id", invoiceId)
+      .maybeSingle();
+    const orgId = (invRow as any)?.org_id;
+    if (orgId) {
+      const subBlock = await requireCanWrite(supabase, orgId);
+      if (subBlock) return subBlock;
+    }
+  }
 
   const patch: any = {};
 
@@ -86,6 +106,25 @@ export async function DELETE(
   const { data: userRes } = await supabase.auth.getUser();
   if (!userRes.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { data: payRow } = await supabase
+    .from("invoice_payments")
+    .select("invoice_id")
+    .eq("id", paymentId)
+    .maybeSingle();
+  const invoiceId = (payRow as any)?.invoice_id;
+  if (invoiceId) {
+    const { data: invRow } = await supabase
+      .from("invoices")
+      .select("org_id")
+      .eq("id", invoiceId)
+      .maybeSingle();
+    const orgId = (invRow as any)?.org_id;
+    if (orgId) {
+      const subBlock = await requireCanWrite(supabase, orgId);
+      if (subBlock) return subBlock;
+    }
   }
 
   const { error } = await supabase.from("invoice_payments").delete().eq("id", paymentId);

@@ -85,7 +85,6 @@ export default function SentInvoiceButtonClient(props: {
     </div>
   );
 }
-
 function btnPrimary(): React.CSSProperties {
   return {
     padding: "10px 12px",

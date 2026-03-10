@@ -1,11 +1,12 @@
-// ✅ FULL REPLACE FILE
-// invoiceku/app/(app)/warehouses/page.tsx
 "use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import ListPageLayout from "../components/list-page-layout";
+import ListFiltersClient from "../components/list-filters-client";
+import { listTableStyles } from "../components/list-page-layout";
 
 type Row = {
   id: string;
@@ -25,6 +26,8 @@ export default function WarehousesPage() {
   const [err, setErr] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [onlyActive, setOnlyActive] = useState(true);
 
   async function load() {
@@ -90,133 +93,104 @@ export default function WarehousesPage() {
     });
   }, [rows, q]);
 
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const fromIdx = (page - 1) * pageSize;
+  const toIdx = fromIdx + pageSize - 1;
+  const paginated = useMemo(() => filtered.slice(fromIdx, fromIdx + pageSize), [filtered, fromIdx, pageSize]);
+
+  const clientPagination = useMemo(
+    () => ({
+      onFirst: () => setPage(1),
+      onPrev: () => setPage((p) => Math.max(1, p - 1)),
+      onNext: () => setPage((p) => Math.min(totalPages, p + 1)),
+      onLast: () => setPage(totalPages),
+    }),
+    [totalPages]
+  );
+
   function goEdit(id: string) {
     router.push(`/warehouses/${id}/edit`);
   }
 
+  const filters = (
+    <ListFiltersClient
+      searchPlaceholder="Cari kode / nama / alamat..."
+      searchValue={q}
+      onSearchChange={setQ}
+      onReset={() => { setQ(""); setPage(1); }}
+      perPage={pageSize}
+      onPerPageChange={(v) => { setPageSize(v); setPage(1); }}
+      perPageOptions={[10, 20, 30, 50]}
+    >
+      <label style={{ display: "inline-flex", gap: 8, alignItems: "center", fontWeight: 600, color: "#666" }}>
+        <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
+        Hanya aktif
+      </label>
+      <button type="button" onClick={load} style={btnSoft()} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
+    </ListFiltersClient>
+  );
+
+  const tableContent = (
+    <table style={{ ...listTableStyles.table, minWidth: 980 }}>
+      <thead>
+        <tr style={listTableStyles.thead}>
+          <th style={listTableStyles.th}>Kode</th>
+          <th style={listTableStyles.th}>Nama</th>
+          <th style={listTableStyles.th}>Telp</th>
+          <th style={listTableStyles.th}>Alamat</th>
+          <th style={listTableStyles.th}>Status</th>
+          <th style={listTableStyles.th}>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {loading ? (
+          <tr><td colSpan={6} style={listTableStyles.td}>Loading...</td></tr>
+        ) : paginated.length === 0 ? (
+          <tr><td colSpan={6} style={listTableStyles.empty}>Tidak ada data.</td></tr>
+        ) : (
+          paginated.map((r) => (
+            <tr key={r.id} onClick={() => goEdit(r.id)} style={{ cursor: "pointer" }} title="Klik untuk edit">
+              <td style={{ ...listTableStyles.td, fontFamily: "ui-monospace, monospace" }}>{r.code}</td>
+              <td style={listTableStyles.td}><div style={{ fontWeight: 700 }}>{r.name}</div></td>
+              <td style={listTableStyles.td}>{r.phone || "-"}</td>
+              <td style={listTableStyles.td}><div style={{ maxWidth: 320, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.address}</div></td>
+              <td style={listTableStyles.td}>
+                <span style={{ ...pill(), ...(r.is_active ? pillGreen() : pillRed()) }}>{r.is_active ? "active" : "inactive"}</span>
+              </td>
+              <td style={listTableStyles.td} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button type="button" onClick={() => goEdit(r.id)} style={btnSoftSmall()}>Edit</button>
+                  <button type="button" onClick={() => router.push(`/warehouses/${r.id}/stock`)} style={btnSoftSmall()}>Stock</button>
+                </div>
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  );
+
   return (
-    <div style={{ padding: 6 }}>
-      <div style={topbar()}>
-        <div>
-          <div style={{ fontWeight: 1000, fontSize: 18 }}>Gudang</div>
-          <div style={{ color: "#6b7280", marginTop: 4, fontSize: 13 }}>
-            Master data gudang untuk Ship To di PO.
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={load} style={btnSoft()} disabled={loading}>
-            {loading ? "Loading..." : "Refresh"}
-          </button>
-          <Link href="/warehouses/new" style={btnPrimaryLink()}>
-            + Buat Gudang
-          </Link>
-        </div>
-      </div>
-
-      {err ? <div style={errBox()}>{err}</div> : null}
-
-      <div style={card()}>
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}
-        >
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari kode / nama / alamat..." style={inpFull()} />
-
-          <div style={{ display: "flex", gap: 10, alignItems: "center", whiteSpace: "nowrap" }}>
-            <label style={{ display: "inline-flex", gap: 8, alignItems: "center", fontWeight: 900, color: "#6b7280" }}>
-              <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
-              hanya aktif
-            </label>
-            <div style={{ fontWeight: 900, color: "#6b7280" }}>{filtered.length} data</div>
-          </div>
-        </div>
-
-        <div style={tableWrap()}>
-          <table style={table()}>
-            <thead>
-              <tr>
-                <th style={th()}>Kode</th>
-                <th style={th()}>Nama</th>
-                <th style={th()}>Telp</th>
-                <th style={th()}>Alamat</th>
-                <th style={th()}>Status</th>
-                <th style={th()}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td style={td()} colSpan={6}>
-                    Loading...
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td style={td()} colSpan={6}>
-                    Tidak ada data.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((r) => (
-                  <tr
-                    key={r.id}
-                    onClick={() => goEdit(r.id)}
-                    style={trClickable()}
-                    title="Klik untuk edit"
-                  >
-                    <td style={tdMono()}>{r.code}</td>
-                    <td style={td()}>
-                      <div style={{ fontWeight: 950 }}>{r.name}</div>
-                    </td>
-                    <td style={td()}>{r.phone || "-"}</td>
-                    <td style={td()}>
-                      <div style={{ maxWidth: 520, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {r.address}
-                      </div>
-                    </td>
-                    <td style={td()}>
-                      <span style={{ ...pill(), ...(r.is_active ? pillGreen() : pillRed()) }}>
-                        {r.is_active ? "active" : "inactive"}
-                      </span>
-                    </td>
-                    <td style={td()}>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation(); // ✅ jangan trigger row click dobel
-                            goEdit(r.id);
-                          }}
-                          style={btnSoftSmall()}
-                        >
-                          Edit
-                        </button>
-                        <button
-                        type="button"
-                        onClick={(e) => {
-                         e.stopPropagation();
-                        router.push(`/warehouses/${r.id}/stock`);
-                          }}
-                         style={btnSoftSmall()}
-                          >
-                        Stock
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    <>
+      {err ? <div style={{ ...errBox(), margin: "24px 0" }}>{err}</div> : null}
+      <ListPageLayout
+        title="Gudang"
+        subtitle="Master data gudang untuk Ship To di PO."
+        primaryLink={{ href: "/warehouses/new", label: "+ Buat Gudang" }}
+        secondaryLink={{ href: "/invoice", label: "Invoice" }}
+        filters={filters}
+        totalRows={totalRows}
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        fromIdx={fromIdx}
+        toIdx={toIdx}
+        clientPagination={clientPagination}
+        tableContent={tableContent}
+        emptyMessage="Tidak ada data."
+      />
+    </>
   );
 }
 

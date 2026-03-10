@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { requireCanWrite } from "@/lib/subscription";
 
 function calcGrandTotal(inv: any) {
   const items = inv.invoice_items || [];
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
       .select(
         `
         id,
+        org_id,
         status,
         amount_paid,
         discount_type,
@@ -86,6 +88,12 @@ export async function POST(req: Request) {
 
     if (invErr || !inv) {
       return NextResponse.json({ error: invErr?.message || "Invoice not found" }, { status: 404 });
+    }
+
+    const orgId = (inv as any).org_id;
+    if (orgId) {
+      const subBlock = await requireCanWrite(supabase, orgId);
+      if (subBlock) return subBlock;
     }
 
     const grandTotal = calcGrandTotal(inv);

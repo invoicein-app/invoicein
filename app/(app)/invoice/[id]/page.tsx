@@ -172,7 +172,7 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     docStatus !== "cancelled";
 
   return (
-    <div style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
+    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div
         style={{
           display: "flex",
@@ -389,7 +389,6 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     </div>
   );
 }
-
 function summaryCard(): React.CSSProperties {
   return {
     border: "1px solid #eee",
