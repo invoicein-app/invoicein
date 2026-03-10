@@ -1,6 +1,10 @@
 // app/api/invoice/pdf/[id]/route.ts
 export const runtime = "nodejs";
-
+console.log("PDF ENV CHECK", {
+  url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+  anon: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  service: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+});
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
