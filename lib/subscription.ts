@@ -1,6 +1,7 @@
 /**
  * Subscription check for manual monthly billing.
  * Org can write (create/update/post/cancel/receive/adjust) only if not expired.
+ * Staff limits: basic => 1, standard => 3 (active staff only, role=staff, is_active=true).
  */
 
 import { NextResponse } from "next/server";
@@ -8,12 +9,37 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type SubscriptionStatus = "trial" | "active" | "grace_period" | "expired" | "cancelled";
 
+export type SubscriptionPlan = "basic" | "standard";
+
 export type SubscriptionResult = {
   allowed: boolean;
   status: SubscriptionStatus | null;
   expiresAt: string | null;
   trialEndsAt: string | null;
+  plan: SubscriptionPlan;
 };
+
+/** Max active staff (role=staff, is_active=true) per plan. */
+export function getStaffLimitForPlan(plan: SubscriptionPlan | null | undefined): number {
+  if (plan === "standard") return 3;
+  return 1; // basic or null
+}
+
+/** Count active staff in org (role=staff and is_active=true). Admins are not counted. */
+export async function getActiveStaffCount(
+  supabase: SupabaseClient,
+  orgId: string
+): Promise<number> {
+  const { count, error } = await supabase
+    .from("memberships")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("role", "staff")
+    .eq("is_active", true);
+
+  if (error) return 0;
+  return typeof count === "number" ? count : 0;
+}
 
 /**
  * Returns subscription state for an org. Use server Supabase client (e.g. from route).
@@ -25,7 +51,7 @@ export async function getSubscription(
 ): Promise<SubscriptionResult> {
   const { data: row, error } = await supabase
     .from("organizations")
-    .select("subscription_status, trial_ends_at, expires_at")
+    .select("subscription_status, trial_ends_at, expires_at, subscription_plan")
     .eq("id", orgId)
     .maybeSingle();
 
@@ -35,6 +61,7 @@ export async function getSubscription(
       status: null,
       expiresAt: null,
       trialEndsAt: null,
+      plan: "basic",
     };
   }
 
@@ -52,6 +79,7 @@ export async function getSubscription(
     status,
     expiresAt,
     trialEndsAt,
+    plan: (row.subscription_plan as SubscriptionPlan) || "basic",
   };
 }
 

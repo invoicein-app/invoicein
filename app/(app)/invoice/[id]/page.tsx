@@ -172,56 +172,18 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     docStatus !== "cancelled";
 
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <BackButton />
-
-          <PdfButtonClient href={`/api/invoice/pdf/${id}`} />
-          <DotmatrixButtonClient href={`/api/invoice/pdf-dotmatrix/${id}`} />
-          <SentInvoiceButtonClient
-            invoiceId={id}
-            invoiceNumber={(invoice as any).invoice_number || null}
-            currentStatus={String((invoice as any).status || "")}
-          />
-          <CancelInvoiceButtonClient
-            invoiceId={id}
-            invoiceNumber={(invoice as any).invoice_number || null}
-            disabled={!canCancel}
-          />
-        </div>
-      </div>
-
-      <div style={{ marginTop: 14 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            alignItems: "flex-start",
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>
-              Invoice {(invoice as any).invoice_number || "-"}
-            </h1>
-            <div style={{ color: "#666", marginTop: 6 }}>
-              Tanggal: {fmtDate((invoice as any).invoice_date)} • Jatuh tempo:{" "}
-              {fmtDate((invoice as any).due_date)} • Status dokumen:{" "}
-              {String((invoice as any).status || "-")}
-            </div>
-          </div>
-
-          <div>
+    <div style={pageWrap()}>
+      <div style={headerRow()}>
+        <div>
+          <h1 style={headerTitle()}>
+            Invoice {(invoice as any).invoice_number || "-"}
+          </h1>
+          <p style={headerSub()}>
+            Tanggal: {fmtDate((invoice as any).invoice_date)} • Jatuh tempo:{" "}
+            {fmtDate((invoice as any).due_date)} • Status:{" "}
+            {String((invoice as any).status || "-")}
+          </p>
+          <div style={headerBadgeWrap()}>
             <span
               style={{
                 padding: "6px 12px",
@@ -237,179 +199,311 @@ export default async function InvoiceViewPage({ params }: PageProps) {
             </span>
           </div>
         </div>
+
+        <div style={headerActions()}>
+          <BackButton />
+          <PdfButtonClient href={`/api/invoice/pdf/${id}`} />
+          <DotmatrixButtonClient href={`/api/invoice/pdf-dotmatrix/${id}`} />
+          <SentInvoiceButtonClient
+            invoiceId={id}
+            invoiceNumber={(invoice as any).invoice_number || null}
+            currentStatus={String((invoice as any).status || "")}
+          />
+          <CancelInvoiceButtonClient
+            invoiceId={id}
+            invoiceNumber={(invoice as any).invoice_number || null}
+            disabled={!canCancel}
+          />
+        </div>
       </div>
 
-      <div
-        style={{
-          marginTop: 16,
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 12,
-        }}
-      >
+      <div style={summaryRow()}>
         <div style={summaryCard()}>
           <div style={summaryLabel()}>Total Invoice</div>
           <div style={summaryValue()}>{rupiah(grandTotal)}</div>
         </div>
-
         <div style={summaryCard()}>
           <div style={summaryLabel()}>Terbayar</div>
           <div style={summaryValue()}>{rupiah(amountPaid)}</div>
         </div>
-
         <div style={summaryCard()}>
           <div style={summaryLabel()}>Sisa Belum Dibayar</div>
           <div style={summaryValue()}>{rupiah(remaining)}</div>
         </div>
       </div>
 
-      <div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px solid #eee" }}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>Customer</div>
-        <div style={{ display: "grid", gap: 4 }}>
-          <div>
-            <span style={{ color: "#666" }}>Nama:</span>{" "}
-            {(invoice as any).customer_name || "-"}
+      <div style={sectionGrid()}>
+        <div style={card()}>
+          <div style={sectionTitle()}>Customer</div>
+          <div style={cardBody()}>
+            <div style={infoRow()}>
+              <span style={infoK()}>Nama</span>
+              <span style={infoV()}>{(invoice as any).customer_name || "-"}</span>
+            </div>
+            <div style={infoRow()}>
+              <span style={infoK()}>Telepon</span>
+              <span style={infoV()}>{(invoice as any).customer_phone || "-"}</span>
+            </div>
+            <div style={infoRow()}>
+              <span style={infoK()}>Alamat</span>
+              <span style={infoV()}>{(invoice as any).customer_address || "-"}</span>
+            </div>
+            <div style={infoRow()}>
+              <span style={infoK()}>Gudang</span>
+              <span style={infoV()}>{(invoice as any).warehouse_id || "-"}</span>
+            </div>
+            <div style={infoRow()}>
+              <span style={infoK()}>Sent At</span>
+              <span style={infoV()}>{(invoice as any).sent_at ? fmtDate((invoice as any).sent_at) : "-"}</span>
+            </div>
           </div>
-          <div>
-            <span style={{ color: "#666" }}>Telepon:</span>{" "}
-            {(invoice as any).customer_phone || "-"}
-          </div>
-          <div>
-            <span style={{ color: "#666" }}>Alamat:</span>{" "}
-            {(invoice as any).customer_address || "-"}
-          </div>
-          <div>
-            <span style={{ color: "#666" }}>Gudang:</span>{" "}
-            {(invoice as any).warehouse_id || "-"}
-          </div>
-          <div>
-            <span style={{ color: "#666" }}>Sent At:</span>{" "}
-            {(invoice as any).sent_at ? fmtDate((invoice as any).sent_at) : "-"}
+        </div>
+
+        <div style={card()}>
+          <div style={sectionTitle()}>Catatan</div>
+          <div style={cardBody()}>
+            <div style={noteText()}>{(invoice as any).note || "-"}</div>
           </div>
         </div>
       </div>
 
-      <div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px solid #eee" }}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>Items</div>
-
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-            <thead>
-              <tr style={{ textAlign: "left", color: "#666" }}>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee" }}>Nama</th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 180 }}>Key</th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 100 }}>Qty</th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 100 }}>Unit</th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 160 }}>Harga</th>
-                <th style={{ padding: "10px 8px", borderBottom: "1px solid #eee", width: 180 }}>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(items || []).map((it: any) => {
-                const lineTotal = Number(it.qty || 0) * Number(it.price || 0);
-                return (
-                  <tr key={it.id}>
-                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>
-                      {it.name}
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 8px",
-                        borderBottom: "1px solid #f3f3f3",
-                        fontFamily:
-                          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                      }}
-                    >
-                      {it.item_key || "-"}
-                    </td>
-                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>
-                      {Number(it.qty || 0)}
-                    </td>
-                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>
-                      {it.unit || "-"}
-                    </td>
-                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>
-                      {rupiah(Number(it.price || 0))}
-                    </td>
-                    <td style={{ padding: "10px 8px", borderBottom: "1px solid #f3f3f3" }}>
-                      {rupiah(lineTotal)}
-                    </td>
+      <div style={section()}>
+        <div style={card()}>
+          <div style={sectionTitle()}>Items</div>
+          <div style={cardBody()}>
+            <div style={tableScroll()}>
+              <table style={table()}>
+                <thead>
+                  <tr style={{ textAlign: "left" }}>
+                    <th style={th()}>Nama</th>
+                    <th style={th()}>Key</th>
+                    <th style={th()}>Qty</th>
+                    <th style={th()}>Unit</th>
+                    <th style={th()}>Harga</th>
+                    <th style={th()}>Total</th>
                   </tr>
-                );
-              })}
+                </thead>
+                <tbody>
+                  {(items || []).map((it: any) => {
+                    const lineTotal = Number(it.qty || 0) * Number(it.price || 0);
+                    return (
+                      <tr key={it.id}>
+                        <td style={td()}>{it.name}</td>
+                        <td style={tdMono()}>{it.item_key || "-"}</td>
+                        <td style={td()}>{Number(it.qty || 0)}</td>
+                        <td style={td()}>{it.unit || "-"}</td>
+                        <td style={td()}>{rupiah(Number(it.price || 0))}</td>
+                        <td style={td()}>{rupiah(lineTotal)}</td>
+                      </tr>
+                    );
+                  })}
+                  {!items?.length && (
+                    <tr>
+                      <td colSpan={6} style={{ ...td(), color: "#64748b" }}>Belum ada item.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div style={totalsBlock()}>
+              <div style={totalRow()}>
+                <span style={totalK()}>Subtotal</span>
+                <span style={totalV()}>{rupiah(subtotal)}</span>
+              </div>
+              <div style={totalRow()}>
+                <span style={totalK()}>{discountLabel}</span>
+                <span style={totalV()}>- {rupiah(discount)}</span>
+              </div>
+              <div style={totalRow()}>
+                <span style={totalK()}>Pajak ({taxPct}%)</span>
+                <span style={totalV()}>{rupiah(tax)}</span>
+              </div>
+              <div style={totalDivider()} />
+              <div style={{ ...totalRow(), ...totalRowStrong() }}>
+                <span style={totalK()}>Grand Total</span>
+                <span style={totalV()}>{rupiah(grandTotal)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              {!items?.length && (
-                <tr>
-                  <td colSpan={6} style={{ padding: 12, color: "#666" }}>
-                    Belum ada item.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <div style={sectionGrid()}>
+        <div style={card()}>
+          <div style={sectionTitle()}>Surat Jalan</div>
+          <div style={cardBody()}>
+            <p style={sectionDesc()}>Buat atau buka surat jalan untuk pengiriman invoice ini.</p>
+            <div style={sjButtonWrap()}>
+              <SjButtonClient invoiceId={id} />
+            </div>
+          </div>
         </div>
 
-        <div style={{ marginTop: 12, display: "grid", gap: 6, maxWidth: 420, marginLeft: "auto" }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "#666" }}>Subtotal</span>
-            <b>{rupiah(subtotal)}</b>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "#666" }}>{discountLabel}</span>
-            <b>- {rupiah(discount)}</b>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "#666" }}>Pajak ({taxPct}%)</span>
-            <b>{rupiah(tax)}</b>
-          </div>
-
-          <div style={{ height: 1, background: "#eee", margin: "6px 0" }} />
-
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16 }}>
-            <span style={{ fontWeight: 800 }}>Grand Total</span>
-            <span style={{ fontWeight: 800 }}>{rupiah(grandTotal)}</span>
+        <div style={card()}>
+          <div style={sectionTitle()}>Pembayaran</div>
+          <div style={cardBody()}>
+            <PaymentsClient invoiceId={id} />
           </div>
         </div>
-      </div>
-
-      <div style={{ marginTop: 16, padding: 14, borderRadius: 14, border: "1px solid #eee" }}>
-        <div style={{ fontWeight: 800, marginBottom: 6 }}>Catatan</div>
-        <div style={{ color: "#333" }}>{(invoice as any).note || "-"}</div>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <SjButtonClient invoiceId={id} />
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <PaymentsClient invoiceId={id} />
       </div>
     </div>
   );
 }
+const sectionGap = 24;
+
+function pageWrap(): React.CSSProperties {
+  return { width: "100%", maxWidth: 1100, margin: "0 auto", padding: 24, boxSizing: "border-box" };
+}
+function headerRow(): React.CSSProperties {
+  return {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 16,
+    flexWrap: "wrap",
+    marginBottom: sectionGap,
+  };
+}
+function headerTitle(): React.CSSProperties {
+  return { margin: 0, fontSize: 20, fontWeight: 800, color: "#111827" };
+}
+function headerSub(): React.CSSProperties {
+  return { margin: "6px 0 0", color: "#6b7280", fontSize: 14 };
+}
+function headerBadgeWrap(): React.CSSProperties {
+  return { marginTop: 10 };
+}
+function headerActions(): React.CSSProperties {
+  return {
+    display: "flex",
+    gap: 8,
+    alignItems: "center",
+    flexWrap: "wrap",
+    flexShrink: 0,
+  };
+}
+function summaryRow(): React.CSSProperties {
+  return {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 12,
+    marginBottom: sectionGap,
+  };
+}
 function summaryCard(): React.CSSProperties {
   return {
-    border: "1px solid #eee",
+    border: "1px solid #e2e8f0",
     borderRadius: 14,
-    padding: 14,
+    padding: 18,
     background: "white",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
   };
 }
-
 function summaryLabel(): React.CSSProperties {
-  return {
-    color: "#666",
-    fontSize: 13,
-    marginBottom: 4,
-  };
+  return { color: "#64748b", fontSize: 13, marginBottom: 6, fontWeight: 600 };
+}
+function summaryValue(): React.CSSProperties {
+  return { fontWeight: 800, fontSize: 18, color: "#0f172a" };
 }
 
-function summaryValue(): React.CSSProperties {
+function section(): React.CSSProperties {
+  return { marginBottom: sectionGap };
+}
+function sectionGrid(): React.CSSProperties {
   return {
-    fontWeight: 800,
-    fontSize: 16,
-    color: "#111",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: sectionGap,
+    marginBottom: sectionGap,
   };
+}
+function card(): React.CSSProperties {
+  return {
+    border: "1px solid #e2e8f0",
+    borderRadius: 14,
+    background: "white",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+    overflow: "hidden",
+  };
+}
+function sectionTitle(): React.CSSProperties {
+  return {
+    fontSize: 12,
+    fontWeight: 800,
+    color: "#64748b",
+    letterSpacing: "0.02em",
+    padding: "14px 18px",
+    borderBottom: "1px solid #f1f5f9",
+    background: "#f8fafc",
+  };
+}
+function cardBody(): React.CSSProperties {
+  return { padding: 18 };
+}
+function infoRow(): React.CSSProperties {
+  return { display: "grid", gridTemplateColumns: "100px 1fr", gap: 8, marginBottom: 10 };
+}
+function infoK(): React.CSSProperties {
+  return { fontSize: 13, color: "#64748b", fontWeight: 600 };
+}
+function infoV(): React.CSSProperties {
+  return { fontSize: 14, color: "#0f172a", fontWeight: 600 };
+}
+function noteText(): React.CSSProperties {
+  return { fontSize: 14, color: "#334155", lineHeight: 1.5 };
+}
+function tableScroll(): React.CSSProperties {
+  return { overflowX: "auto", marginBottom: 16 };
+}
+function table(): React.CSSProperties {
+  return { width: "100%", borderCollapse: "collapse", fontSize: 14 };
+}
+function th(): React.CSSProperties {
+  return {
+    textAlign: "left",
+    padding: "10px 12px",
+    borderBottom: "1px solid #e2e8f0",
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 700,
+  };
+}
+function td(): React.CSSProperties {
+  return {
+    padding: "10px 12px",
+    borderBottom: "1px solid #f1f5f9",
+    color: "#334155",
+    fontSize: 14,
+  };
+}
+function tdMono(): React.CSSProperties {
+  return {
+    ...td(),
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontSize: 13,
+  };
+}
+function totalsBlock(): React.CSSProperties {
+  return { maxWidth: 360, marginLeft: "auto", display: "grid", gap: 8 };
+}
+function totalRow(): React.CSSProperties {
+  return { display: "flex", justifyContent: "space-between", fontSize: 14 };
+}
+function totalRowStrong(): React.CSSProperties {
+  return { fontSize: 16, fontWeight: 800, color: "#0f172a" };
+}
+function totalK(): React.CSSProperties {
+  return { color: "#64748b", fontWeight: 600 };
+}
+function totalV(): React.CSSProperties {
+  return { fontWeight: 700, color: "#0f172a" };
+}
+function totalDivider(): React.CSSProperties {
+  return { height: 1, background: "#e2e8f0", margin: "8px 0" };
+}
+function sectionDesc(): React.CSSProperties {
+  return { margin: "0 0 14px", fontSize: 13, color: "#64748b", lineHeight: 1.4 };
+}
+function sjButtonWrap(): React.CSSProperties {
+  return { display: "inline-block" };
 }

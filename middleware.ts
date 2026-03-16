@@ -27,14 +27,16 @@ export async function middleware(req: NextRequest) {
 
   const path = req.nextUrl.pathname;
 
+  const isRoot = path === "/";
   const isLoginOwner = path === "/login" || path.startsWith("/login/");
   const isLoginStaff = path === "/staff/login" || path.startsWith("/staff/login/");
+  const isRegister = path === "/register" || path.startsWith("/register/");
   const isAuthApi = path.startsWith("/api/auth"); // callback, logout, dll (kalau ada)
   const isApi = path.startsWith("/api");
   const isPublicAsset = path.startsWith("/_next") || path === "/favicon.ico";
 
-  // ✅ public routes
-  const isPublicRoute = isLoginOwner || isLoginStaff || isApi || isAuthApi;
+  // ✅ public routes: landing, login, register, staff login, api
+  const isPublicRoute = isRoot || isLoginOwner || isLoginStaff || isRegister || isApi || isAuthApi;
 
   if (isPublicAsset) return res;
 

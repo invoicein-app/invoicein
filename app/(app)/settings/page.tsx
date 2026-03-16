@@ -118,7 +118,7 @@ export default function SettingsHome() {
 
       <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
         {/* Langganan / Kode organisasi */}
-        <div style={cardBase}>
+        <a href="/settings/subscription" style={{ ...cardBase, color: "inherit" }}>
           <div style={{ fontSize: 14, fontWeight: 900 }}>📋 Langganan</div>
           <div style={{ marginTop: 8, color: "#4b5563", fontSize: 13 }}>
             Kode organisasi: <strong style={{ fontFamily: "monospace", letterSpacing: 1 }}>{sub?.org_code || "—"}</strong>
@@ -139,9 +139,9 @@ export default function SettingsHome() {
             </div>
           ) : null}
           <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-            Perpanjangan manual: transfer lalu kirim bukti + kode org ke admin.
+            Perpanjangan manual: transfer lalu kirim bukti + kode org ke admin. Klik untuk detail.
           </div>
-        </div>
+        </a>
 
         {/* Pengaturan Usaha */}
         <a href="/settings/organization" style={cardBase}>

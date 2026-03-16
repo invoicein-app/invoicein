@@ -21,11 +21,18 @@ type MemberRow = {
   is_active: boolean;
 };
 
+type StaffLimits = {
+  staffLimit: number;
+  staffUsed: number;
+  subscriptionPlan: string;
+};
+
 export default function StaffSettingsClient() {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
   const [org, setOrg] = useState<OrgRow | null>(null);
   const [members, setMembers] = useState<MemberRow[]>([]);
+  const [limits, setLimits] = useState<StaffLimits | null>(null);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -41,6 +48,11 @@ export default function StaffSettingsClient() {
       if (!res.ok) throw new Error(json?.error || "Gagal load staff");
       setOrg(json.org || null);
       setMembers(json.members || []);
+      setLimits({
+        staffLimit: json.staffLimit ?? 1,
+        staffUsed: json.staffUsed ?? 0,
+        subscriptionPlan: json.subscriptionPlan ?? "basic",
+      });
     } catch (e: any) {
       setMsg(e?.message || "Gagal load");
     } finally {
@@ -82,15 +94,25 @@ export default function StaffSettingsClient() {
     }
   }
 
+  const sectionGap = 40;
+
   const box: React.CSSProperties = {
     width: "100%",
-    maxWidth: 1400,
-    margin: "24px 0",
+    maxWidth: 920,
+    margin: "32px auto",
     background: "#fff",
-    border: "1px solid #e5e7eb",
+    border: "1px solid #e2e8f0",
     borderRadius: 16,
-    padding: 18,
-    boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+    padding: 36,
+    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+  };
+
+  const summaryCard: React.CSSProperties = {
+    padding: "18px 22px",
+    borderRadius: 12,
+    border: "1px solid #e2e8f0",
+    background: "#f8fafc",
+    minWidth: 130,
   };
 
   const input: React.CSSProperties = {
@@ -130,29 +152,47 @@ export default function StaffSettingsClient() {
   return !isOwnerAdminWithoutUsername;
 });
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", padding: 16 }}>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", padding: 32 }}>
       <div style={box}>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            gap: 12,
+            alignItems: "flex-start",
+            gap: 32,
             flexWrap: "wrap",
           }}
         >
-          <div>
-            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#111827" }}>
+          <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>
               Pengaturan Staff
             </h1>
-            <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
+            <p style={{ margin: "12px 0 0", color: "#64748b", fontSize: 14, lineHeight: 1.6 }}>
               Admin membuat akun staff. Staff login pakai <b>Org Code</b> + <b>Username</b>.
-            </div>
+            </p>
           </div>
 
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "#111827" }}>Org Code</div>
-            <div style={{ marginTop: 6 }}>
-              <span style={chip}>{org?.org_code || "-"}</span>
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "stretch" }}>
+            {limits && (
+              <div style={summaryCard}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", letterSpacing: "0.02em" }}>
+                  Staff
+                </div>
+                <div style={{ marginTop: 10, fontSize: 18, fontWeight: 800, color: "#0f172a" }}>
+                  {limits.staffUsed} / {limits.staffLimit}
+                </div>
+                <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                  Paket {limits.subscriptionPlan === "standard" ? "Standard" : "Basic"}
+                </div>
+              </div>
+            )}
+            <div style={summaryCard}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", letterSpacing: "0.02em" }}>
+                Org Code
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <span style={chip}>{org?.org_code || "-"}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -160,54 +200,78 @@ export default function StaffSettingsClient() {
         {msg ? (
           <div
             style={{
-              marginTop: 12,
-              padding: 12,
+              marginTop: sectionGap,
+              padding: 14,
               borderRadius: 12,
               background: msg.startsWith("✅") ? "#ecfdf5" : "#fef2f2",
               border: msg.startsWith("✅") ? "1px solid #a7f3d0" : "1px solid #fecaca",
               color: msg.startsWith("✅") ? "#065f46" : "#991b1b",
-              fontWeight: 800,
-              fontSize: 13,
+              fontWeight: 700,
+              fontSize: 14,
             }}
           >
             {msg}
           </div>
         ) : null}
 
-        <div style={{ marginTop: 18, borderTop: "1px solid #e5e7eb", paddingTop: 18 }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: "#111827" }}>
+        <section style={{ marginTop: sectionGap, paddingTop: sectionGap, borderTop: "1px solid #e2e8f0" }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#0f172a" }}>
             Tambah Staff
           </h2>
+          {limits && limits.staffUsed >= limits.staffLimit && (
+            <div
+              style={{
+                marginTop: 20,
+                padding: 18,
+                borderRadius: 12,
+                background: "#fef3c7",
+                border: "1px solid #f59e0b",
+                color: "#92400e",
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1.4,
+              }}
+            >
+              Batas staff untuk paket {limits.subscriptionPlan === "standard" ? "Standard" : "Basic"} sudah tercapai ({limits.staffUsed}/{limits.staffLimit}). Tidak bisa menambah staff baru.
+            </div>
+          )}
 
-          <form onSubmit={onCreate} style={{ display: "grid", gap: 12, marginTop: 12 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", marginBottom: 6 }}>
+          <form onSubmit={onCreate} style={{ display: "grid", gap: 22, marginTop: 26 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                gap: 24,
+                alignItems: "start",
+              }}
+            >
+              <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
                   Username
                 </div>
                 <input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="contoh: kasir1"
-                  style={input}
+                  style={{ ...input, width: "100%", boxSizing: "border-box" }}
                   autoCapitalize="none"
                 />
-                <div style={{ marginTop: 6, color: "#6b7280", fontSize: 12 }}>Unik per organisasi.</div>
+                <div style={{ marginTop: 8, color: "#64748b", fontSize: 12 }}>Unik per organisasi.</div>
               </div>
 
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", marginBottom: 6 }}>
+              <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
                   Role
                 </div>
-                <select value={role} onChange={(e) => setRole(e.target.value as any)} style={input}>
+                <select value={role} onChange={(e) => setRole(e.target.value as any)} style={{ ...input, width: "100%", boxSizing: "border-box" }}>
                   <option value="staff">staff</option>
                 </select>
-                <div style={{ marginTop: 6, color: "#6b7280", fontSize: 12 }}>Normalnya cukup “staff”.</div>
+                <div style={{ marginTop: 8, color: "#64748b", fontSize: 12 }}>Normalnya cukup staff.</div>
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", marginBottom: 6 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
                 Password
               </div>
               <input
@@ -219,19 +283,26 @@ export default function StaffSettingsClient() {
               />
             </div>
 
-            <button disabled={creating} style={{ ...btn, opacity: creating ? 0.7 : 1 }}>
-              {creating ? "Membuat..." : "Buat Akun Staff"}
+            <button
+              disabled={creating || (limits != null && limits.staffUsed >= limits.staffLimit)}
+              style={{
+                ...btn,
+                opacity: creating || (limits != null && limits.staffUsed >= limits.staffLimit) ? 0.6 : 1,
+                cursor: limits != null && limits.staffUsed >= limits.staffLimit ? "not-allowed" : "pointer",
+              }}
+            >
+              {creating ? "Membuat..." : limits != null && limits.staffUsed >= limits.staffLimit ? "Batas staff tercapai" : "Buat Akun Staff"}
             </button>
 
-            <div style={{ color: "#6b7280", fontSize: 12 }}>
+            <div style={{ marginTop: 8, color: "#64748b", fontSize: 13, lineHeight: 1.5 }}>
               Setelah dibuat, kasih ke staff: <b>Org Code</b> + <b>Username</b> + <b>Password</b>.
             </div>
           </form>
-        </div>
+        </section>
 
-        <div style={{ marginTop: 18, borderTop: "1px solid #e5e7eb", paddingTop: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: "#111827" }}>
+        <section style={{ marginTop: sectionGap, paddingTop: sectionGap, borderTop: "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#0f172a" }}>
               Daftar Member
             </h2>
             <button
@@ -251,23 +322,27 @@ export default function StaffSettingsClient() {
             </button>
           </div>
 
-          <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden" }}>
+          <div style={{ marginTop: 24, border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden" }}>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1.2fr 0.8fr 1fr",
-                background: "#f1f5f9",
-                padding: 10,
-                fontWeight: 900,
+                gridTemplateColumns: "1.2fr 0.8fr 1fr 1.6fr",
+                background: "#f8fafc",
+                padding: "14px 18px",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#64748b",
+                letterSpacing: "0.02em",
               }}
             >
               <div>Username</div>
               <div>Role</div>
               <div>Dibuat</div>
+              <div style={{ textAlign: "right" }}>Aksi</div>
             </div>
 
             {(visibleMembers || []).length === 0 ? (
-              <div style={{ padding: 12, color: "#6b7280" }}>Belum ada staff.</div>
+              <div style={{ padding: 28, color: "#64748b", fontSize: 14 }}>Belum ada staff.</div>
             ) : (
              visibleMembers.map((m) => {
     const disabled = !m.is_active; // atau logic disabled kamu yg sudah ada
@@ -354,10 +429,10 @@ export default function StaffSettingsClient() {
       style={{
         display: "grid",
         gridTemplateColumns: "1.2fr 0.8fr 1fr 1.6fr",
-        padding: 10,
-        borderTop: "1px solid #e5e7eb",
+        padding: "16px 18px",
+        borderTop: "1px solid #e2e8f0",
         alignItems: "center",
-        gap: 10,
+        gap: 14,
         opacity: disabled ? 0.6 : 1,
       }}
     >
@@ -393,7 +468,7 @@ export default function StaffSettingsClient() {
 })
             )}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

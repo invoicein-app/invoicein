@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -180,10 +179,6 @@ export default function PODetailPage() {
           >
             Kembali
           </button>
-
-          <Link href="/purchase-orders" style={btnSoftLink()}>
-            List
-          </Link>
 
           <a
             href={pdfPreviewHref}

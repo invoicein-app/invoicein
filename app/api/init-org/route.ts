@@ -49,6 +49,7 @@ async function createOrgWithUniqueCode(admin: any, orgName: string) {
         name: orgName,
         org_code: orgCode,
         subscription_status: "trial",
+        subscription_plan: "basic",
         trial_ends_at: endsAt,
         expires_at: endsAt,
       })

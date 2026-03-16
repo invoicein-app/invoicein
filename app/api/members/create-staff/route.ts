@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireCanWrite, getStaffLimitForPlan, getActiveStaffCount } from "@/lib/subscription";
 
 function normalizeUsername(raw: string) {
   return String(raw || "")
@@ -108,16 +108,27 @@ export async function POST(req: NextRequest) {
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
-  // ambil org_code
+  // Staff limit by plan (backend enforcement)
   const { data: orgRow, error: orgErr } = await admin
     .from("organizations")
-    .select("org_code")
+    .select("org_code, subscription_plan")
     .eq("id", orgId)
     .maybeSingle();
 
   if (orgErr) return NextResponse.json({ error: orgErr.message }, { status: 400 });
   const orgCode = normalizeOrgCode(orgRow?.org_code || "");
   if (!orgCode) return NextResponse.json({ error: "Org code kosong. Isi org_code dulu." }, { status: 400 });
+
+  const plan = (orgRow?.subscription_plan as "basic" | "standard") || "basic";
+  const staffLimit = getStaffLimitForPlan(plan);
+  const activeStaffCount = await getActiveStaffCount(admin, orgId);
+  if (activeStaffCount >= staffLimit) {
+    const planLabel = plan === "standard" ? "Standard" : "Basic";
+    return NextResponse.json(
+      { error: `Batas staff untuk paket ${planLabel} sudah tercapai.` },
+      { status: 403 }
+    );
+  }
 
   // cek username unik per org
   const { data: exists } = await admin

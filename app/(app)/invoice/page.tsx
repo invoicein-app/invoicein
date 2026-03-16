@@ -341,7 +341,7 @@ export default async function InvoiceListPage({
               <th style={{ padding: "10px 12px", textAlign: "right" }}>Terbayar</th>
               <th style={{ padding: "10px 12px", textAlign: "right" }}>Terhutang</th>
               <th style={{ padding: "10px 12px", textAlign: "left" }}>Tanggal</th>
-              <th style={{ padding: "10px 12px", textAlign: "left", width: 280, minWidth: 280 }}>Aksi</th>
+              <th style={{ padding: "10px 12px", textAlign: "left", width: 140, minWidth: 140 }}>Aksi</th>
             </tr>
           </thead>
 
@@ -386,7 +386,7 @@ export default async function InvoiceListPage({
                   <td style={{ padding: "10px 12px", textAlign: "right" }}>{rupiah(inv.remaining)}</td>
                   <td style={{ padding: "10px 12px" }}>{inv.invoice_date || "-"}</td>
 
-                  <td style={{ padding: "10px 12px", width: 280, verticalAlign: "middle" }}>
+                  <td style={{ padding: "10px 12px", width: 140, verticalAlign: "middle" }}>
                     <InvoiceActionsClient
                       id={inv.id}
                       invoiceNumber={inv.invoice_number}

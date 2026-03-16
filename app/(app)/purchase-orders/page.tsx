@@ -32,13 +32,19 @@ function statusLabel(status: any) {
   const s = String(status || "draft").toLowerCase();
   if (s === "draft") return "Draft";
   if (s === "sent") return "Sent";
+  if (s === "partially_received") return "Partially received";
   if (s === "cancelled") return "Cancelled";
   if (s === "received") return "Received";
   return s ? s[0].toUpperCase() + s.slice(1) : "Draft";
 }
+function canReceive(status: string) {
+  const s = String(status || "").toLowerCase();
+  return s === "sent" || s === "partially_received";
+}
 function badgeStyle(status: any) {
   const s = String(status || "draft").toLowerCase();
   if (s === "sent") return { border: "1px solid #0284c7", background: "#e0f2fe", color: "#0c4a6e" };
+  if (s === "partially_received") return { border: "1px solid #d97706", background: "#fffbeb", color: "#92400e" };
   if (s === "received") return { border: "1px solid #16a34a", background: "#dcfce7", color: "#14532d" };
   if (s === "cancelled") return { border: "1px solid #dc2626", background: "#fee2e2", color: "#7f1d1d" };
   return { border: "1px solid #9ca3af", background: "#f3f4f6", color: "#111827" };
@@ -175,10 +181,13 @@ export default function PurchaseOrdersListPage() {
                 <td style={listTableStyles.td}>
                   <span style={{ ...badge(), ...badgeStyle(st) }}>{statusLabel(st)}</span>
                 </td>
-                <td style={listTableStyles.td}>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => router.push(`/purchase-orders/${r.id}`)} style={btnSoftSmall()}>Detail</button>
-                    <button type="button" onClick={() => router.push(`/purchase-orders/${r.id}`)} style={btnPrimarySmall()}>Buka</button>
+                <td style={{ ...listTableStyles.td, verticalAlign: "middle" }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap" }}>
+                    <button type="button" onClick={() => router.push(`/purchase-orders/${r.id}`)} style={btnAction()}>Detail</button>
+                    {canReceive(st) ? (
+                      <button type="button" onClick={() => router.push(`/purchase-orders/${r.id}/receive`)} style={btnActionPrimary()}>Terima Barang</button>
+                    ) : null}
+                    <button type="button" onClick={() => window.open(`/api/purchase-orders/pdf/${r.id}`, "_blank")} style={btnAction()} title="Preview PDF">PDF</button>
                   </div>
                 </td>
               </tr>
@@ -258,11 +267,11 @@ function tdMono(): React.CSSProperties {
 function badge(): React.CSSProperties {
   return { display: "inline-flex", alignItems: "center", padding: "5px 10px", borderRadius: 999, fontSize: 12, fontWeight: 1000, letterSpacing: 0.2 };
 }
-function btnSoftSmall(): React.CSSProperties {
-  return { padding: "8px 10px", borderRadius: 10, border: "1px solid #e5e7eb", background: "white", color: "#111827", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" };
+function btnAction(): React.CSSProperties {
+  return { padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", color: "#475569", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 };
 }
-function btnPrimarySmall(): React.CSSProperties {
-  return { padding: "8px 10px", borderRadius: 10, border: "1px solid #111827", background: "#111827", color: "white", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" };
+function btnActionPrimary(): React.CSSProperties {
+  return { padding: "6px 10px", borderRadius: 8, border: "1px solid #0f172a", background: "#0f172a", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 };
 }
 function linkClick(): React.CSSProperties {
   return { color: "#111827", textDecoration: "underline", fontWeight: 1000, cursor: "pointer", pointerEvents: "auto" };

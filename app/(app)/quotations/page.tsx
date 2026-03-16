@@ -222,28 +222,6 @@ export default function QuotationsListPage() {
     }
   }
 
-  async function deleteQuotation(id: string) {
-    const row = rows.find((x) => x.id === id);
-    if (!row) return;
-
-    if (row.is_locked || row.invoice_id) {
-      alert("Quotation sudah locked / linked invoice. Tidak bisa dihapus.");
-      return;
-    }
-
-    const ok = confirm("Hapus quotation ini? Item-itemnya juga akan ikut terhapus.");
-    if (!ok) return;
-
-    try {
-      const res = await fetch(`/api/quotations/delete/${id}`, { method: "POST", credentials: "include" });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || "Gagal delete quotation.");
-      await load();
-    } catch (e: any) {
-      alert(e?.message || "Gagal delete.");
-    }
-  }
-
   const filters = (
     <ListFiltersClient
       searchPlaceholder="Cari quotation number / customer / status..."
@@ -319,53 +297,28 @@ export default function QuotationsListPage() {
                       </td>
 
                       <td style={listTableStyles.td}>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap" }}>
+                          <button type="button" onClick={() => router.push(`/quotations/${r.id}`)} style={btnAction()}>
+                            Detail
+                          </button>
                           <a
                             href={`/api/quotations/pdf/${r.id}?download=1`}
                             target="_blank"
                             rel="noreferrer"
-                            style={btnSoftSmallLink()}
+                            style={btnAction()}
                             title="Download Quotation (PDF)"
                           >
                             Download
                           </a>
-
-                          <button type="button" onClick={() => router.push(`/quotations/${r.id}`)} style={btnSoftSmall()}>
-                            Detail
-                          </button>
-
-                          <button type="button" onClick={() => router.push(`/quotations/${r.id}/edit`)} style={btnSoftSmall()}>
-                            EDIT
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => deleteQuotation(r.id)}
-                            disabled={!!r.is_locked || !!r.invoice_id}
-                            style={{
-                              padding: "8px 10px",
-                              borderRadius: 10,
-                              border: "1px solid #b00",
-                              background: "#fff5f5",
-                              color: "#b00",
-                              fontWeight: 900,
-                              cursor: r.is_locked || r.invoice_id ? "not-allowed" : "pointer",
-                              opacity: r.is_locked || r.invoice_id ? 0.5 : 1,
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            Delete
-                          </button>
-
                           {hasInvoice ? (
-                            <button type="button" onClick={() => router.push(`/invoice/${r.invoice_id}`)} style={btnPrimarySmall()}>
+                            <button type="button" onClick={() => router.push(`/invoice/${r.invoice_id}`)} style={btnActionPrimary()}>
                               Buka Invoice
                             </button>
                           ) : (
                             <button
                               type="button"
                               onClick={() => convertToInvoice(r.id)}
-                              style={canConvert ? btnPrimarySmall() : btnGhostSmall()}
+                              style={canConvert ? btnActionPrimary() : btnActionDisabled()}
                               disabled={!canConvert || isBusy}
                               title={locked ? "Quotation locked, tidak bisa convert" : "Convert jadi invoice"}
                             >
@@ -457,37 +410,6 @@ function btnSoft(): React.CSSProperties {
   };
 }
 
-function btnSoftSmallLink(): React.CSSProperties {
-  return {
-    padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid #e5e7eb",
-    background: "white",
-    color: "#111827",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    textDecoration: "none",
-    display: "inline-flex",
-    alignItems: "center",
-  };
-}
-
-function btnPrimaryLink(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #111827",
-    background: "#111827",
-    color: "white",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    textDecoration: "none",
-    display: "inline-block",
-  };
-}
-
 function tableWrap(): React.CSSProperties {
   return { width: "100%", overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 12 };
 }
@@ -535,16 +457,14 @@ function miniPill(): React.CSSProperties {
   return { display: "inline-flex", alignItems: "center", padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 950, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", textTransform: "lowercase" };
 }
 
-function btnSoftSmall(): React.CSSProperties {
-  return { padding: "8px 10px", borderRadius: 10, border: "1px solid #e5e7eb", background: "white", color: "#111827", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" };
+function btnAction(): React.CSSProperties {
+  return { padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", color: "#475569", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", flexShrink: 0 };
 }
-
-function btnPrimarySmall(): React.CSSProperties {
-  return { padding: "8px 10px", borderRadius: 10, border: "1px solid #111827", background: "#111827", color: "white", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" };
+function btnActionPrimary(): React.CSSProperties {
+  return { padding: "6px 10px", borderRadius: 8, border: "1px solid #0f172a", background: "#0f172a", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 };
 }
-
-function btnGhostSmall(): React.CSSProperties {
-  return { padding: "8px 10px", borderRadius: 10, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#9ca3af", fontWeight: 900, cursor: "not-allowed", whiteSpace: "nowrap" };
+function btnActionDisabled(): React.CSSProperties {
+  return { padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f1f5f9", color: "#94a3b8", fontSize: 13, fontWeight: 700, cursor: "not-allowed", whiteSpace: "nowrap", flexShrink: 0 };
 }
 
 function linkSoft(): React.CSSProperties {

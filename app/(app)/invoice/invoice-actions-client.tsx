@@ -34,50 +34,88 @@ function todayInput() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function btnBase(): React.CSSProperties {
+function actionRow(): React.CSSProperties {
+  return {
+    display: "flex",
+    gap: 6,
+    alignItems: "center",
+    flexWrap: "nowrap",
+  };
+}
+
+function btnPrimary(): React.CSSProperties {
   return {
     padding: "6px 10px",
     borderRadius: 8,
     fontSize: 13,
     fontWeight: 700,
-    border: "1px solid #d1d5db",
-    background: "white",
+    border: "1px solid #0f172a",
+    background: "#0f172a",
+    color: "white",
     cursor: "pointer",
     whiteSpace: "nowrap",
     flexShrink: 0,
   };
 }
 
-function btnDark(enabled: boolean): React.CSSProperties {
+function btnSecondary(): React.CSSProperties {
   return {
-    ...btnBase(),
-    background: enabled ? "#111" : "#9ca3af",
+    padding: "6px 10px",
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 700,
+    border: "1px solid #e2e8f0",
+    background: "white",
+    color: "#334155",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  };
+}
+
+function btnSecondaryDisabled(): React.CSSProperties {
+  return {
+    ...btnSecondary(),
+    cursor: "not-allowed",
+    opacity: 0.7,
+  };
+}
+
+function btnDanger(): React.CSSProperties {
+  return {
+    padding: "6px 10px",
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 700,
+    border: "1px solid #fecaca",
+    background: "#fef2f2",
+    color: "#991b1b",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  };
+}
+
+function btnSoft(disabled?: boolean): React.CSSProperties {
+  return {
+    padding: "8px 12px",
+    borderRadius: 10,
+    fontSize: 13,
+    fontWeight: 700,
+    border: "1px solid #e2e8f0",
+    background: disabled ? "#f1f5f9" : "white",
+    color: "#334155",
+    cursor: disabled ? "not-allowed" : "pointer",
+    whiteSpace: "nowrap",
+  };
+}
+
+function btnDark(disabled?: boolean): React.CSSProperties {
+  return {
+    ...btnSoft(disabled),
+    border: "1px solid #0f172a",
+    background: disabled ? "#94a3b8" : "#0f172a",
     color: "white",
-    border: enabled ? "1px solid #111" : "1px solid #9ca3af",
-    cursor: enabled ? "pointer" : "not-allowed",
-    opacity: enabled ? 1 : 0.7,
-  };
-}
-
-function btnSoft(enabled: boolean): React.CSSProperties {
-  return {
-    ...btnBase(),
-    background: enabled ? "white" : "#f3f4f6",
-    color: enabled ? "#111" : "#9ca3af",
-    border: enabled ? "1px solid #d1d5db" : "1px solid #e5e7eb",
-    cursor: enabled ? "pointer" : "not-allowed",
-    opacity: enabled ? 1 : 0.8,
-  };
-}
-
-function btnDanger(enabled: boolean): React.CSSProperties {
-  return {
-    ...btnBase(),
-    background: enabled ? "#fff1f2" : "#f9fafb",
-    color: enabled ? "#b91c1c" : "#9ca3af",
-    border: enabled ? "1px solid #fca5a5" : "1px solid #e5e7eb",
-    cursor: enabled ? "pointer" : "not-allowed",
-    opacity: enabled ? 1 : 0.8,
   };
 }
 
@@ -92,10 +130,11 @@ export default function InvoiceActionsClient({
 
   const status = String(payStatus || "").toUpperCase();
 
-  const canPay = status === "UNPAID" || status === "PARTIAL";
-  const canEdit = status === "DRAFT";
-  const canCancel = status === "UNPAID" || status === "PARTIAL";
-  const canDelete = status === "DRAFT" || status === "UNPAID" || status === "PARTIAL";
+  // Visibility: only show actions that are relevant for this status. Do not show disabled buttons.
+  const showBayar = status === "UNPAID" || status === "PARTIAL";
+  const showCancel = status === "UNPAID" || status === "PARTIAL";
+  const showEdit = status === "DRAFT";
+  const showDelete = status === "DRAFT" && !hasQuotation;
 
   const [openPay, setOpenPay] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -110,7 +149,7 @@ export default function InvoiceActionsClient({
   async function submitPayment() {
     setPayMsg("");
 
-    if (!canPay) {
+    if (!showBayar) {
       setPayMsg("Invoice ini tidak bisa menerima pembayaran.");
       return;
     }
@@ -157,7 +196,7 @@ export default function InvoiceActionsClient({
   }
 
   async function submitCancel() {
-    if (!canCancel) return;
+    if (!showCancel) return;
 
     const ok = window.confirm(
       `Batalkan invoice ${invoiceNumber || id}?\n\nKalau invoice ini pernah mengurangi stok, stok akan dikembalikan lagi.`
@@ -190,7 +229,7 @@ export default function InvoiceActionsClient({
   }
 
   async function submitDelete() {
-    if (!canDelete) return;
+    if (!showDelete) return;
 
     const ok = window.confirm(
       `Hapus invoice ${invoiceNumber || id}?\n\nAksi ini sebaiknya hanya untuk invoice draft / yang belum final.`
@@ -217,72 +256,56 @@ export default function InvoiceActionsClient({
 
   return (
     <>
-      <div
-        style={{
-          display: "flex",
-          gap: 6,
-          alignItems: "center",
-          flexWrap: "nowrap",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            if (!canPay) return;
-            setPayMsg("");
-            setPayDate(todayInput());
-            setAmountText("");
-            setOpenPay(true);
-          }}
-          disabled={!canPay}
-          style={btnDark(canPay)}
-          title={canPay ? "Tambah pembayaran" : "Invoice ini tidak bisa dibayar"}
-        >
-          Bayar
-        </button>
+      <div style={actionRow()}>
+        {showBayar && (
+          <button
+            type="button"
+            onClick={() => {
+              setPayMsg("");
+              setPayDate(todayInput());
+              setAmountText("");
+              setOpenPay(true);
+            }}
+            style={btnPrimary()}
+            title="Tambah pembayaran"
+          >
+            Bayar
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={() => {
-            if (!canEdit) return;
-            window.location.href = `/invoice/edit/${id}`;
-          }}
-          disabled={!canEdit}
-          style={btnSoft(canEdit)}
-          title={canEdit ? "Edit invoice" : "Hanya invoice draft yang bisa diedit"}
-        >
-          Edit
-        </button>
+        {showEdit && (
+          <button
+            type="button"
+            onClick={() => { window.location.href = `/invoice/edit/${id}`; }}
+            style={btnSecondary()}
+            title="Edit invoice"
+          >
+            Edit
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={submitCancel}
-          disabled={!canCancel || cancelling}
-          style={btnSoft(canCancel && !cancelling)}
-          title={
-            canCancel
-              ? "Batalkan invoice"
-              : "Hanya invoice sent / partial yang bisa di-cancel"
-          }
-        >
-          {cancelling ? "Cancelling..." : "Cancel"}
-        </button>
+        {showCancel && (
+          <button
+            type="button"
+            onClick={submitCancel}
+            disabled={cancelling}
+            style={cancelling ? btnSecondaryDisabled() : btnSecondary()}
+            title="Batalkan invoice"
+          >
+            {cancelling ? "..." : "Cancel"}
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={submitDelete}
-          disabled={!canDelete || hasQuotation}
-          style={btnDanger(canDelete && !hasQuotation)}
-          title={
-            hasQuotation
-              ? "Invoice dari quotation sebaiknya tidak dihapus"
-              : canDelete
-              ? "Hapus invoice"
-              : "Invoice ini tidak bisa dihapus"
-          }
-        >
-          Delete
-        </button>
+        {showDelete && (
+          <button
+            type="button"
+            onClick={submitDelete}
+            style={btnDanger()}
+            title="Hapus invoice"
+          >
+            Delete
+          </button>
+        )}
       </div>
 
       {openPay ? (

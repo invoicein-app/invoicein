@@ -62,10 +62,10 @@ export async function GET() {
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
-  // org_code untuk ditampilkan ke admin
+  // org_code + plan untuk ditampilkan ke admin
   const { data: orgRow, error: orgErr } = await admin
     .from("organizations")
-    .select("id, name, org_code")
+    .select("id, name, org_code, subscription_plan")
     .eq("id", myOrg.org_id)
     .maybeSingle();
 
@@ -79,8 +79,18 @@ export async function GET() {
 
   if (membersErr) return NextResponse.json({ error: membersErr.message }, { status: 400 });
 
+  const plan = (orgRow?.subscription_plan as "basic" | "standard") || "basic";
+  const staffLimit = plan === "standard" ? 3 : 1;
+  const staffUsed = (members || []).filter((m: any) => m.role === "staff" && m.is_active === true).length;
+
   return NextResponse.json(
-    { org: orgRow || null, members: members || [] },
+    {
+      org: orgRow || null,
+      members: members || [],
+      staffLimit,
+      staffUsed,
+      subscriptionPlan: plan,
+    },
     { status: 200 }
   );
 }

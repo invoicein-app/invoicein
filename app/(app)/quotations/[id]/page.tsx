@@ -78,6 +78,7 @@ export default function QuotationDetailPage() {
   const [q, setQ] = useState<Q | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [converting, setConverting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // ✅ invoice_number fetched langsung dari supabase
   const [invoiceNumber, setInvoiceNumber] = useState<string | null>(null);
@@ -191,6 +192,24 @@ export default function QuotationDetailPage() {
     return `Invoice: ${String(q.invoice_id).slice(0, 8)}...`;
   }, [q?.invoice_id, invoiceNumber, loadingInvoiceNo]);
 
+  const canDelete = q && !q.is_locked && !q.invoice_id;
+
+  async function deleteQuotation() {
+    if (!q || !canDelete) return;
+    if (!confirm("Hapus quotation ini? Item-itemnya juga akan ikut terhapus.")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/quotations/delete/${q.id}`, { method: "POST", credentials: "include" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Gagal delete quotation.");
+      router.push("/quotations");
+    } catch (e: any) {
+      alert(e?.message || "Gagal delete.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div style={{ padding: 6 }}>
       <div style={topbar()}>
@@ -201,7 +220,7 @@ export default function QuotationDetailPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <button onClick={() => router.push("/quotations")} style={btnSoft()} disabled={loading}>
             Kembali
           </button>
@@ -218,8 +237,22 @@ export default function QuotationDetailPage() {
             </a>
           ) : null}
 
+          {q?.id ? (
+            <Link href={`/quotations/${q.id}/edit`} style={btnSoftLink()}>
+              Edit
+            </Link>
+          ) : null}
+
           <button onClick={convertToInvoice} style={btnPrimary()} disabled={loading || converting}>
-            {converting ? "Converting..." : q?.invoice_id ? "Buka / Edit Invoice" : "Convert → Invoice"}
+            {converting ? "Converting..." : q?.invoice_id ? "Buka Invoice" : "Convert → Invoice"}
+          </button>
+
+          <button
+            onClick={deleteQuotation}
+            disabled={!canDelete || deleting}
+            style={canDelete && !deleting ? btnDanger() : btnDangerDisabled()}
+          >
+            {deleting ? "Menghapus..." : "Delete"}
           </button>
         </div>
       </div>
@@ -356,6 +389,12 @@ function btnSoft(): React.CSSProperties {
 }
 function btnSoftLink(): React.CSSProperties {
   return { padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb", background: "white", color: "#111827", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", display: "inline-flex", alignItems: "center" };
+}
+function btnDanger(): React.CSSProperties {
+  return { padding: "10px 12px", borderRadius: 12, border: "1px solid #dc2626", background: "#fef2f2", color: "#991b1b", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" };
+}
+function btnDangerDisabled(): React.CSSProperties {
+  return { padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#9ca3af", fontWeight: 900, cursor: "not-allowed", whiteSpace: "nowrap", opacity: 0.7 };
 }
 function errBox(): React.CSSProperties {
   return { marginBottom: 12, padding: 12, borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 900 };

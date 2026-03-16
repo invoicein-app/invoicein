@@ -135,10 +135,10 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
   }
 
   return (
-    <div style={{ width: "100%", marginTop: 8 }}>
-      <div style={{ fontWeight: 900, marginBottom: 10 }}>Pembayaran (Bisa Cicil)</div>
+    <div style={{ width: "100%" }}>
+      <div style={{ fontSize: 13, color: "#64748b", marginBottom: 14 }}>Tambah pembayaran (bisa cicil)</div>
 
-      <div style={{ display: "grid", gap: 10 }}>
+      <div style={{ display: "grid", gap: 12 }}>
         <div style={{ display: "grid", gap: 6 }}>
           <div style={{ fontSize: 12, color: "#666" }}>Tanggal bayar</div>
           <input
@@ -198,8 +198,8 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
         </button>
       </div>
 
-      <div style={{ marginTop: 18 }}>
-        <div style={{ fontWeight: 900, marginBottom: 8 }}>Riwayat Pembayaran</div>
+      <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid #e2e8f0" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 10, letterSpacing: "0.02em" }}>Riwayat Pembayaran</div>
 
         {err && <div style={{ color: "#b91c1c", marginBottom: 8 }}>{err}</div>}
 
@@ -331,7 +331,7 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
           </table>
         </div>
 
-        <div style={{ marginTop: 10, fontSize: 12, color: "#666" }}>
+        <div style={{ marginTop: 12, fontSize: 12, color: "#64748b", lineHeight: 1.4 }}>
           Catatan: total “Terbayar” di invoice otomatis dihitung dari seluruh pembayaran
           (bisa edit/hapus kapan pun).
         </div>
