@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 
 import Navbar from "@/app/components/navbar";
 import Sidebar from "@/app/components/sidebar";
+import FeedbackWidget from "@/app/components/feedback/feedback-widget";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -25,6 +26,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar />
         <main style={{ minWidth: 0 }}>{children}</main>
       </div>
+      <FeedbackWidget />
     </div>
   );
 }

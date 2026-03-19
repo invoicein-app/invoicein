@@ -1,4 +1,6 @@
 // app/layout.tsx
+import { SpeedInsights } from "@vercel/speed-insights/next";
+
 export const runtime = "nodejs";
 
 export default function RootLayout({
@@ -8,7 +10,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
-      <body>{children}</body>
+      <body>
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }

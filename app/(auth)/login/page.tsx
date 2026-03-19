@@ -220,6 +220,17 @@ export default function OwnerAdminLoginPage() {
           <button type="submit" disabled={loading || !canSubmit} style={styles.primaryBtn(loading || !canSubmit)}>
             {loading ? "Proses..." : mode === "login" ? "Login" : "Daftar"}
           </button>
+
+          {mode === "login" ? (
+            <div style={{ marginTop: 10, textAlign: "center" }}>
+              <Link
+                href="/forgot-password"
+                style={{ color: "#111827", fontWeight: 800, fontSize: 13, textDecoration: "none" }}
+              >
+                Lupa Password?
+              </Link>
+            </div>
+          ) : null}
         </form>
 
         {msg ? <div style={styles.msg}>{msg}</div> : null}

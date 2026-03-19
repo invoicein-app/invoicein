@@ -29,6 +29,9 @@ const navItems: NavItem[] = [
   // Settings
   { href: "/settings/activity", label: "Activity", adminOnly: true },
   { href: "/settings", label: "Pengaturan" },
+
+  // Feedback
+  { href: "/admin/feedback", label: "Kritik & Masukan", adminOnly: true },
 ];
 
 function isAdminRole(role: string) {

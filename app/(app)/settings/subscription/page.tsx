@@ -9,6 +9,7 @@ import Link from "next/link";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import BankInfoCard from "./bank-info-card";
+import PaymentConfirmationForm from "./payment-confirmation-form";
 
 export default async function SubscriptionPage() {
   const csAny: any = cookies() as any;
@@ -185,6 +186,10 @@ export default async function SubscriptionPage() {
       <div style={{ marginBottom: 24 }}>
         <BankInfoCard />
       </div>
+
+      {/* Form konfirmasi pembayaran */}
+      <div style={sectionTitle}>KONFIRMASI PEMBAYARAN</div>
+      <PaymentConfirmationForm orgId={org.id} orgName={org.name} orgCode={org.org_code} />
 
       {/* CTA: langkah perpanjang / upgrade */}
       <div style={{ ...card, background: "#f0fdf4", borderColor: "#bbf7d0" }}>

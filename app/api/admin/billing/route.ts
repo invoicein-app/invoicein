@@ -77,6 +77,16 @@ export async function PATCH(req: NextRequest) {
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
+  const { data: orgBefore, error: fetchErr } = await admin
+    .from("organizations")
+    .select("org_code, subscription_plan, expires_at")
+    .eq("id", orgId)
+    .single();
+
+  if (fetchErr || !orgBefore) {
+    return NextResponse.json({ error: fetchErr?.message || "Organisasi tidak ditemukan." }, { status: 400 });
+  }
+
   const { data: org, error: upErr } = await admin
     .from("organizations")
     .update(updates)
@@ -85,5 +95,19 @@ export async function PATCH(req: NextRequest) {
     .single();
 
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
+
+  const newPlan = (updates.subscription_plan as string) ?? orgBefore.subscription_plan ?? null;
+  const newExpires = updates.expires_at !== undefined ? (updates.expires_at as string | null) : (orgBefore.expires_at ?? null);
+  await admin.from("subscription_history").insert({
+    org_id: orgId,
+    org_code: (orgBefore as { org_code: string }).org_code || "",
+    previous_plan: orgBefore.subscription_plan ?? null,
+    new_plan: newPlan,
+    previous_expires_at: orgBefore.expires_at ?? null,
+    new_expires_at: newExpires,
+    changed_by: auth.user.id,
+    note: null,
+  });
+
   return NextResponse.json({ ok: true, org }, { status: 200 });
 }
