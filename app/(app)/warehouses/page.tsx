@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
 import { listTableStyles } from "../components/list-page-layout";
+import { tableActionSecondary, toolbarButtonOutline } from "../components/app-action-buttons";
 
 type Row = {
   id: string;
@@ -122,12 +123,13 @@ export default function WarehousesPage() {
       perPage={pageSize}
       onPerPageChange={(v) => { setPageSize(v); setPage(1); }}
       perPageOptions={[10, 20, 30, 50]}
+      hidePerPage
     >
       <label style={{ display: "inline-flex", gap: 8, alignItems: "center", fontWeight: 600, color: "#666" }}>
         <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
         Hanya aktif
       </label>
-      <button type="button" onClick={load} style={btnSoft()} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
+      <button type="button" onClick={load} style={loading ? { ...toolbarButtonOutline(), opacity: 0.6, cursor: "wait" } : toolbarButtonOutline()} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
     </ListFiltersClient>
   );
 
@@ -160,8 +162,8 @@ export default function WarehousesPage() {
               </td>
               <td style={listTableStyles.td} onClick={(e) => e.stopPropagation()}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button type="button" onClick={() => goEdit(r.id)} style={btnSoftSmall()}>Edit</button>
-                  <button type="button" onClick={() => router.push(`/warehouses/${r.id}/stock`)} style={btnSoftSmall()}>Stock</button>
+                  <button type="button" onClick={() => goEdit(r.id)} style={tableActionSecondary()}>Edit</button>
+                  <button type="button" onClick={() => router.push(`/warehouses/${r.id}/stock`)} style={tableActionSecondary()}>Stock</button>
                 </div>
               </td>
             </tr>
@@ -188,7 +190,11 @@ export default function WarehousesPage() {
         toIdx={toIdx}
         clientPagination={clientPagination}
         tableContent={tableContent}
-        emptyMessage="Tidak ada data."
+        listCardTitle="Master Data Gudang"
+        onPageSizeChange={(v) => {
+          setPageSize(v);
+          setPage(1);
+        }}
       />
     </>
   );
@@ -234,34 +240,6 @@ function baseInput(): React.CSSProperties {
 function inpFull(): React.CSSProperties {
   return { ...baseInput(), width: "100%" };
 }
-function btnSoft(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    background: "white",
-    color: "#111827",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    textDecoration: "none",
-    display: "inline-block",
-  };
-}
-function btnPrimaryLink(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #111827",
-    background: "#111827",
-    color: "white",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    textDecoration: "none",
-    display: "inline-block",
-  };
-}
 function tableWrap(): React.CSSProperties {
   return { width: "100%", overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 12 };
 }
@@ -294,18 +272,6 @@ function td(): React.CSSProperties {
 }
 function tdMono(): React.CSSProperties {
   return { ...td(), fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" };
-}
-function btnSoftSmall(): React.CSSProperties {
-  return {
-    padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid #e5e7eb",
-    background: "white",
-    color: "#111827",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
 }
 function trClickable(): React.CSSProperties {
   return { cursor: "pointer" };

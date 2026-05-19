@@ -3,7 +3,6 @@ export const runtime = "nodejs";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import OrgSettingsClient from "./org-settings-client";
-import OrgLogoClient from "./org-logo-client";
 
 type OrgForm = {
   id: string;
@@ -16,6 +15,10 @@ type OrgForm = {
   bank_account_name: string;
   invoice_footer: string;
   logo_url?: string;
+  public_document_code: string;
+  invoice_prefix: string;
+  po_prefix: string;
+  quotation_prefix: string;
 };
 
 export default async function OrganizationSettingsPage() {
@@ -49,7 +52,6 @@ export default async function OrganizationSettingsPage() {
     );
   }
 
-  // cari org dari memberships
   const { data: mem, error: memErr } = await supabase
     .from("memberships")
     .select("org_id, role")
@@ -77,7 +79,6 @@ export default async function OrganizationSettingsPage() {
     );
   }
 
-  // Ambil org profile (PENTING: jangan select kolom yang belum ada, misal logo_url)
   const { data: org, error: orgErr } = await supabase
     .from("organizations")
     .select(
@@ -91,7 +92,11 @@ export default async function OrganizationSettingsPage() {
       bank_account,
       bank_account_name,
       invoice_footer,
-      logo_url
+      logo_url,
+      public_document_code,
+      invoice_prefix,
+      po_prefix,
+      quotation_prefix
       `
     )
     .eq("id", mem.org_id)
@@ -117,21 +122,11 @@ export default async function OrganizationSettingsPage() {
     bank_account_name: org.bank_account_name || "",
     invoice_footer: org.invoice_footer || "",
     logo_url: org.logo_url || "",
+    public_document_code: org.public_document_code || "",
+    invoice_prefix: org.invoice_prefix || "INV",
+    po_prefix: org.po_prefix || "PO",
+    quotation_prefix: org.quotation_prefix || "QUO",
   };
 
-  return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
-      <h2 style={{ margin: 0 }}>Pengaturan Organisasi</h2>
-      <div style={{ color: "#666", marginTop: 6 }}>
-        Update identitas usaha untuk header invoice & surat jalan.
-      </div>
-
-      <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
-        {/* Logo (opsional) */}
-      <OrgLogoClient currentUrl={initial.logo_url || ""} />
-        {/* Form utama */}
-        <OrgSettingsClient initial={initial} />
-      </div>
-    </div>
-  );
+  return <OrgSettingsClient initial={initial} />;
 }

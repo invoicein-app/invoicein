@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 
-export default function OrgLogoClient({ currentUrl }: { currentUrl?: string }) {
+const TEAL = "#1D7A73";
+const PLACEHOLDER_BG = "#f3f4f6";
+
+export default function OrgLogoClient({
+  currentUrl,
+  embedded,
+}: {
+  currentUrl?: string;
+  embedded?: boolean;
+}) {
   const [loading, setLoading] = useState(false);
 
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -34,56 +43,82 @@ export default function OrgLogoClient({ currentUrl }: { currentUrl?: string }) {
     }
   }
 
-  return (
-    <div style={{ border: "1px solid #eee", borderRadius: 14, padding: 16 }}>
-      <div style={{ fontWeight: 900, marginBottom: 10 }}>Logo Usaha</div>
+  const wrapStyle: React.CSSProperties = embedded
+    ? { margin: 0, padding: 0 }
+    : {
+        border: "1px solid #e5e7eb",
+        borderRadius: 8,
+        padding: 20,
+        background: "#fff",
+        boxSizing: "border-box",
+      };
 
-      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+  return (
+    <div style={wrapStyle}>
+      <div style={{ fontSize: 16, fontWeight: 800, color: "#333", marginBottom: 16 }}>Logo Usaha</div>
+
+      <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
         <div
           style={{
-            width: 84,
-            height: 84,
-            borderRadius: 14,
-            border: "1px solid #eee",
-            background: "#fafafa",
+            width: 96,
+            height: 96,
+            borderRadius: 8,
+            border: "1px solid #e5e7eb",
+            background: PLACEHOLDER_BG,
             display: "grid",
             placeItems: "center",
             overflow: "hidden",
+            flexShrink: 0,
           }}
         >
           {currentUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={currentUrl} alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            <img src={currentUrl} alt="Logo usaha" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           ) : (
-            <div style={{ fontSize: 12, color: "#666" }}>No Logo</div>
+            <CameraIcon />
           )}
         </div>
 
-        <label
-          style={{
-            padding: "10px 12px",
-            borderRadius: 12,
-            border: "1px solid #111",
-            background: loading ? "#333" : "#111",
-            color: "white",
-            fontWeight: 900,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading ? "Uploading..." : "Upload Logo"}
-          <input
-            type="file"
-            accept="image/*"
-            onChange={onPickFile}
-            disabled={loading}
-            style={{ display: "none" }}
-          />
-        </label>
-
-        <div style={{ color: "#666", fontSize: 13 }}>
-          PNG/JPG/WebP, max 2MB.
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
+          <label
+            style={{
+              padding: "10px 18px",
+              borderRadius: 8,
+              border: "none",
+              background: loading ? "#8fb3af" : TEAL,
+              color: "white",
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: loading ? "not-allowed" : "pointer",
+              display: "inline-block",
+            }}
+          >
+            {loading ? "Mengunggah…" : "Upload Logo"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/*"
+              onChange={onPickFile}
+              disabled={loading}
+              style={{ display: "none" }}
+            />
+          </label>
+          <span style={{ color: "#A0A0A0", fontSize: 13 }}>JPG/PNG/WebP up to 2MB</span>
         </div>
       </div>
     </div>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg width={36} height={36} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 8h2l1.5-2h9L18 8h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z"
+        stroke="#9ca3af"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="14" r="3.5" stroke="#9ca3af" strokeWidth="1.5" />
+    </svg>
   );
 }

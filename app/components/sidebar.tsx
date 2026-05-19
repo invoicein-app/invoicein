@@ -1,37 +1,44 @@
-// ✅ FULL REPLACE FILE
-// app/components/sidebar.tsx
+// app/components/sidebar.tsx — App nav (reference: teal pill active, icons, collapse)
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-type NavItem = { href: string; label: string; adminOnly?: boolean };
+const TEAL = "#1E7F75";
+const INACTIVE = "#949494";
+const NAV_TOP = 56;
+
+type NavItem = { href: string; label: string; adminOnly?: boolean; icon: NavIconId };
+
+type NavIconId =
+  | "dashboard"
+  | "quotation"
+  | "invoice"
+  | "delivery"
+  | "po"
+  | "customer"
+  | "product"
+  | "vendor"
+  | "warehouse"
+  | "activity"
+  | "settings"
+  | "feedback";
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard" },
-
-  // Sales
-  { href: "/quotations", label: "Quotations" },
-  { href: "/invoice", label: "Invoice" },
-  { href: "/delivery-notes", label: "Surat Jalan" },
-
-  // Purchase
-  { href: "/purchase-orders", label: "Purchase Orders" },
-
-  // Master data
-  { href: "/customers", label: "Customer" },
-  { href: "/products", label: "Barang" },
-  { href: "/vendors", label: "Vendor" },
-  { href: "/warehouses", label: "Warehouse" }, // ✅ NEW
-
-  // Settings
-  { href: "/settings/activity", label: "Activity", adminOnly: true },
-  { href: "/settings", label: "Pengaturan" },
-
-  // Feedback
-  { href: "/admin/feedback", label: "Kritik & Masukan", adminOnly: true },
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/quotations", label: "Quotation", icon: "quotation" },
+  { href: "/invoice", label: "Invoice", icon: "invoice" },
+  { href: "/delivery-notes", label: "Surat Jalan", icon: "delivery" },
+  { href: "/purchase-orders", label: "Purchase Order", icon: "po" },
+  { href: "/customers", label: "Customer", icon: "customer" },
+  { href: "/products", label: "Barang", icon: "product" },
+  { href: "/vendors", label: "Vendor", icon: "vendor" },
+  { href: "/warehouses", label: "Gudang", icon: "warehouse" },
+  { href: "/settings/activity", label: "Activity", icon: "activity", adminOnly: true },
+  { href: "/settings", label: "Pengaturan", icon: "settings" },
+  { href: "/admin/feedback", label: "Kritik & Masukan", icon: "feedback", adminOnly: true },
 ];
 
 function isAdminRole(role: string) {
@@ -39,12 +46,18 @@ function isAdminRole(role: string) {
   return r === "admin" || r === "owner" || r === "super_admin";
 }
 
-export default function Sidebar() {
+type Props = {
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+};
+
+export default function Sidebar({ collapsed, onToggleCollapse }: Props) {
   const supabase = supabaseBrowser();
   const pathname = usePathname();
 
   const [role, setRole] = useState<string>("");
   const [loadingRole, setLoadingRole] = useState(true);
+  const [hoverHref, setHoverHref] = useState<string | null>(null);
 
   async function loadRole() {
     setLoadingRole(true);
@@ -82,122 +95,308 @@ export default function Sidebar() {
   }, [canSeeAdmin]);
 
   return (
-    <aside style={wrap()}>
-      <div style={sectionTitle()}>
-        Menu {loadingRole ? <span style={{ fontWeight: 600, color: "#999" }}>•</span> : null}
+    <aside style={wrap(collapsed)}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: collapsed ? "column" : "row",
+          alignItems: "center",
+          justifyContent: collapsed ? "center" : "space-between",
+          gap: collapsed ? 12 : 8,
+          marginBottom: 12,
+          minHeight: collapsed ? undefined : 44,
+        }}
+      >
+        {!collapsed ? (
+          <Link
+            href="/dashboard"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              textDecoration: "none",
+              color: TEAL,
+              fontWeight: 800,
+              fontSize: 17,
+              letterSpacing: "-0.02em",
+              paddingLeft: 4,
+              minWidth: 0,
+            }}
+          >
+            <span
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: TEAL,
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              <LogoGlyph />
+            </span>
+            Invoiceku
+          </Link>
+        ) : (
+          <Link href="/dashboard" style={{ display: "grid", placeItems: "center", textDecoration: "none" }} title="Invoiceku">
+            <span
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: TEAL,
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <LogoGlyph />
+            </span>
+          </Link>
+        )}
+
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          title={collapsed ? "Perluas menu" : "Ciutkan menu"}
+          aria-label={collapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            border: "none",
+            background: TEAL,
+            color: "#fff",
+            cursor: "pointer",
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
+            boxShadow: "0 2px 6px rgba(30,127,117,0.35)",
+          }}
+        >
+          <ChevronIcon collapsed={collapsed} />
+        </button>
       </div>
 
-      <nav style={{ display: "grid", gap: 8 }}>
+      {loadingRole ? (
+        <div style={{ fontSize: 11, color: "#bbb", marginBottom: 8, paddingLeft: collapsed ? 0 : 4, textAlign: collapsed ? "center" : "left" }}>
+          …
+        </div>
+      ) : null}
+
+      <nav
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          flex: 1,
+          overflowY: "auto",
+          paddingRight: 2,
+        }}
+      >
         {items.map((it) => {
           const isActive = pathname === it.href || pathname.startsWith(it.href + "/");
-
+          const hovered = !isActive && hoverHref === it.href;
           return (
             <Link
               key={it.href}
               href={it.href}
-              style={isActive ? itemActive() : item()}
+              title={collapsed ? it.label : undefined}
+              style={navItemStyle(collapsed, isActive, hovered)}
               aria-current={isActive ? "page" : undefined}
+              onMouseEnter={() => setHoverHref(it.href)}
+              onMouseLeave={() => setHoverHref(null)}
             >
-              {it.label}
+              <span style={{ display: "grid", placeItems: "center", width: 22, height: 22, flexShrink: 0 }}>
+                <NavIcon id={it.icon} variant={isActive ? "active" : hovered ? "hover" : "idle"} />
+              </span>
+              {!collapsed ? <span>{it.label}</span> : null}
             </Link>
           );
         })}
       </nav>
-
-      <div
-        style={{
-          marginTop: 14,
-          borderTop: "1px solid #eee",
-          paddingTop: 12,
-          display: "grid",
-          gap: 8,
-        }}
-      >
-        {/* Quick actions */}
-        <Link href="/invoice/new" style={cta()}>
-          + Buat Invoice
-        </Link>
-
-        <Link href="/quotations/new" style={ctaSecondary()}>
-          + Buat Quotation
-        </Link>
-
-        <Link href="/purchase-orders/new" style={ctaSecondary()}>
-          + Buat PO
-        </Link>
-
-        {/* ✅ NEW quick action */}
-        <Link href="/warehouses/new" style={ctaSecondary()}>
-          + Buat Warehouse
-        </Link>
-      </div>
     </aside>
   );
 }
 
-function wrap(): React.CSSProperties {
+function navItemStyle(collapsed: boolean, active: boolean, hovered: boolean): CSSProperties {
+  if (active) return itemActive(collapsed);
+  const base = itemInactive(collapsed);
+  if (hovered) {
+    return {
+      ...base,
+      background: "rgba(30, 127, 117, 0.09)",
+      color: TEAL,
+    };
+  }
+  return base;
+}
+
+function wrap(collapsed: boolean): CSSProperties {
   return {
-    position: "sticky",
-    top: 60,
+    position: "sticky" as const,
+    top: NAV_TOP,
     alignSelf: "flex-start",
-    height: "calc(100vh - 60px)",
+    height: `calc(100vh - ${NAV_TOP}px)`,
     overflowY: "auto",
-    padding: 12,
-    border: "1px solid #eee",
-    borderRadius: 14,
-    background: "white",
+    overflowX: "hidden",
+    padding: collapsed ? "14px 8px 20px" : "16px 14px 24px",
+    background: "#fff",
+    borderRight: "1px solid #E8EAED",
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    boxShadow: "2px 0 12px rgba(15, 23, 42, 0.04)",
   };
 }
 
-function sectionTitle(): React.CSSProperties {
-  return { fontSize: 12, color: "#666", fontWeight: 800, marginBottom: 10 };
-}
-
-function item(): React.CSSProperties {
+function itemBase(collapsed: boolean): CSSProperties {
   return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #eee",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: collapsed ? "center" : "flex-start",
+    gap: collapsed ? 0 : 12,
+    padding: collapsed ? "10px 8px" : "10px 16px",
+    borderRadius: 10,
     textDecoration: "none",
-    color: "#111",
-    fontWeight: 800,
-    background: "white",
+    fontWeight: 700,
+    fontSize: 14,
+    transition: "background 0.15s ease, color 0.15s ease",
+    boxSizing: "border-box",
   };
 }
 
-function itemActive(): React.CSSProperties {
+function itemActive(collapsed: boolean): CSSProperties {
   return {
-    ...item(),
-    border: "1px solid #111",
-    background: "#111",
-    color: "white",
+    ...itemBase(collapsed),
+    background: TEAL,
+    color: "#fff",
   };
 }
 
-function cta(): React.CSSProperties {
+function itemInactive(collapsed: boolean): CSSProperties {
   return {
-    display: "block",
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #111",
-    background: "#111",
-    color: "white",
-    textDecoration: "none",
-    fontWeight: 900,
-    textAlign: "center",
+    ...itemBase(collapsed),
+    background: "transparent",
+    color: INACTIVE,
   };
 }
 
-function ctaSecondary(): React.CSSProperties {
-  return {
-    display: "block",
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #111",
-    background: "white",
-    color: "#111",
-    textDecoration: "none",
-    fontWeight: 900,
-    textAlign: "center",
-  };
+function ChevronIcon({ collapsed }: { collapsed: boolean }) {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden style={{ transform: collapsed ? "rotate(180deg)" : "none" }}>
+      <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LogoGlyph() {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function NavIcon({ id, variant }: { id: NavIconId; variant: "active" | "hover" | "idle" }) {
+  const c = variant === "active" ? "#fff" : variant === "hover" ? TEAL : INACTIVE;
+  switch (id) {
+    case "dashboard":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect x="3" y="3" width="7" height="7" rx="1.5" stroke={c} strokeWidth="1.75" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" stroke={c} strokeWidth="1.75" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" stroke={c} strokeWidth="1.75" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" stroke={c} strokeWidth="1.75" />
+        </svg>
+      );
+    case "quotation":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
+          <path d="M9 12h6M9 16h4" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
+        </svg>
+      );
+    case "invoice":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M7 7h10v14H7V7z" stroke={c} strokeWidth="1.75" strokeLinejoin="round" />
+          <path d="M9 11h6M9 15h4" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
+          <path d="M10 3h4v4h-4V3z" stroke={c} strokeWidth="1.75" strokeLinejoin="round" />
+        </svg>
+      );
+    case "delivery":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M3 7h12v10H3V7z" stroke={c} strokeWidth="1.75" />
+          <path d="M15 10h3l3 3v4h-6v-7z" stroke={c} strokeWidth="1.75" strokeLinejoin="round" />
+          <circle cx="8" cy="19" r="1.5" fill={c} />
+          <circle cx="18" cy="19" r="1.5" fill={c} />
+        </svg>
+      );
+    case "po":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect x="2" y="6" width="20" height="12" rx="2" stroke={c} strokeWidth="1.75" />
+          <path d="M6 10h4M6 14h8" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
+        </svg>
+      );
+    case "customer":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="9" cy="8" r="3" stroke={c} strokeWidth="1.75" />
+          <circle cx="17" cy="9" r="2.5" stroke={c} strokeWidth="1.75" />
+          <path d="M3 20v-1a4 4 0 014-4h4a4 4 0 014 4v1M15 20v-1a3 3 0 013-3" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
+        </svg>
+      );
+    case "product":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M12 3l8 4v10l-8 4-8-4V7l8-4z" stroke={c} strokeWidth="1.75" strokeLinejoin="round" />
+          <path d="M12 12l8-4M12 12v10M12 12L4 8" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
+        </svg>
+      );
+    case "vendor":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect x="4" y="5" width="16" height="14" rx="2" stroke={c} strokeWidth="1.75" />
+          <circle cx="12" cy="11" r="3" stroke={c} strokeWidth="1.75" />
+          <path d="M8 19h8" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
+        </svg>
+      );
+    case "warehouse":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M3 10l9-6 9 6v10a1 1 0 01-1 1H4a1 1 0 01-1-1V10z" stroke={c} strokeWidth="1.75" strokeLinejoin="round" />
+          <path d="M9 22V12h6v10" stroke={c} strokeWidth="1.75" strokeLinejoin="round" />
+        </svg>
+      );
+    case "activity":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
+          <path d="M3 6l2 2-2 2" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "settings":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="12" cy="12" r="3" stroke={c} strokeWidth="1.75" />
+          <path
+            d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+            stroke={c}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "feedback":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M21 15a2 2 0 01-2 2H8l-4 3V5a2 2 0 012-2h13a2 2 0 012 2v10z" stroke={c} strokeWidth="1.75" strokeLinejoin="round" />
+        </svg>
+      );
+    default:
+      return null;
+  }
 }

@@ -1,14 +1,17 @@
-// ✅ REPLACE FULL FILE
-// app/settings/page.tsx
-// Tambah card "Inventory Settings" (admin only)
-// Tetap pertahankan card Invoice Template + PO Settings
-
+// app/(app)/settings/page.tsx — Daftar pengaturan aplikasi (UI referensi)
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Role = "admin" | "staff" | null;
+
+type IconKind = "briefcase" | "invoice" | "box" | "chart" | "users" | "clipboard";
+
+const TEAL = "#1D7A73";
+const BG = "#F8F9FA";
+const CARD_BORDER = "#e5e7eb";
 
 export default function SettingsHome() {
   const supabase = supabaseBrowser();
@@ -76,167 +79,274 @@ export default function SettingsHome() {
   const isStaff = role === "staff";
   const isAdmin = role === "admin";
 
-  const cardBase: React.CSSProperties = {
-    display: "block",
-    padding: 16,
-    borderRadius: 16,
-    border: "1px solid #e5e7eb",
-    textDecoration: "none",
-    color: "#111",
-    background: "white",
-  };
-
   const disabledCard: React.CSSProperties = {
-    ...cardBase,
     opacity: 0.55,
     cursor: "not-allowed",
     pointerEvents: "none",
-    background: "#f9fafb",
+    background: "#f3f4f6",
   };
 
-  const badge: React.CSSProperties = {
-    fontSize: 12,
-    fontWeight: 900,
-    padding: "4px 10px",
-    borderRadius: 999,
-    border: "1px solid #e5e7eb",
-    color: "#111",
-    background: "#fff",
-    whiteSpace: "nowrap",
+  type CardDef = {
+    href: string;
+    title: string;
+    desc: string;
+    adminOnly?: boolean;
+    staffBlocked?: boolean;
+    icon: IconKind;
   };
+
+  const cards: CardDef[] = [
+    {
+      href: "/settings/subscription",
+      title: "Langganan",
+      desc: "Kode organisasi, status langganan, dan perpanjangan manual.",
+      icon: "clipboard",
+    },
+    {
+      href: "/settings/organization",
+      title: "Pengaturan Usaha",
+      desc: "Logo, Alamat, Telp, Email, Rekening, Footer Invoice",
+      icon: "briefcase",
+    },
+    {
+      href: "/settings/invoice-template",
+      title: "Invoice Template",
+      desc: "Pilih template (clean/dotmatrix) + opsi pajak, diskon, surat jalan, terbilang.",
+      adminOnly: true,
+      icon: "invoice",
+    },
+    {
+      href: "/settings/po",
+      title: "PO Settings",
+      desc: "Tampilkan nama gudang (Ship To) di PDF Purchase Order.",
+      adminOnly: true,
+      icon: "box",
+    },
+    {
+      href: "/settings/inventory",
+      title: "Inventory Settings",
+      desc: "Trigger stok keluar, default gudang, dan izin stok minus.",
+      adminOnly: true,
+      icon: "chart",
+    },
+    {
+      href: "/settings/staff",
+      title: "Manajemen Staff",
+      desc: "Tambah staff, reset password, dan nonaktifkan staff.",
+      staffBlocked: true,
+      icon: "users",
+    },
+  ];
 
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
-        <div>
-          <h2 style={{ margin: 0 }}>Settings</h2>
-          <div style={{ color: "#4b5563", marginTop: 6 }}>Pengaturan aplikasi.</div>
+    <div style={{ width: "100%", padding: "16px 20px 32px", boxSizing: "border-box", background: BG, minHeight: "100%" }}>
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          marginBottom: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#333" }}>Pengaturan</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Link
+            href="/settings/activity"
+            title="Notifikasi / aktivitas"
+            style={iconCircle()}
+          >
+            <BellIcon />
+          </Link>
+          <Link href="/settings" title="Profil & pengaturan" style={iconCircle()}>
+            <UserIcon />
+          </Link>
         </div>
-
-        <div style={badge}>{loading ? "ROLE: ..." : `ROLE: ${role?.toUpperCase() || "UNKNOWN"}`}</div>
       </div>
 
-      <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
-        {/* Langganan / Kode organisasi */}
-        <a href="/settings/subscription" style={{ ...cardBase, color: "inherit" }}>
-          <div style={{ fontSize: 14, fontWeight: 900 }}>📋 Langganan</div>
-          <div style={{ marginTop: 8, color: "#4b5563", fontSize: 13 }}>
-            Kode organisasi: <strong style={{ fontFamily: "monospace", letterSpacing: 1 }}>{sub?.org_code || "—"}</strong>
-            {sub?.org_code ? (
-              <span style={{ marginLeft: 8, fontSize: 12 }}>
-                (gunakan saat konfirmasi pembayaran)
-              </span>
-            ) : null}
-          </div>
-          {sub?.subscription_status || sub?.expires_at ? (
-            <div style={{ marginTop: 8, fontSize: 13 }}>
-              Status: <strong>{sub?.subscription_status === "trial" ? "Trial" : sub?.subscription_status === "active" ? "Aktif" : sub?.subscription_status || "—"}</strong>
-              {sub?.expires_at ? (
-                <span style={{ color: "#6b7280" }}>
-                  {" "}• Berakhir: {new Date(sub.expires_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-          <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-            Perpanjangan manual: transfer lalu kirim bukti + kode org ke admin. Klik untuk detail.
-          </div>
-        </a>
+      <p style={{ margin: "0 0 20px", fontSize: 15, fontWeight: 800, color: "#333" }}>Pengaturan Aplikasi</p>
 
-        {/* Pengaturan Usaha */}
-        <a href="/settings/organization" style={cardBase}>
-          <div style={{ fontSize: 14, fontWeight: 900 }}>🏪 Pengaturan Usaha</div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
-            Logo, alamat, telp, email, rekening, footer invoice.
-          </div>
-        </a>
+      {loading ? (
+        <div style={{ color: "#999", fontSize: 14 }}>Memuat…</div>
+      ) : (
+        <div style={{ display: "grid", gap: 12 }}>
+          {cards.map((c) => {
+            const blocked = (c.adminOnly && !isAdmin) || (c.staffBlocked && isStaff);
+            const cardInner = (
+              <>
+                <div style={{ width: 48, height: 48, flexShrink: 0, display: "grid", placeItems: "center" }}>
+                  <SettingIcon kind={c.icon} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#333" }}>{c.title}</div>
+                  <div style={{ marginTop: 6, fontSize: 14, color: "#777", lineHeight: 1.45 }}>
+                    {c.href === "/settings/subscription" && sub?.org_code ? (
+                      <>
+                        <span>
+                          Kode org: <strong style={{ fontFamily: "monospace" }}>{sub.org_code}</strong>
+                        </span>
+                        {sub.subscription_status || sub.expires_at ? (
+                          <span style={{ display: "block", marginTop: 6 }}>
+                            Status: <strong>{sub.subscription_status || "—"}</strong>
+                            {sub.expires_at
+                              ? ` • Berakhir: ${new Date(sub.expires_at).toLocaleDateString("id-ID", {
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                })}`
+                              : null}
+                          </span>
+                        ) : null}
+                        <span style={{ display: "block", marginTop: 8 }}>{c.desc}</span>
+                      </>
+                    ) : (
+                      c.desc
+                    )}
+                  </div>
+                  {c.adminOnly && !isAdmin ? (
+                    <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
+                      Hanya <b>ADMIN</b>.
+                    </div>
+                  ) : null}
+                  {c.staffBlocked && isStaff ? (
+                    <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
+                      Hanya <b>ADMIN</b>.
+                    </div>
+                  ) : null}
+                </div>
+                <div style={{ flexShrink: 0, color: TEAL, display: "grid", placeItems: "center" }}>
+                  <ChevronRightIcon />
+                </div>
+              </>
+            );
 
-        {/* Invoice Template (admin only) */}
-        <a
-          href="/settings/invoice-template"
-          style={!isAdmin ? disabledCard : cardBase}
-          title={!isAdmin ? "Hanya Admin yang bisa mengubah template invoice" : "Atur template & opsi PDF"}
-          aria-disabled={!isAdmin}
-        >
-          <div style={{ fontSize: 14, fontWeight: 900 }}>
-            🧾 Invoice Template {!isAdmin ? "(Admin only)" : ""}
-          </div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
-            Pilih template (clean/dotmatrix) + toggle pajak/diskon/surat jalan/terbilang/rekening.
-          </div>
+            const baseStyle: React.CSSProperties = {
+              ...cardStyle(),
+              textDecoration: "none",
+              color: "inherit",
+            };
 
-          {!isAdmin ? (
-            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
-              Kamu login sebagai <b>STAFF</b>. Menu ini hanya untuk <b>ADMIN</b>.
-            </div>
-          ) : null}
-        </a>
+            if (blocked) {
+              return (
+                <div key={c.href} style={{ ...baseStyle, ...disabledCard }}>
+                  {cardInner}
+                </div>
+              );
+            }
 
-        {/* PO Settings (admin only) */}
-        <a
-          href="/settings/po"
-          style={!isAdmin ? disabledCard : cardBase}
-          title={!isAdmin ? "Hanya Admin yang bisa mengubah PO settings" : "Atur tampilan Ship To di PDF PO"}
-          aria-disabled={!isAdmin}
-        >
-          <div style={{ fontSize: 14, fontWeight: 900 }}>
-            📦 PO Settings {!isAdmin ? "(Admin only)" : ""}
-          </div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
-            Toggle tampilkan nama gudang (Ship To) di PDF Purchase Order.
-          </div>
-
-          {!isAdmin ? (
-            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
-              Kamu login sebagai <b>STAFF</b>. Menu ini hanya untuk <b>ADMIN</b>.
-            </div>
-          ) : null}
-        </a>
-
-        {/* ✅ Inventory Settings (admin only) */}
-        <a
-          href="/settings/inventory"
-          style={!isAdmin ? disabledCard : cardBase}
-          title={
-            !isAdmin
-              ? "Hanya Admin yang bisa mengubah inventory settings"
-              : "Atur trigger stock out, default warehouse, dan stok minus"
-          }
-          aria-disabled={!isAdmin}
-        >
-          <div style={{ fontSize: 14, fontWeight: 900 }}>
-            📊 Inventory Settings {!isAdmin ? "(Admin only)" : ""}
-          </div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
-            Atur kapan stok berkurang (Invoice Sent / Surat Jalan), default gudang, dan izin stok minus.
-          </div>
-
-          {!isAdmin ? (
-            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
-              Kamu login sebagai <b>STAFF</b>. Menu ini hanya untuk <b>ADMIN</b>.
-            </div>
-          ) : null}
-        </a>
-
-        {/* Manajemen Staff (disabled kalau staff) */}
-        <a
-          href="/settings/staff"
-          style={isStaff ? disabledCard : cardBase}
-          title={isStaff ? "Hanya Admin yang bisa mengelola staff" : "Kelola staff"}
-          aria-disabled={isStaff}
-        >
-          <div style={{ fontSize: 14, fontWeight: 900 }}>👥 Manajemen Staff {isStaff ? "(Admin only)" : ""}</div>
-          <div style={{ marginTop: 6, color: "#4b5563", fontSize: 13 }}>
-            Tambah staff, reset password, nonaktifkan staff.
-          </div>
-
-          {isStaff ? (
-            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
-              Kamu login sebagai <b>STAFF</b>. Menu ini hanya untuk <b>ADMIN</b>.
-            </div>
-          ) : null}
-        </a>
-      </div>
+            return (
+              <Link key={c.href} href={c.href} style={baseStyle}>
+                {cardInner}
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
+}
+
+function cardStyle(): React.CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    padding: "20px 20px",
+    borderRadius: 8,
+    border: `1px solid ${CARD_BORDER}`,
+    background: "#fff",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+    boxSizing: "border-box",
+  };
+}
+
+function iconCircle(): React.CSSProperties {
+  return {
+    width: 40,
+    height: 40,
+    borderRadius: "50%",
+    background: "rgba(29, 122, 115, 0.12)",
+    display: "grid",
+    placeItems: "center",
+    textDecoration: "none",
+    border: "1px solid rgba(29, 122, 115, 0.2)",
+  };
+}
+
+function BellIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.8" aria-hidden>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.8" aria-hidden>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21v-1a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M9 18l6-6-6-6" stroke={TEAL} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SettingIcon({ kind }: { kind: IconKind }) {
+  const common = { width: 40, height: 40, viewBox: "0 0 24 24" as const, fill: "none" as const };
+  switch (kind) {
+    case "briefcase":
+      return (
+        <svg {...common}>
+          <rect x="4" y="8" width="16" height="11" rx="2" stroke="#8d6e63" strokeWidth="1.6" />
+          <path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" stroke="#8d6e63" strokeWidth="1.6" />
+        </svg>
+      );
+    case "invoice":
+      return (
+        <svg {...common}>
+          <path d="M7 4h10v16H7V4z" stroke={TEAL} strokeWidth="1.6" />
+          <path d="M9 9h6M9 13h4" stroke={TEAL} strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      );
+    case "box":
+      return (
+        <svg {...common}>
+          <path d="M12 3l8 4v10l-8 4-8-4V7l8-4z" stroke={TEAL} strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="M12 12l8-4M12 12v10M12 12L4 8" stroke={TEAL} strokeWidth="1.4" />
+        </svg>
+      );
+    case "chart":
+      return (
+        <svg {...common}>
+          <path d="M4 19V5M4 19h16" stroke={TEAL} strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M7 15v-4M12 15V9M17 15v-7" stroke="#2e7d32" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      );
+    case "users":
+      return (
+        <svg {...common}>
+          <circle cx="9" cy="9" r="3" stroke={TEAL} strokeWidth="1.5" />
+          <circle cx="16" cy="10" r="2.5" stroke={TEAL} strokeWidth="1.5" />
+          <path d="M3 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1" stroke={TEAL} strokeWidth="1.4" />
+        </svg>
+      );
+    case "clipboard":
+    default:
+      return (
+        <svg {...common}>
+          <path d="M9 4h6l1 2h3a1 1 0 0 1 1 1v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1h3l1-2z" stroke={TEAL} strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="M9 12h6M9 16h4" stroke={TEAL} strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      );
+  }
 }

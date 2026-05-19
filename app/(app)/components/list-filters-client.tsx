@@ -1,11 +1,7 @@
 "use client";
 
-/**
- * Filter bar dengan model sama seperti invoice list:
- * - Search input (optional)
- * - Per page select (optional)
- * - Reset button
- */
+import { APP_BORDER, APP_TEAL } from "./app-ui-tokens";
+
 type Props = {
   searchPlaceholder?: string;
   searchValue: string;
@@ -15,26 +11,31 @@ type Props = {
   onPerPageChange?: (v: number) => void;
   perPageOptions?: number[];
   children?: React.ReactNode;
+  /** Sembunyikan dropdown per halaman (dipakai saat kontrol ada di footer layout) */
+  hidePerPage?: boolean;
 };
 
-const labelStyle: React.CSSProperties = { fontSize: 12, color: "#666", marginBottom: 6 };
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "9px 10px",
-  borderRadius: 10,
-  border: "1px solid #ddd",
+  padding: "12px 40px 12px 14px",
+  borderRadius: 8,
+  border: `1px solid ${APP_BORDER}`,
   outline: "none",
   boxSizing: "border-box",
+  fontSize: 14,
+  background: "#fff",
 };
-const selectStyle: React.CSSProperties = { ...inputStyle, background: "white" };
-const btnStyle: React.CSSProperties = {
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: "1px solid #ddd",
-  background: "white",
+
+const resetBtn: React.CSSProperties = {
+  padding: "10px 16px",
+  borderRadius: 8,
+  border: `2px solid ${APP_TEAL}`,
+  background: "#fff",
+  color: APP_TEAL,
   cursor: "pointer",
   fontWeight: 700,
-  height: 40,
+  fontSize: 14,
+  height: 44,
   flex: "0 0 auto",
 };
 
@@ -47,37 +48,67 @@ export default function ListFiltersClient({
   onPerPageChange,
   perPageOptions = [10, 20, 30, 50],
   children,
+  hidePerPage = false,
 }: Props) {
   return (
-    <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-      <div style={{ flex: "1 1 260px", minWidth: 240 }}>
-        <div style={labelStyle}>Cari</div>
+    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div style={{ flex: "1 1 280px", minWidth: 0, position: "relative" }}>
         <input
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
           style={inputStyle}
+          aria-label="Cari"
         />
+        <span
+          style={{
+            position: "absolute",
+            right: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            pointerEvents: "none",
+            color: "#94a3b8",
+          }}
+          aria-hidden
+        >
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <path d="M16 16l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </span>
       </div>
-      {onPerPageChange && perPageOptions.length > 0 ? (
+
+      {!hidePerPage && onPerPageChange && perPageOptions.length > 0 ? (
         <div style={{ flex: "0 0 140px", minWidth: 130 }}>
-          <div style={labelStyle}>Per halaman</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 6, textTransform: "uppercase" }}>
+            Per halaman
+          </div>
           <select
             value={perPage}
             onChange={(e) => onPerPageChange(Number(e.target.value))}
-            style={selectStyle}
+            style={{
+              ...inputStyle,
+              padding: "10px 12px",
+              cursor: "pointer",
+              fontWeight: 700,
+              color: "#333",
+            }}
           >
             {perPageOptions.map((n) => (
-              <option key={n} value={n}>{n}</option>
+              <option key={n} value={n}>
+                {n}
+              </option>
             ))}
           </select>
         </div>
       ) : null}
+
       {onReset ? (
-        <button type="button" onClick={onReset} style={btnStyle}>
+        <button type="button" onClick={onReset} style={resetBtn}>
           Reset
         </button>
       ) : null}
+
       {children}
     </div>
   );

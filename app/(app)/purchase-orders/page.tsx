@@ -7,6 +7,11 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
 import { listTableStyles } from "../components/list-page-layout";
+import {
+  tableActionPrimary,
+  tableActionSecondary,
+  toolbarButtonOutline,
+} from "../components/app-action-buttons";
 
 type PORow = {
   id: string;
@@ -145,8 +150,9 @@ export default function PurchaseOrdersListPage() {
       perPage={pageSize}
       onPerPageChange={(v) => { setPageSize(v); setPage(1); }}
       perPageOptions={[10, 20, 30, 50]}
+      hidePerPage
     >
-      <button type="button" onClick={load} style={btnSoft()} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
+      <button type="button" onClick={load} style={loading ? { ...toolbarButtonOutline(), opacity: 0.6, cursor: "wait" } : toolbarButtonOutline()} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
     </ListFiltersClient>
   );
 
@@ -183,11 +189,26 @@ export default function PurchaseOrdersListPage() {
                 </td>
                 <td style={{ ...listTableStyles.td, verticalAlign: "middle" }}>
                   <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap" }}>
-                    <button type="button" onClick={() => router.push(`/purchase-orders/${r.id}`)} style={btnAction()}>Detail</button>
+                    <button type="button" onClick={() => router.push(`/purchase-orders/${r.id}`)} style={tableActionSecondary()}>
+                      Detail
+                    </button>
                     {canReceive(st) ? (
-                      <button type="button" onClick={() => router.push(`/purchase-orders/${r.id}/receive`)} style={btnActionPrimary()}>Terima Barang</button>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/purchase-orders/${r.id}/receive`)}
+                        style={tableActionPrimary()}
+                      >
+                        Terima Barang
+                      </button>
                     ) : null}
-                    <button type="button" onClick={() => window.open(`/api/purchase-orders/pdf/${r.id}`, "_blank")} style={btnAction()} title="Preview PDF">PDF</button>
+                    <button
+                      type="button"
+                      onClick={() => window.open(`/api/purchase-orders/pdf/${r.id}`, "_blank")}
+                      style={tableActionSecondary()}
+                      title="Preview PDF"
+                    >
+                      PDF
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -202,7 +223,7 @@ export default function PurchaseOrdersListPage() {
     <>
       {err ? <div style={{ ...errBox(), margin: "24px 0" }}>{err}</div> : null}
       <ListPageLayout
-        title="Purchase Orders"
+        title="Purchase Order"
         subtitle="List PO yang sudah dibuat."
         primaryLink={{ href: "/purchase-orders/new", label: "+ Buat PO" }}
         secondaryLink={{ href: "/invoice", label: "Invoice" }}
@@ -215,7 +236,11 @@ export default function PurchaseOrdersListPage() {
         toIdx={toIdx}
         clientPagination={clientPagination}
         tableContent={tableContent}
-        emptyMessage="Tidak ada data."
+        listCardTitle="Master Data Purchase Order"
+        onPageSizeChange={(v) => {
+          setPageSize(v);
+          setPage(1);
+        }}
       />
     </>
   );
@@ -236,12 +261,6 @@ function baseInput(): React.CSSProperties {
 }
 function inpFull(): React.CSSProperties {
   return { ...baseInput(), width: "100%" };
-}
-function btnSoft(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb", background: "white", color: "#111827", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" };
-}
-function btnPrimaryLink(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 12, border: "1px solid #111827", background: "#111827", color: "white", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" };
 }
 function tableWrap(): React.CSSProperties {
   return { width: "100%", overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 12 };
@@ -266,12 +285,6 @@ function tdMono(): React.CSSProperties {
 }
 function badge(): React.CSSProperties {
   return { display: "inline-flex", alignItems: "center", padding: "5px 10px", borderRadius: 999, fontSize: 12, fontWeight: 1000, letterSpacing: 0.2 };
-}
-function btnAction(): React.CSSProperties {
-  return { padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", color: "#475569", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 };
-}
-function btnActionPrimary(): React.CSSProperties {
-  return { padding: "6px 10px", borderRadius: 8, border: "1px solid #0f172a", background: "#0f172a", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 };
 }
 function linkClick(): React.CSSProperties {
   return { color: "#111827", textDecoration: "underline", fontWeight: 1000, cursor: "pointer", pointerEvents: "auto" };

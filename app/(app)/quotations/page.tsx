@@ -7,6 +7,12 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
 import { listTableStyles } from "../components/list-page-layout";
+import {
+  tableActionPrimary,
+  tableActionSecondary,
+  tableActionDisabled,
+  toolbarButtonOutline,
+} from "../components/app-action-buttons";
 
 type QuotationRow = {
   id: string;
@@ -231,8 +237,9 @@ export default function QuotationsListPage() {
       perPage={pageSize}
       onPerPageChange={(v) => { setPageSize(v); setPage(1); }}
       perPageOptions={[10, 20, 30, 50]}
+      hidePerPage
     >
-      <button type="button" onClick={load} style={btnSoft()} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
+      <button type="button" onClick={load} style={loading ? { ...toolbarButtonOutline(), opacity: 0.6, cursor: "wait" } : toolbarButtonOutline()} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
     </ListFiltersClient>
   );
 
@@ -298,27 +305,27 @@ export default function QuotationsListPage() {
 
                       <td style={listTableStyles.td}>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap" }}>
-                          <button type="button" onClick={() => router.push(`/quotations/${r.id}`)} style={btnAction()}>
+                          <button type="button" onClick={() => router.push(`/quotations/${r.id}`)} style={tableActionSecondary()}>
                             Detail
                           </button>
                           <a
                             href={`/api/quotations/pdf/${r.id}?download=1`}
                             target="_blank"
                             rel="noreferrer"
-                            style={btnAction()}
+                            style={tableActionSecondary()}
                             title="Download Quotation (PDF)"
                           >
                             Download
                           </a>
                           {hasInvoice ? (
-                            <button type="button" onClick={() => router.push(`/invoice/${r.invoice_id}`)} style={btnActionPrimary()}>
+                            <button type="button" onClick={() => router.push(`/invoice/${r.invoice_id}`)} style={tableActionPrimary()}>
                               Buka Invoice
                             </button>
                           ) : (
                             <button
                               type="button"
                               onClick={() => convertToInvoice(r.id)}
-                              style={canConvert ? btnActionPrimary() : btnActionDisabled()}
+                              style={canConvert && !isBusy ? tableActionPrimary() : tableActionDisabled()}
                               disabled={!canConvert || isBusy}
                               title={locked ? "Quotation locked, tidak bisa convert" : "Convert jadi invoice"}
                             >
@@ -339,7 +346,7 @@ export default function QuotationsListPage() {
     <>
       {err ? <div style={{ ...errBox(), margin: "24px 0" }}>{err}</div> : null}
       <ListPageLayout
-        title="Quotations"
+        title="Quotation"
         subtitle="List quotation yang bisa di-convert jadi invoice."
         primaryLink={{ href: "/quotations/new", label: "+ Buat Quotation" }}
         secondaryLink={{ href: "/invoice", label: "Invoice" }}
@@ -352,7 +359,11 @@ export default function QuotationsListPage() {
         toIdx={toIdx}
         clientPagination={clientPagination}
         tableContent={tableContent}
-        emptyMessage="Tidak ada data."
+        listCardTitle="Master Data Penawaran"
+        onPageSizeChange={(v) => {
+          setPageSize(v);
+          setPage(1);
+        }}
       />
     </>
   );
@@ -393,21 +404,6 @@ function baseInput(): React.CSSProperties {
 
 function inpFull(): React.CSSProperties {
   return { ...baseInput(), width: "100%" };
-}
-
-function btnSoft(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    background: "white",
-    color: "#111827",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    textDecoration: "none",
-    display: "inline-block",
-  };
 }
 
 function tableWrap(): React.CSSProperties {
@@ -455,16 +451,6 @@ function badge(): React.CSSProperties {
 
 function miniPill(): React.CSSProperties {
   return { display: "inline-flex", alignItems: "center", padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 950, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", textTransform: "lowercase" };
-}
-
-function btnAction(): React.CSSProperties {
-  return { padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", color: "#475569", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", flexShrink: 0 };
-}
-function btnActionPrimary(): React.CSSProperties {
-  return { padding: "6px 10px", borderRadius: 8, border: "1px solid #0f172a", background: "#0f172a", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 };
-}
-function btnActionDisabled(): React.CSSProperties {
-  return { padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f1f5f9", color: "#94a3b8", fontSize: 13, fontWeight: 700, cursor: "not-allowed", whiteSpace: "nowrap", flexShrink: 0 };
 }
 
 function linkSoft(): React.CSSProperties {

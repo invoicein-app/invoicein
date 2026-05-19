@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+const TEAL = "#2D7D71";
+const BORDER = "#E2E8F0";
 
 type CustomerOption = { id: string; name: string };
 
@@ -19,26 +23,22 @@ export default function InvoiceFiltersClient({
   const payParam = sp.get("pay") || "";
   const fromParam = sp.get("from") || "";
   const toParam = sp.get("to") || "";
-  const psParam = sp.get("ps") || "";
 
   const [inv, setInv] = useState(invParam);
   const [custId, setCustId] = useState(custIdParam);
   const [pay, setPay] = useState(payParam);
   const [from, setFrom] = useState(fromParam);
   const [to, setTo] = useState(toParam);
-  const [ps, setPs] = useState(psParam || "20");
 
-  // sync state (back/forward)
   useEffect(() => setInv(invParam), [invParam]);
   useEffect(() => setCustId(custIdParam), [custIdParam]);
   useEffect(() => setPay(payParam), [payParam]);
   useEffect(() => setFrom(fromParam), [fromParam]);
   useEffect(() => setTo(toParam), [toParam]);
-  useEffect(() => setPs(psParam || "20"), [psParam]);
 
   const baseParams = useMemo(() => {
     const p = new URLSearchParams(sp.toString());
-    p.set("p", "1"); // reset page when filter changes
+    p.set("p", "1");
     return p;
   }, [sp]);
 
@@ -47,7 +47,6 @@ export default function InvoiceFiltersClient({
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
-  // Debounce invoice search
   useEffect(() => {
     const t = setTimeout(() => {
       const next = new URLSearchParams(baseParams.toString());
@@ -55,179 +54,206 @@ export default function InvoiceFiltersClient({
       else next.delete("inv");
       pushParams(next);
     }, 450);
-
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inv]);
 
-  // Instant apply for dropdown/date/page size
   useEffect(() => {
     const next = new URLSearchParams(baseParams.toString());
-
     if (custId) next.set("custId", custId);
     else next.delete("custId");
-
     if (pay) next.set("pay", pay);
     else next.delete("pay");
-
     if (from) next.set("from", from);
     else next.delete("from");
-
     if (to) next.set("to", to);
     else next.delete("to");
-
-    if (ps) next.set("ps", ps);
-    else next.delete("ps");
-
     pushParams(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [custId, pay, from, to, ps]);
-
-  function resetAll() {
-    router.push(pathname);
-  }
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 6,
-  };
+  }, [custId, pay, from, to]);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    padding: "9px 10px",
-    borderRadius: 10,
-    border: "1px solid #ddd",
+    padding: "10px 40px 10px 14px",
+    borderRadius: 8,
+    border: `1px solid ${BORDER}`,
     outline: "none",
     boxSizing: "border-box",
+    fontSize: 14,
+    color: "#333",
+    background: "#fff",
   };
 
   const selectStyle: React.CSSProperties = {
-    ...inputStyle,
-    background: "white",
+    padding: "10px 32px 10px 12px",
+    borderRadius: 8,
+    border: `1px solid ${BORDER}`,
+    outline: "none",
+    fontSize: 14,
+    color: "#333",
+    background: "#fff",
+    minWidth: 160,
+    cursor: "pointer",
+    appearance: "none" as const,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 10px center",
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 12,
-        alignItems: "flex-end",
-        flexWrap: "wrap", // ✅ biar nggak nabrak
-      }}
-    >
-      {/* Invoice No search */}
-      <div style={{ flex: "1 1 260px", minWidth: 240 }}>
-        <div style={labelStyle}>Invoice No</div>
-        <input
-          value={inv}
-          onChange={(e) => setInv(e.target.value)}
-          placeholder="Cari invoice (debounce)..."
-          style={inputStyle}
-        />
+    <div>
+      {/* Top: title + search + CTA */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          flexWrap: "wrap",
+          marginBottom: 20,
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#333" }}>Rekap Data Invoice</h2>
+        <div style={{ flex: "1 1 120px", minWidth: 0 }} />
+
+        <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 420, minWidth: 200 }}>
+          <input
+            value={inv}
+            onChange={(e) => setInv(e.target.value)}
+            placeholder="Cari nomor invoice"
+            style={inputStyle}
+          />
+          <span
+            style={{
+              position: "absolute",
+              right: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+              opacity: 0.5,
+            }}
+            aria-hidden
+          >
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-4.3-4.3" strokeLinecap="round" />
+            </svg>
+          </span>
+        </div>
+
+        <Link
+          href="/invoice/new"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "11px 18px",
+            borderRadius: 8,
+            background: TEAL,
+            color: "#fff",
+            fontWeight: 800,
+            fontSize: 14,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+            boxShadow: "0 2px 8px rgba(27,122,115,0.25)",
+          }}
+        >
+          <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+          Buat Invoice
+        </Link>
       </div>
 
-      {/* Customer dropdown */}
-      <div style={{ flex: "1 1 280px", minWidth: 260 }}>
-        <div style={labelStyle}>Pelanggan</div>
-        <select
-          value={custId}
-          onChange={(e) => setCustId(e.target.value)}
-          style={selectStyle}
-        >
-          <option value="">Semua pelanggan</option>
+      {/* Filter row */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 800, color: "#333" }}>Filter</span>
+
+        <select value={custId} onChange={(e) => setCustId(e.target.value)} style={selectStyle}>
+          <option value="">Semua Pelanggan</option>
           {customers.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
         </select>
-      </div>
 
-      {/* Pay status */}
-      <div style={{ flex: "0 0 170px", minWidth: 160 }}>
-        <div style={labelStyle}>Status</div>
-        <select
-          value={pay}
-          onChange={(e) => setPay(e.target.value)}
-          style={selectStyle}
-        >
-          <option value="">Semua</option>
+        <select value={pay} onChange={(e) => setPay(e.target.value)} style={selectStyle}>
+          <option value="">Semua Status</option>
+          <option value="DRAFT">DRAFT</option>
           <option value="UNPAID">UNPAID</option>
           <option value="PARTIAL">PARTIAL</option>
           <option value="PAID">PAID</option>
+          <option value="CANCELLED">CANCELLED</option>
         </select>
-      </div>
 
-      {/* Per Page */}
-      <div style={{ flex: "0 0 140px", minWidth: 130 }}>
-        <div style={labelStyle}>Per Page</div>
-        <select
-          value={ps}
-          onChange={(e) => setPs(e.target.value)}
-          style={selectStyle}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: `1px solid ${BORDER}`,
+              background: "#fff",
+            }}
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.75" aria-hidden>
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M3 9h18M8 3v4M16 3v4" strokeLinecap="round" />
+            </svg>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              style={{
+                border: "none",
+                outline: "none",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#475569",
+                background: "transparent",
+              }}
+            />
+            <span style={{ color: "#94a3b8" }}>–</span>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              style={{
+                border: "none",
+                outline: "none",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#475569",
+                background: "transparent",
+              }}
+            />
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => router.push(pathname)}
+          style={{
+            marginLeft: "auto",
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: `1px solid ${BORDER}`,
+            background: "#fff",
+            color: "#64748b",
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+          }}
         >
-          <option value="10">10</option>
-          <option value="20">20</option>
-          <option value="30">30</option>
-          <option value="50">50</option>
-        </select>
-      </div>
-
-      {/* Reset */}
-      <button
-        onClick={resetAll}
-        style={{
-          padding: "10px 14px",
-          borderRadius: 10,
-          border: "1px solid #ddd",
-          background: "white",
-          cursor: "pointer",
-          fontWeight: 700,
-          height: 40,
-          flex: "0 0 auto",
-        }}
-      >
-        Reset
-      </button>
-
-      {/* Date filters */}
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "flex-end",
-          flexWrap: "wrap",
-          width: "100%",
-          marginTop: 4,
-        }}
-      >
-        <div style={{ flex: "0 0 auto" }}>
-          <div style={labelStyle}>Tanggal</div>
-          <div style={{ height: 40, display: "flex", alignItems: "center", color: "#999" }}>
-            (opsional)
-          </div>
-        </div>
-
-        <div style={{ flex: "0 0 180px", minWidth: 160 }}>
-          <div style={labelStyle}>Dari</div>
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            style={inputStyle}
-          />
-        </div>
-
-        <div style={{ flex: "0 0 180px", minWidth: 160 }}>
-          <div style={labelStyle}>Sampai</div>
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            style={inputStyle}
-          />
-        </div>
+          Reset filter
+        </button>
       </div>
     </div>
   );

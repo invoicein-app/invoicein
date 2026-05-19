@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  formPrimaryButton,
+  tableActionDanger,
+  tableActionDisabled,
+  tableActionSecondary,
+} from "../../components/app-action-buttons";
 
 type Org = {
   id: string;
@@ -273,7 +279,7 @@ export default function AdminBillingClient() {
                       type="button"
                       disabled={resolvingId === c.id}
                       onClick={() => resolveConfirmation(c.id, "confirmed")}
-                      style={{ ...btn, background: "#15803d", borderColor: "#15803d" }}
+                      style={resolvingId === c.id ? tableActionDisabled() : formPrimaryButton()}
                     >
                       {resolvingId === c.id ? "..." : "Konfirmasi"}
                     </button>
@@ -281,14 +287,14 @@ export default function AdminBillingClient() {
                       type="button"
                       disabled={resolvingId === c.id}
                       onClick={() => resolveConfirmation(c.id, "rejected")}
-                      style={{ ...btn, background: "#b91c1c", borderColor: "#b91c1c" }}
+                      style={resolvingId === c.id ? tableActionDisabled() : tableActionDanger()}
                     >
                       Tolak
                     </button>
                     <button
                       type="button"
                       onClick={() => search(orgCode)}
-                      style={{ ...btn, background: "white", color: "#0f172a", borderColor: "#cbd5e1" }}
+                      style={tableActionSecondary()}
                     >
                       Cari org & perpanjang
                     </button>
@@ -365,7 +371,12 @@ export default function AdminBillingClient() {
             style={{ ...input, maxWidth: 220 }}
             onKeyDown={(e) => e.key === "Enter" && search()}
           />
-          <button type="button" onClick={search} disabled={loading} style={btn}>
+          <button
+            type="button"
+            onClick={() => search()}
+            disabled={loading}
+            style={loading ? tableActionDisabled() : formPrimaryButton()}
+          >
             {loading ? "Mencari..." : "Cari"}
           </button>
         </div>
@@ -418,19 +429,44 @@ export default function AdminBillingClient() {
               Pilih lama perpanjangan. Status otomatis di-set <strong>Aktif</strong>. Dihitung dari tanggal aktif saat ini (atau hari ini jika sudah kadaluarsa).
             </p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => extendBy(1)} disabled={updating} style={btn}>
+              <button
+                type="button"
+                onClick={() => extendBy(1)}
+                disabled={updating}
+                style={updating ? tableActionDisabled() : formPrimaryButton()}
+              >
                 + 1 bulan
               </button>
-              <button type="button" onClick={() => extendBy(2)} disabled={updating} style={btn}>
+              <button
+                type="button"
+                onClick={() => extendBy(2)}
+                disabled={updating}
+                style={updating ? tableActionDisabled() : formPrimaryButton()}
+              >
                 + 2 bulan
               </button>
-              <button type="button" onClick={() => extendBy(3)} disabled={updating} style={btn}>
+              <button
+                type="button"
+                onClick={() => extendBy(3)}
+                disabled={updating}
+                style={updating ? tableActionDisabled() : formPrimaryButton()}
+              >
                 + 3 bulan
               </button>
-              <button type="button" onClick={() => extendBy(6)} disabled={updating} style={btn}>
+              <button
+                type="button"
+                onClick={() => extendBy(6)}
+                disabled={updating}
+                style={updating ? tableActionDisabled() : formPrimaryButton()}
+              >
                 + 6 bulan
               </button>
-              <button type="button" onClick={() => extendBy(12)} disabled={updating} style={btn}>
+              <button
+                type="button"
+                onClick={() => extendBy(12)}
+                disabled={updating}
+                style={updating ? tableActionDisabled() : formPrimaryButton()}
+              >
                 + 1 tahun
               </button>
             </div>
@@ -455,7 +491,12 @@ export default function AdminBillingClient() {
                   style={input}
                 />
               </div>
-              <button type="button" onClick={saveUpdate} disabled={updating} style={btn}>
+              <button
+                type="button"
+                onClick={saveUpdate}
+                disabled={updating}
+                style={updating ? tableActionDisabled() : formPrimaryButton()}
+              >
                 {updating ? "Menyimpan..." : "Simpan perubahan"}
               </button>
             </div>

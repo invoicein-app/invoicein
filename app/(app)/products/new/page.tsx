@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import VendorCreateForm from "../vendor-create-form";
+import ProductForm from "../product-form";
 
 const TEAL = "#2D7D71";
 const BG = "#F8F9FA";
 const BORDER = "#e5e7eb";
 
-export default function VendorNewPage() {
+export default function ProductNewPage() {
   const router = useRouter();
 
   return (
@@ -16,7 +16,7 @@ export default function VendorNewPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
           <Link
-            href="/vendors"
+            href="/products"
             title="Kembali"
             style={{
               width: 40,
@@ -37,8 +37,8 @@ export default function VendorNewPage() {
             </svg>
           </Link>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#333" }}>Tambah Vendor Baru</h1>
-            <div style={{ fontSize: 13, color: "#A0A0A0", marginTop: 6 }}>Vendor / Tambah Vendor Baru</div>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#333" }}>Tambah Barang Baru</h1>
+            <div style={{ fontSize: 13, color: "#A0A0A0", marginTop: 6 }}>Barang / Tambah Barang Baru</div>
           </div>
         </div>
       </div>
@@ -53,10 +53,12 @@ export default function VendorNewPage() {
           boxSizing: "border-box",
         }}
       >
-        <VendorCreateForm
+        <ProductForm
           variant="page"
-          onCancel={() => router.push("/vendors")}
-          onSaved={(id) => router.push(`/vendors/${id}`)}
+          mode="create"
+          initial={null}
+          onCancel={() => router.push("/products")}
+          onSuccess={() => router.push("/products")}
         />
       </div>
     </div>

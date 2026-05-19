@@ -37,20 +37,25 @@ function todayInput() {
 function actionRow(): React.CSSProperties {
   return {
     display: "flex",
-    gap: 6,
+    gap: 8,
     alignItems: "center",
-    flexWrap: "nowrap",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
   };
 }
 
+const TEAL = "#2D7D71";
+const TEAL_SOFT = "#e8f4f3";
+
 function btnPrimary(): React.CSSProperties {
   return {
-    padding: "6px 10px",
+    padding: "8px 12px",
     borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 700,
-    border: "1px solid #0f172a",
-    background: "#0f172a",
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: "0.06em",
+    border: `1px solid ${TEAL}`,
+    background: TEAL,
     color: "white",
     cursor: "pointer",
     whiteSpace: "nowrap",
@@ -60,13 +65,13 @@ function btnPrimary(): React.CSSProperties {
 
 function btnSecondary(): React.CSSProperties {
   return {
-    padding: "6px 10px",
+    padding: "8px 12px",
     borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 700,
-    border: "1px solid #e2e8f0",
-    background: "white",
-    color: "#334155",
+    fontSize: 12,
+    fontWeight: 800,
+    border: `1px solid ${TEAL}`,
+    background: TEAL_SOFT,
+    color: TEAL,
     cursor: "pointer",
     whiteSpace: "nowrap",
     flexShrink: 0,
@@ -83,13 +88,13 @@ function btnSecondaryDisabled(): React.CSSProperties {
 
 function btnDanger(): React.CSSProperties {
   return {
-    padding: "6px 10px",
+    padding: "8px 12px",
     borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 700,
-    border: "1px solid #fecaca",
-    background: "#fef2f2",
-    color: "#991b1b",
+    fontSize: 12,
+    fontWeight: 800,
+    border: "1px solid #ffcdd2",
+    background: "#fff5f5",
+    color: "#c62828",
     cursor: "pointer",
     whiteSpace: "nowrap",
     flexShrink: 0,
@@ -269,18 +274,23 @@ export default function InvoiceActionsClient({
             style={btnPrimary()}
             title="Tambah pembayaran"
           >
-            Bayar
+            BAYAR
           </button>
         )}
 
         {showEdit && (
           <button
             type="button"
-            onClick={() => { window.location.href = `/invoice/edit/${id}`; }}
-            style={btnSecondary()}
-            title="Edit invoice"
+            onClick={() => {
+              window.location.href = `/invoice/edit/${id}`;
+            }}
+            style={{
+              ...btnSecondary(),
+              background: "#fff",
+            }}
+            title="Ubah invoice"
           >
-            Edit
+            Ubah
           </button>
         )}
 
@@ -297,13 +307,8 @@ export default function InvoiceActionsClient({
         )}
 
         {showDelete && (
-          <button
-            type="button"
-            onClick={submitDelete}
-            style={btnDanger()}
-            title="Hapus invoice"
-          >
-            Delete
+          <button type="button" onClick={submitDelete} style={btnDanger()} title="Hapus invoice">
+            Hapus
           </button>
         )}
       </div>

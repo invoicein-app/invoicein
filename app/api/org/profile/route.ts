@@ -6,6 +6,14 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
 
+function cleanCode(v: unknown, maxLen = 12) {
+  return String(v ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, "")
+    .slice(0, maxLen);
+}
+
 export async function POST(req: Request) {
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -46,6 +54,15 @@ export async function POST(req: Request) {
   if (subBlock) return subBlock;
 
   // Only allow updating fields we expect (biar aman)
+  const publicCode = cleanCode(body.public_document_code, 12);
+  const invoicePrefix = cleanCode(body.invoice_prefix, 12) || "INV";
+  const poPrefix = cleanCode(body.po_prefix, 12) || "PO";
+  const quotationPrefix = cleanCode(body.quotation_prefix, 12) || "QUO";
+
+  if (!invoicePrefix || !poPrefix || !quotationPrefix) {
+    return NextResponse.json({ error: "Prefix dokumen tidak valid." }, { status: 400 });
+  }
+
   const payload = {
     name: String(body.name || ""),
     address: String(body.address || ""),
@@ -55,6 +72,10 @@ export async function POST(req: Request) {
     bank_account: String(body.bank_account || ""),
     bank_account_name: String(body.bank_account_name || ""),
     invoice_footer: String(body.invoice_footer || ""),
+    public_document_code: publicCode || null,
+    invoice_prefix: invoicePrefix,
+    po_prefix: poPrefix,
+    quotation_prefix: quotationPrefix,
   };
 
   // update by org_id from membership (bukan dari body.id)

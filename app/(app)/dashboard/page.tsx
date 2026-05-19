@@ -39,6 +39,42 @@ function addMonthsSafe(base: Date, delta: number) {
   return d;
 }
 
+function formatMonthKeyId(key: string) {
+  const [y, m] = key.split("-");
+  const mi = Math.max(0, Math.min(11, parseInt(m, 10) - 1));
+  const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+  return `${months[mi]} ${y}`;
+}
+
+function BellIcon() {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"
+        stroke="#2D7D71"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="#2D7D71" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="8" r="4" stroke="#2D7D71" strokeWidth="2" />
+      <path
+        d="M4 21v-1a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v1"
+        stroke="#2D7D71"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export default async function DashboardPage() {
   const supabase = await supabaseServer();
 
@@ -210,242 +246,438 @@ export default async function DashboardPage() {
   const monthBars = monthKeys6.map((k) => ({ month: k, value: paidByMonth.get(k) || 0 }));
   const maxBar = Math.max(1, ...monthBars.map((x) => x.value));
 
+  const chartRangeLabel = `${formatMonthKeyId(monthKeys6[0])} – ${formatMonthKeyId(monthKeys6[5])}`;
+
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          alignItems: "flex-start",
-          flexWrap: "wrap",
-        }}
-      >
+    <div style={pageWrap()}>
+      {/* Main header: title + bell / profile */}
+      <div style={dashHeaderRow()}>
         <div>
-          <h1 style={{ margin: 0 }}>Dashboard</h1>
-          <p style={{ marginTop: 6, color: "#666" }}>
-            Organisasi: {orgName || "-"} • Role: {role}
+          <h1 style={dashTitle()}>Dashboard</h1>
+          <p style={dashSubtitle()}>
+            {orgName ? `${orgName}` : "Organisasi"} • {role}
           </p>
           {invErr?.message ? (
-            <p style={{ marginTop: 8, color: "#b00" }}>
-              Error baca invoices: {invErr.message}
-            </p>
+            <p style={{ marginTop: 8, color: "#b00", fontSize: 13 }}>Error baca invoices: {invErr.message}</p>
           ) : null}
         </div>
-
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <a href="/invoice/new" style={btnPrimary()}>
-            + Buat Invoice
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <a href="/settings/activity" style={iconBtn()} title="Notifikasi / aktivitas" aria-label="Notifikasi">
+            <BellIcon />
           </a>
-          <a href="/invoice" style={btn()}>
+          <a href="/settings" style={iconBtn()} title="Profil & pengaturan" aria-label="Pengaturan">
+            <UserIcon />
+          </a>
+        </div>
+      </div>
+
+      {/* Rekap Data Invoice */}
+      <h2 style={sectionHeading()}>Rekap Data Invoice</h2>
+      <div style={kpiGrid()}>
+        <div style={kpiCardCream()}>
+          <div style={kpiLabel()}>Outstanding</div>
+          <div style={kpiValue()}>{outstandingCount}</div>
+          <div style={kpiInset()}>
+            Sisa tagihan : <b>{rupiah(outstandingSum)}</b>
+          </div>
+        </div>
+
+        <div style={kpiCardGray()}>
+          <div style={kpiLabel()}>Paid Bulan Ini</div>
+          <div style={kpiValue()}>{rupiah(paidSumThisMonth)}</div>
+          <div style={kpiInset()}>
+            {formatMonthKeyId(thisMonthKey)}
+          </div>
+        </div>
+
+        <div style={kpiCardGray()}>
+          <div style={kpiLabel()}>Paid Bulan Lalu</div>
+          <div style={kpiValue()}>{rupiah(paidSumLastMonth)}</div>
+          <div style={kpiInset()}>
+            {formatMonthKeyId(lastMonthKey)}
+          </div>
+        </div>
+
+        <div style={kpiCardBlue()}>
+          <div style={kpiLabel()}>Total Invoice</div>
+          <div style={kpiValue()}>{invoices.length}</div>
+          <div style={{ ...kpiInset(), display: "flex", flexWrap: "wrap", gap: "8px 16px" }}>
+            <span style={kpiInsetStat()}>Paid: {paidCount}</span>
+            <span style={kpiInsetStat()}>Cust: {customerCount ?? 0}</span>
+            <span style={kpiInsetStat()}>Product: {productCount ?? 0}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Menu Utama */}
+      <div style={menuUtamaBox()}>
+        <div style={menuUtamaTitle()}>Menu Utama</div>
+        <div style={menuUtamaRow()}>
+          <a href="/invoice/new" style={menuBtnPrimary()}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Buat Invoice
+          </a>
+          <a href="/invoice" style={menuBtnOutline()}>
             Daftar Invoice
           </a>
-          <a href="/delivery-notes" style={btn()}>
+          <a href="/delivery-notes" style={menuBtnOutline()}>
             Surat Jalan
           </a>
-          <a href="/products" style={btn()}>
+          <a href="/products" style={menuBtnOutline()}>
             Barang
           </a>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: 12,
-          marginTop: 14,
-        }}
-      >
-        <div style={card()}>
-          <div style={kpiLabel()}>Outstanding (UNPAID/PARTIAL)</div>
-          <div style={kpiValue()}>{outstandingCount}</div>
-          <div style={kpiSub()}>
-            Sisa tagihan: <b>{rupiah(outstandingSum)}</b>
-          </div>
-        </div>
+      {/* Bottom: table + chart */}
+      <div style={bottomGrid()}>
+        {/* Butuh Perhatian */}
+        <div style={cardElevated()}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#1a1a1a" }}>Butuh Perhatian</h3>
+          <p style={{ margin: "6px 0 0", fontSize: 12, color: "#64748b" }}>
+            UNPAID / PARTIAL tertua — klik baris untuk buka detail
+          </p>
 
-        <div style={card()}>
-          <div style={kpiLabel()}>Paid Bulan Ini</div>
-          <div style={kpiValue()}>{rupiah(paidSumThisMonth)}</div>
-          <div style={kpiSub()}>({thisMonthKey})</div>
-        </div>
-
-        <div style={card()}>
-          <div style={kpiLabel()}>Paid Bulan Lalu</div>
-          <div style={kpiValue()}>{rupiah(paidSumLastMonth)}</div>
-          <div style={kpiSub()}>({lastMonthKey})</div>
-        </div>
-
-        <div style={card()}>
-          <div style={kpiLabel()}>Total Invoice</div>
-          <div style={kpiValue()}>{invoices.length}</div>
-          <div style={kpiSub()}>
-            Paid: <b>{paidCount}</b> • Customers: <b>{customerCount ?? 0}</b> • Products:{" "}
-            <b>{productCount ?? 0}</b>
-          </div>
-        </div>
-      </div>
-
-      {/* Content grid */}
-      <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 12 }}>
-        {/* Attention list */}
-        <div style={card()}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "baseline",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
-            <h3 style={{ margin: 0 }}>Butuh Perhatian</h3>
-            <span style={{ color: "#666", fontSize: 13 }}>UNPAID/PARTIAL paling lama (klik untuk buka)</span>
-          </div>
-
-          <div style={{ marginTop: 10 }}>
-            {attentionTop.length === 0 ? (
-              <p style={{ color: "#666", margin: 0 }}>Aman. Tidak ada invoice outstanding 🎉</p>
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
+          {attentionTop.length === 0 ? (
+            <p style={{ color: "#64748b", margin: "16px 0 0", fontSize: 14 }}>
+              Aman. Tidak ada invoice outstanding.
+            </p>
+          ) : (
+            <>
+              <div style={tableHeaderRow()}>
+                <div>Nomor Invoice</div>
+                <div style={{ textAlign: "right" }}>Nominal</div>
+                <div style={{ textAlign: "center" }}>Status</div>
+              </div>
+              <div style={{ marginTop: 0 }}>
                 {attentionTop.map((x) => (
-                  <a key={x.id} href={`/invoice/${x.id}`} style={rowLink()}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                      <div>
-                        <div style={{ fontWeight: 800 }}>
-                          {x.invoice_number ? `Invoice ${x.invoice_number}` : `Invoice ${x.id.slice(0, 8)}…`}
-                          <span style={{ marginLeft: 8, ...pill(x.payState) }}>{x.payState}</span>
-                        </div>
-                        <div style={{ color: "#666", fontSize: 13, marginTop: 2 }}>
-                          {x.invoice_date || "-"} • {x.customer_name || "-"}
-                        </div>
+                  <a key={x.id} href={`/invoice/${x.id}`} style={tableRow()}>
+                    <div>
+                      <div style={{ fontWeight: 800, color: "#111", fontSize: 14 }}>
+                        {x.invoice_number || `Invoice ${x.id.slice(0, 8)}…`}
                       </div>
-
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontWeight: 800 }}>{rupiah(x.remaining)}</div>
-                        <div style={{ color: "#666", fontSize: 12 }}>dari {rupiah(x.grandTotal)}</div>
+                      <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>
+                        {x.invoice_date || "-"}
                       </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#111" }}>{rupiah(x.remaining)}</div>
+                      <div style={{ color: "#64748b", fontSize: 12 }}>dari {rupiah(x.grandTotal)}</div>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                      <span style={pill(x.payState)}>{x.payState}</span>
                     </div>
                   </a>
                 ))}
               </div>
-            )}
-          </div>
+            </>
+          )}
 
-          <div style={{ marginTop: 10 }}>
-            <a href="/invoice" style={{ ...btn(), display: "inline-block" }}>
+          <div style={{ marginTop: 14 }}>
+            <a href="/invoice" style={linkMuted()}>
               Lihat semua invoice →
             </a>
           </div>
         </div>
 
-        {/* Mini chart */}
-        <div style={card()}>
-          <h3 style={{ margin: 0 }}>Omset Paid (6 Bulan)</h3>
-          <p style={{ marginTop: 6, color: "#666", fontSize: 13 }}>Bar chart sederhana (tanpa library)</p>
+        {/* Omset Dibayar */}
+        <div style={cardElevated()}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#1a1a1a" }}>Omset Dibayar</h3>
+            <div style={dateRangePill()}>{chartRangeLabel}</div>
+          </div>
 
-          <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+          <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
             {monthBars.map((m) => {
-              const w = Math.max(2, Math.round((m.value / maxBar) * 100));
+              const pct = Math.max(4, Math.round((m.value / maxBar) * 100));
               return (
                 <div
                   key={m.month}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "76px 1fr",
+                    gridTemplateColumns: "88px 1fr 100px",
                     gap: 10,
                     alignItems: "center",
                   }}
                 >
-                  <div style={{ fontSize: 12, color: "#666" }}>{m.month}</div>
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <div style={{ height: 10, background: "#f3f4f6", borderRadius: 999, overflow: "hidden" }}>
-                      <div style={{ width: `${w}%`, height: "100%", background: "#111" }} />
-                    </div>
-                    <div style={{ fontSize: 12 }}>{rupiah(m.value)}</div>
+                  <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{formatMonthKeyId(m.month)}</div>
+                  <div
+                    style={{
+                      height: 22,
+                      background: "#E8E8E8",
+                      borderRadius: 6,
+                      overflow: "hidden",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div style={{ width: `${pct}%`, height: "100%", background: "#2D7D71", borderRadius: 5 }} />
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#334155", textAlign: "right" }}>
+                    {rupiah(m.value)}
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div style={{ marginTop: 12, borderTop: "1px solid #eee", paddingTop: 10 }}>
-            <div style={{ color: "#666", fontSize: 12 }}>Tip:</div>
-            <div style={{ color: "#333", fontSize: 13 }}>
-              nanti kalau mau “lebih cakep”, kita bisa ganti ini jadi chart beneran (Recharts), tapi versi ini udah cukup buat deploy & validasi.
-            </div>
+          <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 12, height: 12, background: "#2D7D71", borderRadius: 2, display: "inline-block" }} />
+            <span style={{ fontSize: 13, color: "#64748b" }}>Omset Paid</span>
           </div>
-        </div>
-      </div>
-
-      {/* Shortcuts */}
-      <div style={{ marginTop: 12, ...card() }}>
-        <h3 style={{ margin: 0 }}>Shortcut</h3>
-        <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-          <a href="/invoice/new" style={btnPrimary()}>
-            + Buat Invoice Baru
-          </a>
-          <a href="/invoice" style={btn()}>
-            Lihat Daftar Invoice
-          </a>
-          <a href="/delivery-notes" style={btn()}>
-            Lihat Surat Jalan
-          </a>
-          <a href="/products" style={btn()}>
-            Kelola Barang
-          </a>
         </div>
       </div>
     </div>
   );
 }
 
-function card(): React.CSSProperties {
-  return { border: "1px solid #eee", borderRadius: 12, padding: 14, background: "white" };
-}
-
-function btn(): React.CSSProperties {
+function pageWrap(): React.CSSProperties {
   return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #ddd",
-    textDecoration: "none",
-    color: "#111",
-    background: "white",
+    width: "100%",
+    maxWidth: "100%",
+    padding: "20px 24px 32px",
+    boxSizing: "border-box",
+    background: "#F5F7F9",
+    minHeight: "100%",
   };
 }
 
-function btnPrimary(): React.CSSProperties {
+function dashHeaderRow(): React.CSSProperties {
   return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #111",
-    background: "#111",
-    color: "white",
-    textDecoration: "none",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 16,
+    flexWrap: "wrap",
+    marginBottom: 8,
   };
+}
+
+function dashTitle(): React.CSSProperties {
+  return { margin: 0, fontSize: 22, fontWeight: 800, color: "#1e293b", letterSpacing: "-0.02em" };
+}
+
+function dashSubtitle(): React.CSSProperties {
+  return { marginTop: 6, fontSize: 13, color: "#64748b" };
+}
+
+function iconBtn(): React.CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    background: "rgba(45, 125, 113, 0.12)",
+    border: "1px solid rgba(45, 125, 113, 0.2)",
+    textDecoration: "none",
+    boxSizing: "border-box",
+  };
+}
+
+function sectionHeading(): React.CSSProperties {
+  return {
+    margin: "20px 0 12px",
+    fontSize: 15,
+    fontWeight: 800,
+    color: "#334155",
+  };
+}
+
+function kpiGrid(): React.CSSProperties {
+  return {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 14,
+  };
+}
+
+function kpiCardCream(): React.CSSProperties {
+  return {
+    borderRadius: 12,
+    padding: 16,
+    background: "#FFF9E7",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+    border: "1px solid rgba(0,0,0,0.04)",
+    boxSizing: "border-box",
+  };
+}
+
+function kpiCardGray(): React.CSSProperties {
+  return {
+    borderRadius: 12,
+    padding: 16,
+    background: "#F0F0F0",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+    border: "1px solid rgba(0,0,0,0.04)",
+    boxSizing: "border-box",
+  };
+}
+
+function kpiCardBlue(): React.CSSProperties {
+  return {
+    borderRadius: 12,
+    padding: 16,
+    background: "#E7F3FF",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+    border: "1px solid rgba(0,0,0,0.04)",
+    boxSizing: "border-box",
+  };
+}
+
+function kpiInset(): React.CSSProperties {
+  return {
+    marginTop: 12,
+    padding: "10px 12px",
+    borderRadius: 8,
+    background: "#fff",
+    fontSize: 13,
+    color: "#475569",
+    border: "1px solid rgba(0,0,0,0.06)",
+  };
+}
+
+function kpiInsetStat(): React.CSSProperties {
+  return { fontWeight: 600, color: "#334155" };
 }
 
 function kpiLabel(): React.CSSProperties {
-  return { fontSize: 12, color: "#666", fontWeight: 700, letterSpacing: 0.2 };
-}
-function kpiValue(): React.CSSProperties {
-  return { marginTop: 8, fontSize: 22, fontWeight: 900 };
-}
-function kpiSub(): React.CSSProperties {
-  return { marginTop: 6, fontSize: 13, color: "#555" };
+  return { fontSize: 12, color: "#64748b", fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase" as const };
 }
 
-function rowLink(): React.CSSProperties {
+function kpiValue(): React.CSSProperties {
+  return { marginTop: 8, fontSize: 26, fontWeight: 900, color: "#0f172a", letterSpacing: "-0.02em" };
+}
+
+function menuUtamaBox(): React.CSSProperties {
   return {
-    border: "1px solid #eee",
+    marginTop: 20,
+    padding: 18,
     borderRadius: 12,
-    padding: 12,
-    textDecoration: "none",
-    color: "#111",
     background: "#fff",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+    boxSizing: "border-box",
+  };
+}
+
+function menuUtamaTitle(): React.CSSProperties {
+  return { fontSize: 15, fontWeight: 800, color: "#1e293b", marginBottom: 14 };
+}
+
+function menuUtamaRow(): React.CSSProperties {
+  return {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gap: 12,
+  };
+}
+
+function menuBtnPrimary(): React.CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: "12px 14px",
+    borderRadius: 8,
+    background: "#2D7D71",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 14,
+    textDecoration: "none",
+    border: "1px solid #2D7D71",
+    boxSizing: "border-box",
+  };
+}
+
+function menuBtnOutline(): React.CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "12px 14px",
+    borderRadius: 8,
+    background: "#fff",
+    color: "#2D7D71",
+    fontWeight: 700,
+    fontSize: 14,
+    textDecoration: "none",
+    border: "2px solid #2D7D71",
+    boxSizing: "border-box",
+  };
+}
+
+function bottomGrid(): React.CSSProperties {
+  return {
+    marginTop: 18,
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))",
+    gap: 16,
+    alignItems: "start",
+  };
+}
+
+function cardElevated(): React.CSSProperties {
+  return {
+    borderRadius: 12,
+    padding: 18,
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+    boxSizing: "border-box",
+  };
+}
+
+function tableHeaderRow(): React.CSSProperties {
+  return {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 100px",
+    gap: 12,
+    padding: "10px 12px",
+    marginTop: 14,
+    background: "#F0F0F0",
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: 800,
+    color: "#64748b",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.04em",
+  };
+}
+
+function tableRow(): React.CSSProperties {
+  return {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 100px",
+    gap: 12,
+    alignItems: "center",
+    padding: "12px 12px",
+    marginTop: 8,
+    background: "#fafafa",
+    borderRadius: 8,
+    border: "1px solid #eee",
+    textDecoration: "none",
+    color: "inherit",
+    boxSizing: "border-box",
+  };
+}
+
+function linkMuted(): React.CSSProperties {
+  return { fontSize: 13, fontWeight: 600, color: "#2D7D71", textDecoration: "none" };
+}
+
+function dateRangePill(): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "8px 12px",
+    borderRadius: 8,
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#475569",
   };
 }
 
@@ -453,27 +685,27 @@ function pill(state: "UNPAID" | "PARTIAL" | "PAID"): React.CSSProperties {
   if (state === "PAID")
     return {
       fontSize: 11,
-      padding: "3px 8px",
+      fontWeight: 800,
+      padding: "4px 10px",
       borderRadius: 999,
-      border: "1px solid #6ee7b7",
-      background: "#ecfdf5",
-      color: "#065f46",
+      background: "#E8F5E9",
+      color: "#2E7D32",
     };
   if (state === "PARTIAL")
     return {
       fontSize: 11,
-      padding: "3px 8px",
+      fontWeight: 800,
+      padding: "4px 10px",
       borderRadius: 999,
-      border: "1px solid #93c5fd",
-      background: "#eff6ff",
-      color: "#1e3a8a",
+      background: "#FFF4E5",
+      color: "#ED6C02",
     };
   return {
     fontSize: 11,
-    padding: "3px 8px",
+    fontWeight: 800,
+    padding: "4px 10px",
     borderRadius: 999,
-    border: "1px solid #fdba74",
-    background: "#fff7ed",
-    color: "#9a3412",
+    background: "#FFE5E5",
+    color: "#D32F2F",
   };
 }

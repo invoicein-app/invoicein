@@ -1,185 +1,502 @@
 import Link from "next/link";
+import { Inter } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
   return (
-    <div style={styles.root}>
-      {/* Hero */}
-      <section style={styles.hero}>
-        <div style={styles.container}>
-          <h1 style={styles.heroTitle}>
-            Bantu usaha kecil yang masih pakai Excel jadi lebih rapi
+    <div
+      className={`${inter.className} min-h-screen bg-white text-slate-800 antialiased`}
+    >
+      <LandingHeader />
+      <HeroSection />
+      <PainPointsSection />
+      <DarkFeaturesSection />
+      <PricingSection />
+      <FaqSection />
+      <LandingFooter />
+    </div>
+  );
+}
+
+function LandingHeader() {
+  return (
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+        <Link href="/" className="flex shrink-0 items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-600 text-white shadow-sm">
+            <InvoiceMarkIcon className="h-5 w-5" />
+          </span>
+          <span className="text-lg font-bold tracking-tight text-slate-900">
+            InvoiceKU
+          </span>
+        </Link>
+
+        <nav className="hidden items-center gap-8 md:flex">
+          <a
+            href="#fitur"
+            className="text-sm font-medium text-slate-600 transition hover:text-teal-700"
+          >
+            Fitur
+          </a>
+          <a
+            href="#harga"
+            className="text-sm font-medium text-slate-600 transition hover:text-teal-700"
+          >
+            Harga
+          </a>
+          <a
+            href="#kontak"
+            className="text-sm font-medium text-slate-600 transition hover:text-teal-700"
+          >
+            Hubungi Kami
+          </a>
+        </nav>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            href="/login"
+            className="hidden text-sm font-semibold text-slate-600 hover:text-teal-700 sm:inline"
+          >
+            Login
+          </Link>
+          <Link
+            href="/register"
+            className="rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700"
+          >
+            Coba Gratis Sekarang
+          </Link>
+
+          <details className="relative md:hidden">
+            <summary className="list-none cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
+              Menu
+            </summary>
+            <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white py-2 shadow-lg">
+              <a
+                href="#fitur"
+                className="block px-4 py-2 text-sm hover:bg-slate-50"
+              >
+                Fitur
+              </a>
+              <a
+                href="#harga"
+                className="block px-4 py-2 text-sm hover:bg-slate-50"
+              >
+                Harga
+              </a>
+              <a
+                href="#kontak"
+                className="block px-4 py-2 text-sm hover:bg-slate-50"
+              >
+                Hubungi Kami
+              </a>
+              <Link
+                href="/login"
+                className="block px-4 py-2 text-sm hover:bg-slate-50"
+              >
+                Login
+              </Link>
+            </div>
+          </details>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function HeroSection() {
+  return (
+    <section className="border-b border-slate-100 bg-gradient-to-b from-teal-50/60 to-white">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-2 lg:items-center lg:gap-12 lg:px-8 lg:py-24">
+        <div>
+          <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-4xl lg:text-[2.5rem]">
+            Kelola Bisnis{" "}
+            <span className="text-teal-600">Lebih Rapi &amp; Tidak Ribet</span>
           </h1>
-          <p style={styles.heroSub}>
-            Kelola invoice, stok, purchase order, surat jalan, dan pembayaran dalam satu tempat yang sederhana dan mudah dipakai. Cocok untuk toko, supplier, kantor kecil, dan pabrik/workshop yang masih mencatat operasional secara manual.
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
+            Kelola invoice, stok, purchase order, surat jalan, dan pembayaran
+            dalam satu tempat yang sederhana dan mudah dipakai. Cocok untuk
+            toko, supplier, kantor kecil, dan workshop yang masih mencatat
+            operasional secara manual.
           </p>
-          <div style={styles.heroCta}>
-            <Link href="/register" style={styles.btnPrimary}>Coba Gratis</Link>
-            <Link href="/login" style={styles.btnSecondary}>Login</Link>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/register"
+              className="inline-flex items-center justify-center rounded-lg bg-teal-600 px-6 py-3.5 text-base font-bold text-white shadow-md shadow-teal-600/20 transition hover:bg-teal-700"
+            >
+              Mulai Sekarang
+            </Link>
+            <Link
+              href="#fitur"
+              className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-6 py-3.5 text-base font-semibold text-slate-700 transition hover:border-teal-300 hover:text-teal-800"
+            >
+              Lihat Fitur
+            </Link>
           </div>
         </div>
-      </section>
+        <DashboardMockup />
+      </div>
+    </section>
+  );
+}
 
-      {/* Pain points */}
-      <section style={styles.section}>
-        <div style={styles.container}>
-          <h2 style={styles.sectionTitle}>Masalah yang sering muncul</h2>
-          <p style={styles.sectionSub}>Kalau operasional masih mengandalkan Excel atau catatan manual, hal-hal ini sering terjadi:</p>
-          <div style={styles.cardGrid}>
-            {painPoints.map((item, i) => (
-              <div key={i} style={styles.card}>
-                <span style={styles.cardIcon}>{item.icon}</span>
-                <h3 style={styles.cardTitle}>{item.title}</h3>
-                <p style={styles.cardText}>{item.text}</p>
+function DashboardMockup() {
+  return (
+    <div className="relative mx-auto w-full max-w-lg lg:max-w-none">
+      <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-teal-200/40 via-teal-100/20 to-transparent blur-2xl" />
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/50">
+        <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+          <span className="h-3 w-3 rounded-full bg-red-400/90" />
+          <span className="h-3 w-3 rounded-full bg-amber-400/90" />
+          <span className="h-3 w-3 rounded-full bg-emerald-400/90" />
+          <span className="ml-2 text-xs font-medium text-slate-400">
+            InvoiceKU — Dashboard
+          </span>
+        </div>
+        <div className="grid gap-4 p-4 sm:p-5">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {[
+              { label: "Penjualan", val: "Rp 12,4jt", tone: "bg-teal-600" },
+              { label: "Piutang", val: "Rp 3,2jt", tone: "bg-teal-500/90" },
+              { label: "Invoice", val: "48", tone: "bg-slate-700" },
+            ].map((c) => (
+              <div
+                key={c.label}
+                className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm"
+              >
+                <div className={`mb-2 h-1 rounded-full ${c.tone}`} />
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  {c.label}
+                </div>
+                <div className="mt-1 text-sm font-bold text-slate-900">
+                  {c.val}
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Main features */}
-      <section style={styles.sectionAlt}>
-        <div style={styles.container}>
-          <h2 style={styles.sectionTitle}>Fitur yang bisa dipakai sehari-hari</h2>
-          <p style={styles.sectionSub}>Semua dalam satu tempat: dari buat invoice sampai lacak pembayaran.</p>
-          <div style={styles.featureGrid}>
-            {mainFeatures.map((item, i) => (
-              <div key={i} style={styles.featureCard}>
-                <span style={styles.featureLabel}>{item.label}</span>
-                <p style={styles.featureDesc}>{item.desc}</p>
-              </div>
-            ))}
-          </div>
-          <div style={styles.supportFeature}>
-            <span style={styles.supportLabel}>Riwayat aktivitas</span>
-            <p style={styles.supportDesc}>Pencatatan perubahan penting dan riwayat transaksi untuk membantu pengecekan dan pengawasan.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Suitable for */}
-      <section style={styles.section}>
-        <div style={styles.container}>
-          <h2 style={styles.sectionTitle}>Cocok untuk siapa?</h2>
-          <p style={styles.sectionSub}>Terutama bisnis yang masih pakai Excel atau catatan manual dan ingin lebih tertata.</p>
-          <ul style={styles.suitableList}>
-            {suitableFor.map((item, i) => (
-              <li key={i} style={styles.suitableItem}>
-                <span style={styles.suitableCheck}>✓</span>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* Benefits */}
-      <section style={styles.sectionAlt}>
-        <div style={styles.container}>
-          <h2 style={styles.sectionTitle}>Dampak yang bisa dirasakan</h2>
-          <p style={styles.sectionSub}>Operasional lebih tertata tanpa harus pakai sistem yang rumit.</p>
-          <div style={styles.benefitGrid}>
-            {benefits.map((item, i) => (
-              <div key={i} style={styles.benefitCard}>
-                <span style={styles.benefitCheck}>✓</span>
-                <span style={styles.benefitText}>{item}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Trial CTA */}
-      <section style={styles.ctaSection}>
-        <div style={styles.container}>
-          <div style={styles.ctaCard}>
-            <h2 style={styles.ctaTitle}>Mulai dengan trial gratis</h2>
-            <p style={styles.ctaText}>
-              Coba dulu tanpa harus bayar di depan. Langganan bulanan sederhana, cocok untuk bisnis yang baru beralih dari cara manual atau Excel.
-            </p>
-            <div style={styles.heroCta}>
-              <Link href="/register" style={styles.btnPrimary}>Coba Gratis</Link>
-              <Link href="/login" style={styles.btnSecondary}>Login</Link>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+            <div className="mb-3 flex items-end justify-between gap-2">
+              {[40, 65, 45, 80, 55, 70, 90].map((h, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-t bg-gradient-to-t from-teal-600 to-teal-400"
+                  style={{ height: `${h}px` }}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between text-[10px] font-medium text-slate-400">
+              <span>Sen</span>
+              <span>Sel</span>
+              <span>Rab</span>
+              <span>Kam</span>
+              <span>Jum</span>
+              <span>Sab</span>
+              <span>Min</span>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section style={styles.section}>
-        <div style={styles.container}>
-          <h2 style={styles.sectionTitle}>Pertanyaan yang sering diajukan</h2>
-          <div style={styles.faqList}>
-            {faqs.map((item, i) => (
-              <div key={i} style={styles.faqItem}>
-                <h3 style={styles.faqQ}>{item.q}</h3>
-                <p style={styles.faqA}>{item.a}</p>
+          <div className="space-y-2 rounded-xl border border-slate-100 p-3">
+            <div className="grid grid-cols-4 gap-2 text-[10px] font-semibold uppercase text-slate-400">
+              <span className="col-span-2">Invoice</span>
+              <span>Status</span>
+              <span className="text-right">Total</span>
+            </div>
+            {[
+              ["INV-2026-0426-001", "Lunas", "Rp 2,1jt"],
+              ["INV-2026-0425-014", "Draft", "Rp 890rb"],
+            ].map(([inv, st, tot]) => (
+              <div
+                key={inv}
+                className="grid grid-cols-4 items-center gap-2 rounded-lg bg-white py-2 text-xs"
+              >
+                <span className="col-span-2 font-medium text-slate-700">
+                  {inv}
+                </span>
+                <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
+                  {st}
+                </span>
+                <span className="text-right font-semibold text-slate-800">
+                  {tot}
+                </span>
               </div>
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Footer */}
-      <footer style={styles.footer}>
-        <div style={styles.container}>
-          <div style={styles.footerInner}>
-            <span style={styles.footerBrand}>InvoiceKu</span>
-            <div style={styles.footerLinks}>
-              <Link href="/login" style={styles.footerLink}>Login</Link>
-              <Link href="/register" style={styles.footerLink}>Daftar</Link>
-              <Link href="/staff/login" style={styles.footerLink}>Login Staff</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 }
 
 const painPoints = [
-  { icon: "📄", title: "Invoice masih manual", text: "Buat invoice pakai Word/Excel atau tulis tangan, susah dilacak dan rawan salah." },
-  { icon: "📦", title: "Stok sering tidak sinkron", text: "Stok di catatan, di kepala, atau di chat beda-beda, bingung mana yang benar." },
-  { icon: "💰", title: "Pembayaran sulit dilacak", text: "Sudah bayar atau belum, lunas atau belum, harus cek banyak tempat." },
-  { icon: "📋", title: "PO dan surat jalan tersebar", text: "Purchase order dan surat jalan ada di Excel, chat, atau kertas, susah dicari." },
-  { icon: "📊", title: "Data ada di Excel, chat, catatan", text: "Data usaha terpencar di banyak file dan percakapan, tidak ada satu sumber benar." },
-  { icon: "🔄", title: "Operasional jalan, sistem berantakan", text: "Usaha sudah jalan tapi cara catat dan lacak masih tidak tertata." },
+  {
+    title: "Tidak Ada Monitoring",
+    text: "Transaksi dan perubahan sulit diawasi tanpa riwayat yang jelas.",
+    img: "from-teal-400 to-teal-600",
+  },
+  {
+    title: "Manajemen Stok Buruk",
+    text: "Stok di catatan, chat, atau Excel tidak sinkron dan rawan salah.",
+    img: "from-emerald-400 to-teal-600",
+  },
+  {
+    title: "Laporan Manual",
+    text: "Rekap penjualan dan piutang harus dirangkai manual dari banyak sumber.",
+    img: "from-cyan-400 to-teal-600",
+  },
+  {
+    title: "Stok Tidak Terdata",
+    text: "Barang masuk-keluar tidak tercatat rapi sehingga sering bingung stok nyata.",
+    img: "from-teal-500 to-slate-600",
+  },
+  {
+    title: "Pembayaran Sulit Dilacak",
+    text: "Sudah lunas atau belum harus dicek ke banyak tempat.",
+    img: "from-teal-300 to-teal-700",
+  },
+  {
+    title: "PO & Surat Jalan Berceceran",
+    text: "Dokumen tersebar di file, chat, atau kertas sehingga sulit dicari.",
+    img: "from-slate-400 to-teal-600",
+  },
+  {
+    title: "Data Tercecer",
+    text: "Tidak ada satu sumber benar untuk invoice, PO, dan pembayaran.",
+    img: "from-teal-400 to-slate-500",
+  },
+  {
+    title: "Sistem Berantakan",
+    text: "Operasional jalan tapi cara catat dan lacak belum tertata.",
+    img: "from-teal-600 to-emerald-700",
+  },
 ];
 
-const mainFeatures = [
-  { label: "Invoice", desc: "Buat dan kelola invoice dalam satu tempat, lebih rapi dan profesional." },
-  { label: "Stok", desc: "Pantau stok barang agar tidak kelebihan atau kehabisan tanpa sadar." },
-  { label: "Purchase order (PO)", desc: "Catat dan lacak PO dari pembelian sampai penerimaan barang." },
-  { label: "Penerimaan barang", desc: "Terima barang sesuai PO dan update stok dengan lebih terstruktur." },
-  { label: "Surat jalan", desc: "Kelola surat jalan dan pengiriman agar lebih mudah dilacak." },
-  { label: "Lacak pembayaran", desc: "Pantau status pembayaran dan piutang agar tidak ada yang terlewat." },
+function PainPointsSection() {
+  return (
+    <section id="fitur" className="scroll-mt-20 border-b border-slate-100 py-16 sm:py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <p className="text-center text-sm font-bold uppercase tracking-widest text-teal-600">
+          Dilema Bisnis
+        </p>
+        <h2 className="mt-2 text-center text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+          Kenapa Bisnis Terasa Ribet?
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-center text-slate-600">
+          Kalau operasional masih mengandalkan Excel atau catatan manual,
+          masalah ini sering muncul setiap hari.
+        </p>
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {painPoints.map((item) => (
+            <article
+              key={item.title}
+              className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:shadow-md"
+            >
+              <div
+                className={`h-28 bg-gradient-to-br ${item.img} sm:h-32`}
+                aria-hidden
+              />
+              <div className="p-4">
+                <h3 className="text-base font-bold text-slate-900">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  {item.text}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const darkFeatures = [
+  {
+    title: "Monitoring Riwayat Aktivitas",
+    desc: "Pantau perubahan penting dan jejak transaksi untuk pengawasan yang lebih baik.",
+    icon: "chart",
+  },
+  {
+    title: "Manajemen Akun/Hak yang Aman",
+    desc: "Pisahkan peran admin dan staf sesuai kebutuhan operasional.",
+    icon: "lock",
+  },
+  {
+    title: "Cetak dan bagikan faktur dengan mudah",
+    desc: "Invoice dan dokumen siap cetak atau dibagikan ke pelanggan.",
+    icon: "print",
+  },
+  {
+    title: "Dapatkan laporan faktur secara real-time",
+    desc: "Gambaran penjualan dan piutang lebih cepat tanpa susun manual.",
+    icon: "report",
+  },
 ];
 
-const suitableFor = [
-  "Toko kecil",
-  "Usaha jual beli barang",
-  "Supplier kecil",
-  "Kantor operasional kecil",
-  "Workshop / pabrik kecil",
-  "Bisnis yang masih pakai Excel atau catatan manual",
+function DarkFeaturesSection() {
+  return (
+    <section className="bg-gradient-to-br from-teal-900 via-teal-800 to-slate-900 py-16 text-white sm:py-24">
+      <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8">
+        <div>
+          <h2 className="text-2xl font-extrabold leading-tight sm:text-3xl lg:text-4xl">
+            Masih Pakai Sistem Manual?{" "}
+            <span className="text-teal-300">Saatnya Naik Level!</span>
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-teal-100/90">
+            InvoiceKU membantu Anda beralih dari spreadsheet dan chat yang
+            berantakan ke satu alur kerja yang rapi — tanpa harus memakai sistem
+            yang rumit.
+          </p>
+        </div>
+        <ul className="grid gap-4">
+          {darkFeatures.map((f) => (
+            <li
+              key={f.title}
+              className="flex gap-4 rounded-2xl border border-white/10 bg-white p-4 shadow-lg shadow-black/10 sm:p-5"
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+                <FeatureIcon name={f.icon} />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900">{f.title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  {f.desc}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+const pricingPlans = [
+  {
+    name: "Starter",
+    price: "Rp 49.000",
+    period: "/bln",
+    badge: null,
+    highlight: false,
+    features: [
+      "1 pengguna staff",
+      "Invoice & quotation",
+      "Stok dasar",
+      "Email support",
+      "Trial gratis",
+    ],
+  },
+  {
+    name: "Business",
+    price: "Rp 99.000",
+    period: "/bln",
+    badge: "Populer",
+    highlight: true,
+    features: [
+      "Hingga 3 pengguna staff",
+      "Semua fitur Starter",
+      "Purchase order & penerimaan",
+      "Surat jalan",
+      "Riwayat aktivitas",
+      "Prioritas support",
+    ],
+  },
+  {
+    name: "Enterprise",
+    price: "Rp 550.000",
+    period: "/thn",
+    badge: "Hemat",
+    highlight: false,
+    features: [
+      "Paket tahunan untuk operasional stabil",
+      "Nilai lebih untuk komitmen jangka panjang",
+      "Diskusi kebutuhan khusus",
+      "Invoice & stok lengkap",
+      "Support & update berkelanjutan",
+    ],
+  },
 ];
 
-const benefits = [
-  "Lebih rapi — data tidak tersebar di banyak file atau chat",
-  "Lebih mudah dicek — cari invoice, PO, atau pembayaran jadi lebih cepat",
-  "Lebih profesional — invoice dan dokumen tampil lebih tertata",
-  "Tidak bingung cari data lama — riwayat tersimpan dan bisa dilihat kapan saja",
-  "Operasional lebih tertata — dari stok sampai pembayaran dalam satu alur",
-  "Lebih siap berkembang — fondasi data yang rapi memudahkan saat usaha membesar",
-];
+function PricingSection() {
+  return (
+    <section id="harga" className="scroll-mt-20 bg-slate-50/80 py-16 sm:py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <p className="text-center text-sm font-bold uppercase tracking-widest text-teal-600">
+          Harga Paket
+        </p>
+        <h2 className="mt-2 text-center text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+          Pilih Paket Sesuai Kebutuhan Bisnis Anda
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-center text-slate-600">
+          Mulai dari yang ringan untuk UMKM, hingga paket yang lebih luas untuk
+          tim yang berkembang.
+        </p>
+        <div className="mt-12 grid gap-6 lg:grid-cols-3">
+          {pricingPlans.map((plan) => (
+            <div
+              key={plan.name}
+              className={`relative flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${
+                plan.highlight
+                  ? "border-teal-500 ring-2 ring-teal-500/20 lg:scale-[1.02]"
+                  : "border-slate-200"
+              }`}
+            >
+              {plan.badge && (
+                <span
+                  className={`absolute -top-3 right-4 rounded-full px-3 py-1 text-xs font-bold ${
+                    plan.highlight
+                      ? "bg-teal-600 text-white"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {plan.badge}
+                </span>
+              )}
+              <h3 className="text-lg font-bold text-slate-900">{plan.name}</h3>
+              <div className="mt-4 flex items-baseline gap-1">
+                <span className="text-3xl font-extrabold text-slate-900">
+                  {plan.price}
+                </span>
+                <span className="text-slate-500">{plan.period}</span>
+              </div>
+              <ul className="mt-6 flex-1 space-y-3">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex gap-2 text-sm text-slate-600">
+                    <span
+                      className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-700"
+                      aria-hidden
+                    >
+                      ✓
+                    </span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/register"
+                className={`mt-8 block w-full rounded-lg py-3 text-center text-sm font-bold transition ${
+                  plan.highlight
+                    ? "bg-teal-600 text-white hover:bg-teal-700"
+                    : "border border-slate-200 bg-white text-slate-800 hover:border-teal-300 hover:text-teal-800"
+                }`}
+              >
+                Pilih Paket
+              </Link>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 const faqs = [
   {
     q: "Apakah harus install aplikasi?",
-    a: "Tidak. InvoiceKu dipakai lewat browser (web). Cukup buka dari komputer atau HP yang terhubung internet.",
+    a: "Tidak. InvoiceKU dipakai lewat browser (web). Cukup buka dari komputer atau HP yang terhubung internet.",
   },
   {
     q: "Apakah cocok untuk usaha kecil?",
-    a: "Ya. Dirancang untuk UMKM, toko kecil, supplier kecil, kantor kecil, dan workshop/pabrik kecil yang ingin operasional lebih rapi tanpa sistem yang rumit.",
+    a: "Ya. Dirancang untuk UMKM, toko kecil, supplier kecil, kantor kecil, dan workshop yang ingin operasional lebih rapi tanpa sistem yang rumit.",
   },
   {
     q: "Apakah bisa dipakai kalau sebelumnya masih manual?",
@@ -191,301 +508,251 @@ const faqs = [
   },
   {
     q: "Apakah bisa dipakai untuk toko, kantor kecil, atau workshop?",
-    a: "Ya. Bisa dipakai untuk toko, usaha jual beli, supplier, kantor operasional kecil, dan workshop atau pabrik kecil. Fokusnya adalah mengelola invoice, stok, PO, surat jalan, dan pembayaran dalam satu tempat.",
+    a: "Ya. Bisa dipakai untuk toko, usaha jual beli, supplier, kantor operasional kecil, dan workshop atau pabrik kecil.",
   },
 ];
 
-const styles: Record<string, React.CSSProperties> = {
-  root: {
-    minHeight: "100vh",
-    background: "#f8fafc",
-    color: "#0f172a",
-  },
-  container: {
-    maxWidth: 960,
-    margin: "0 auto",
-    padding: "0 24px",
-  },
-  hero: {
-    padding: "64px 0 80px",
-    textAlign: "center",
-    background: "linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%)",
-    borderBottom: "1px solid #e2e8f0",
-  },
-  heroTitle: {
-    margin: 0,
-    fontSize: "clamp(1.75rem, 4vw, 2.25rem)",
-    fontWeight: 800,
-    color: "#0f172a",
-    lineHeight: 1.25,
-    letterSpacing: "-0.02em",
-  },
-  heroSub: {
-    margin: "20px auto 0",
-    maxWidth: 640,
-    fontSize: "clamp(1rem, 2vw, 1.125rem)",
-    color: "#475569",
-    lineHeight: 1.6,
-  },
-  heroCta: {
-    display: "flex",
-    gap: 12,
-    justifyContent: "center",
-    flexWrap: "wrap",
-    marginTop: 32,
-  },
-  btnPrimary: {
-    display: "inline-block",
-    padding: "14px 28px",
-    borderRadius: 12,
-    border: "none",
-    background: "#0f172a",
-    color: "white",
-    fontSize: 16,
-    fontWeight: 700,
-    textDecoration: "none",
-    cursor: "pointer",
-  },
-  btnSecondary: {
-    display: "inline-block",
-    padding: "14px 28px",
-    borderRadius: 12,
-    border: "1px solid #cbd5e1",
-    background: "white",
-    color: "#0f172a",
-    fontSize: 16,
-    fontWeight: 700,
-    textDecoration: "none",
-    cursor: "pointer",
-  },
-  section: {
-    padding: "64px 0",
-  },
-  sectionAlt: {
-    padding: "64px 0",
-    background: "white",
-    borderTop: "1px solid #e2e8f0",
-    borderBottom: "1px solid #e2e8f0",
-  },
-  sectionTitle: {
-    margin: 0,
-    fontSize: "clamp(1.5rem, 3vw, 1.75rem)",
-    fontWeight: 800,
-    color: "#0f172a",
-    textAlign: "center",
-  },
-  sectionSub: {
-    margin: "12px 0 0",
-    fontSize: "1.0625rem",
-    color: "#64748b",
-    textAlign: "center",
-    maxWidth: 560,
-    marginLeft: "auto",
-    marginRight: "auto",
-  },
-  cardGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-    gap: 20,
-    marginTop: 32,
-  },
-  card: {
-    padding: 24,
-    borderRadius: 16,
-    border: "1px solid #e2e8f0",
-    background: "white",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-  },
-  cardIcon: {
-    fontSize: 28,
-    display: "block",
-    marginBottom: 12,
-  },
-  cardTitle: {
-    margin: 0,
-    fontSize: "1.0625rem",
-    fontWeight: 700,
-    color: "#0f172a",
-  },
-  cardText: {
-    margin: "8px 0 0",
-    fontSize: 14,
-    color: "#64748b",
-    lineHeight: 1.5,
-  },
-  featureGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-    gap: 16,
-    marginTop: 32,
-  },
-  featureCard: {
-    padding: 20,
-    borderRadius: 14,
-    border: "1px solid #e2e8f0",
-    background: "#f8fafc",
-  },
-  featureLabel: {
-    display: "block",
-    fontSize: 15,
-    fontWeight: 700,
-    color: "#0f172a",
-  },
-  featureDesc: {
-    margin: "6px 0 0",
-    fontSize: 14,
-    color: "#475569",
-    lineHeight: 1.5,
-  },
-  supportFeature: {
-    marginTop: 20,
-    padding: 20,
-    borderRadius: 14,
-    border: "1px solid #e2e8f0",
-    background: "#f1f5f9",
-    maxWidth: 560,
-  },
-  supportLabel: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#475569",
-  },
-  supportDesc: {
-    margin: "6px 0 0",
-    fontSize: 14,
-    color: "#64748b",
-    lineHeight: 1.5,
-  },
-  suitableList: {
-    listStyle: "none",
-    margin: "32px 0 0",
-    padding: 0,
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-    gap: 12,
-  },
-  suitableItem: {
-    padding: "14px 18px 14px 42px",
-    borderRadius: 12,
-    border: "1px solid #e2e8f0",
-    background: "white",
-    fontSize: 15,
-    color: "#334155",
-    position: "relative",
-  },
-  suitableCheck: {
-    position: "absolute",
-    left: 16,
-    top: 14,
-    color: "#0f172a",
-    fontWeight: 700,
-  },
-  benefitGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-    gap: 16,
-    marginTop: 32,
-  },
-  benefitCard: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 12,
-    padding: 18,
-    borderRadius: 14,
-    border: "1px solid #e2e8f0",
-    background: "white",
-  },
-  benefitCheck: {
-    flexShrink: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    background: "#dcfce7",
-    color: "#166534",
-    fontWeight: 700,
-    fontSize: 14,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  benefitText: {
-    fontSize: 15,
-    color: "#334155",
-    lineHeight: 1.5,
-  },
-  ctaSection: {
-    padding: "64px 0",
-    background: "#f8fafc",
-  },
-  ctaCard: {
-    maxWidth: 560,
-    margin: "0 auto",
-    padding: 48,
-    borderRadius: 20,
-    border: "1px solid #e2e8f0",
-    background: "white",
-    boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
-    textAlign: "center",
-  },
-  ctaTitle: {
-    margin: 0,
-    fontSize: "1.5rem",
-    fontWeight: 800,
-    color: "#0f172a",
-  },
-  ctaText: {
-    margin: "16px 0 0",
-    fontSize: 16,
-    color: "#475569",
-    lineHeight: 1.6,
-  },
-  faqList: {
-    marginTop: 32,
-    maxWidth: 640,
-    marginLeft: "auto",
-    marginRight: "auto",
-  },
-  faqItem: {
-    padding: "20px 0",
-    borderBottom: "1px solid #e2e8f0",
-  },
-  faqQ: {
-    margin: 0,
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#0f172a",
-  },
-  faqA: {
-    margin: "8px 0 0",
-    fontSize: 15,
-    color: "#475569",
-    lineHeight: 1.6,
-  },
-  footer: {
-    padding: "32px 0",
-    borderTop: "1px solid #e2e8f0",
-    background: "white",
-  },
-  footerInner: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 16,
-  },
-  footerBrand: {
-    fontSize: 18,
-    fontWeight: 800,
-    color: "#0f172a",
-  },
-  footerLinks: {
-    display: "flex",
-    gap: 24,
-  },
-  footerLink: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: "#475569",
-    textDecoration: "none",
-  },
-};
+function FaqSection() {
+  return (
+    <section className="border-t border-slate-100 py-16 sm:py-20">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+        <h2 className="text-center text-2xl font-extrabold text-slate-900 sm:text-3xl">
+          Pertanyaan Umum
+        </h2>
+        <div className="mt-10 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
+          {faqs.map((item) => (
+            <details
+              key={item.q}
+              className="open:[&_.faq-chevron]:rotate-45 px-4 py-1 sm:px-6 [&_summary::-webkit-details-marker]:hidden"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-left font-semibold text-slate-900">
+                {item.q}
+                <span className="faq-chevron text-xl font-normal text-teal-600 transition">
+                  +
+                </span>
+              </summary>
+              <p className="pb-4 text-sm leading-relaxed text-slate-600">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingFooter() {
+  const year = new Date().getFullYear();
+  return (
+    <footer id="kontak" className="scroll-mt-20 border-t border-slate-200 bg-slate-900 text-slate-300">
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <Link href="/" className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-500 text-white">
+                <InvoiceMarkIcon className="h-5 w-5" />
+              </span>
+              <span className="text-lg font-bold text-white">InvoiceKU</span>
+            </Link>
+            <p className="mt-4 text-sm leading-relaxed text-slate-400">
+              Platform sederhana untuk kelola invoice, stok, PO, dan surat jalan
+              — agar bisnis kecil tetap rapi tanpa ribet.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <SocialLink href="#" label="Facebook" icon="fb" />
+              <SocialLink href="#" label="Instagram" icon="ig" />
+              <SocialLink href="#" label="WhatsApp" icon="wa" />
+              <SocialLink href="#" label="X" icon="x" />
+            </div>
+          </div>
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-wide text-white">
+              Head Office
+            </h4>
+            <p className="mt-3 text-sm leading-relaxed">
+              Indonesia
+              <br />
+              (Alamat lengkap dapat ditambahkan sesuai perusahaan Anda)
+            </p>
+          </div>
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-wide text-white">
+              Email
+            </h4>
+            <a
+              href="mailto:support@invoiceku.app"
+              className="mt-3 block text-sm text-teal-400 hover:text-teal-300"
+            >
+              support@invoiceku.app
+            </a>
+          </div>
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-wide text-white">
+              Sitemap
+            </h4>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li>
+                <a href="#fitur" className="hover:text-white">
+                  Fitur
+                </a>
+              </li>
+              <li>
+                <a href="#harga" className="hover:text-white">
+                  Harga
+                </a>
+              </li>
+              <li>
+                <Link href="/login" className="hover:text-white">
+                  Login
+                </Link>
+              </li>
+              <li>
+                <Link href="/register" className="hover:text-white">
+                  Daftar
+                </Link>
+              </li>
+            </ul>
+            <h4 className="mt-6 text-sm font-bold uppercase tracking-wide text-white">
+              Bantuan
+            </h4>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li>
+                <Link href="/staff/login" className="hover:text-white">
+                  Login Staff
+                </Link>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div className="mt-10 border-t border-slate-700 pt-8 text-center text-xs text-slate-500">
+          © {year} InvoiceKU. All rights reserved.
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function SocialLink({
+  href,
+  label,
+  icon,
+}: {
+  href: string;
+  label: string;
+  icon: "fb" | "ig" | "wa" | "x";
+}) {
+  return (
+    <a
+      href={href}
+      aria-label={label}
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600 bg-slate-800 text-slate-300 transition hover:border-teal-500 hover:text-white"
+    >
+      {icon === "fb" && (
+        <span className="text-xs font-bold" aria-hidden>
+          f
+        </span>
+      )}
+      {icon === "ig" && (
+        <span className="text-xs font-bold" aria-hidden>
+          in
+        </span>
+      )}
+      {icon === "wa" && (
+        <span className="text-xs font-bold" aria-hidden>
+          W
+        </span>
+      )}
+      {icon === "x" && (
+        <span className="text-xs font-bold" aria-hidden>
+          𝕏
+        </span>
+      )}
+    </a>
+  );
+}
+
+function InvoiceMarkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width={20}
+      height={20}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        d="M7 3h10a2 2 0 012 2v14l-4-2-4 2-4-2V5a2 2 0 012-2z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 8h6M9 11h4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function FeatureIcon({ name }: { name: string }) {
+  const cls = "h-6 w-6";
+  switch (name) {
+    case "chart":
+      return (
+        <svg className={cls} width={24} height={24} fill="none" viewBox="0 0 24 24" aria-hidden>
+          <path
+            d="M4 19V5M4 19h16M8 17V11M12 17V8M16 17v-5"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "lock":
+      return (
+        <svg className={cls} width={24} height={24} fill="none" viewBox="0 0 24 24" aria-hidden>
+          <rect
+            x="5"
+            y="11"
+            width="14"
+            height="10"
+            rx="2"
+            stroke="currentColor"
+            strokeWidth="1.75"
+          />
+          <path
+            d="M9 11V8a3 3 0 116 0v3"
+            stroke="currentColor"
+            strokeWidth="1.75"
+          />
+        </svg>
+      );
+    case "print":
+      return (
+        <svg className={cls} width={24} height={24} fill="none" viewBox="0 0 24 24" aria-hidden>
+          <path
+            d="M7 17h10v4H7v-4zM7 3h10v6H7V3zM5 9h14a2 2 0 012 2v4H3v-4a2 2 0 012-2z"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case "report":
+      return (
+        <svg className={cls} width={24} height={24} fill="none" viewBox="0 0 24 24" aria-hidden>
+          <path
+            d="M8 5h8v14H8V5zM4 9h2M4 13h2M4 17h2"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}

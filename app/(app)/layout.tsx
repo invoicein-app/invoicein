@@ -2,30 +2,14 @@
 export const runtime = "nodejs";
 
 import Navbar from "@/app/components/navbar";
-import Sidebar from "@/app/components/sidebar";
+import AppShell from "@/app/components/app-shell";
 import FeedbackWidget from "@/app/components/feedback/feedback-widget";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#f6f7f9" }}>
+    <div style={{ minHeight: "100vh", background: "#F8F9FA" }}>
       <Navbar />
-
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 1600,
-          margin: "0 auto",
-          padding: "14px 24px 28px",
-          display: "grid",
-          gridTemplateColumns: "260px 1fr",
-          gap: 14,
-          alignItems: "start",
-          boxSizing: "border-box",
-        }}
-      >
-        <Sidebar />
-        <main style={{ minWidth: 0 }}>{children}</main>
-      </div>
+      <AppShell>{children}</AppShell>
       <FeedbackWidget />
     </div>
   );

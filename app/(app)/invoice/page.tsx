@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import InvoiceFiltersClient from "./filters-client";
 import InvoiceActionsClient from "./invoice-actions-client";
+import InvoicePaginationClient from "./invoice-pagination-client";
 
 type SearchParams = {
   inv?: string;
@@ -75,28 +76,28 @@ function getUiPayStatus(rawStatus: any, grandTotal: number, amountPaid: number) 
 
 function badgeStyle(status: string) {
   if (status === "PAID") {
-    return { bg: "#ecfdf5", border: "#6ee7b7", color: "#065f46" };
+    return { bg: "#e8f5e9", border: "#a5d6a7", color: "#1b5e20" };
   }
   if (status === "PARTIAL") {
-    return { bg: "#eff6ff", border: "#93c5fd", color: "#1e3a8a" };
+    return { bg: "#fff4e5", border: "#fdba74", color: "#c2410c" };
   }
   if (status === "CANCELLED") {
-    return { bg: "#fef2f2", border: "#fca5a5", color: "#991b1b" };
+    return { bg: "#ffebee", border: "#ef9a9a", color: "#c62828" };
   }
   if (status === "DRAFT") {
-    return { bg: "#f3f4f6", border: "#d1d5db", color: "#374151" };
+    return { bg: "#f3f4f6", border: "#e5e7eb", color: "#4b5563" };
+  }
+  if (status === "UNPAID") {
+    return { bg: "#ffebee", border: "#ffcdd2", color: "#c62828" };
   }
   return { bg: "#fff7ed", border: "#fdba74", color: "#9a3412" };
 }
 
-function buildUrl(current: URLSearchParams, patch: Record<string, string>) {
-  const next = new URLSearchParams(current.toString());
-  for (const [k, v] of Object.entries(patch)) {
-    if (v === "") next.delete(k);
-    else next.set(k, v);
-  }
-  const qs = next.toString();
-  return qs ? `/invoice?${qs}` : "/invoice";
+function formatTanggalIndo(iso: string | null | undefined) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 }
 
 export default async function InvoiceListPage({
@@ -230,220 +231,189 @@ export default async function InvoiceListPage({
       return true;
     });
 
-  const prevUrl = buildUrl(currentParams, { p: String(Math.max(1, page - 1)) });
-  const nextUrl = buildUrl(currentParams, { p: String(Math.min(totalPages, page + 1)) });
-  const firstUrl = buildUrl(currentParams, { p: "1" });
-  const lastUrl = buildUrl(currentParams, { p: String(totalPages) });
+  const TEAL = "#2D7D71";
+  const baseQuery = currentParams.toString();
 
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
+    <div style={{ width: "100%", padding: "16px 20px 40px", boxSizing: "border-box", background: "#F8F9FA", minHeight: "100%" }}>
+      {/* Page title row (main content header) */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: 12,
+          gap: 16,
+          marginBottom: 18,
           flexWrap: "wrap",
         }}
       >
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Invoice</h1>
-          <div style={{ color: "#666", marginTop: 4 }}>
-            Quick payment langsung dari list
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#333" }}>Invoice</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Link
-            href="/invoice"
+            href="/settings/activity"
+            title="Notifikasi / aktivitas"
             style={{
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid #ddd",
-              background: "white",
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: "rgba(45, 125, 113, 0.12)",
+              display: "grid",
+              placeItems: "center",
               textDecoration: "none",
-              color: "#111",
-              fontWeight: 600,
+              border: "1px solid rgba(45, 125, 113, 0.22)",
             }}
           >
-            Reset URL
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.8" aria-hidden>
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
           </Link>
-
           <Link
-            href="/invoice/new"
+            href="/settings"
+            title="Profil & pengaturan"
             style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              background: "#111",
-              color: "white",
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: "rgba(45, 125, 113, 0.12)",
+              display: "grid",
+              placeItems: "center",
               textDecoration: "none",
-              fontWeight: 600,
+              border: "1px solid rgba(45, 125, 113, 0.22)",
             }}
           >
-            + Invoice Baru
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="1.8" aria-hidden>
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21v-1a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v1" strokeLinecap="round" />
+            </svg>
           </Link>
         </div>
       </div>
 
+      {/* Main card */}
       <div
         style={{
-          marginTop: 14,
-          padding: 14,
-          borderRadius: 14,
-          border: "1px solid #eee",
-          background: "white",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "#fff",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          padding: "22px 22px 8px",
+          boxSizing: "border-box",
         }}
       >
         <InvoiceFiltersClient customers={(customers || []) as any} />
-      </div>
 
-      <div
-        style={{
-          marginTop: 12,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 10,
-          color: "#666",
-          fontSize: 13,
-        }}
-      >
-        <div>
-          Total: <b>{totalRows}</b> • Page: <b>{Math.min(page, totalPages)}</b> /{" "}
-          <b>{totalPages}</b> • Per page: <b>{pageSize}</b>
-        </div>
+        <div style={{ marginTop: 20, overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 720 }}>
+            <thead>
+              <tr style={{ background: "#f0f2f5", color: "#333" }}>
+                <th style={{ padding: "12px 14px", textAlign: "left", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Nomor Invoice
+                </th>
+                <th style={{ padding: "12px 14px", textAlign: "center", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Status
+                </th>
+                <th style={{ padding: "12px 14px", textAlign: "left", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Pelanggan
+                </th>
+                <th style={{ padding: "12px 14px", textAlign: "right", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Jumlah
+                </th>
+                <th style={{ padding: "12px 14px", textAlign: "right", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Terbayar
+                </th>
+                <th style={{ padding: "12px 14px", textAlign: "right", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Terhutang
+                </th>
+                <th style={{ padding: "12px 14px", textAlign: "left", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em", minWidth: 200 }}>
+                  Aksi
+                </th>
+              </tr>
+            </thead>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Link href={firstUrl} style={pagerBtn()}>« First</Link>
-          <Link href={prevUrl} style={pagerBtn()}>‹ Prev</Link>
-          <Link href={nextUrl} style={pagerBtn()}>Next ›</Link>
-          <Link href={lastUrl} style={pagerBtn()}>Last »</Link>
-        </div>
-      </div>
+            <tbody>
+              {(invoices || []).map((inv: any) => {
+                const badge = badgeStyle(inv.payStatus);
+                const customerName = inv?.customers?.name || inv.customer_name || "-";
+                const invLabel = inv.invoice_number ? `Invoice ${inv.invoice_number}` : "(Tanpa nomor)";
 
-      <div
-        style={{
-          marginTop: 14,
-          border: "1px solid #eee",
-          borderRadius: 14,
-          overflowX: "auto",
-          background: "white",
-        }}
-      >
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-          <thead>
-            <tr style={{ background: "#fafafa", color: "#555" }}>
-              <th style={{ padding: "10px 12px", textAlign: "left" }}>Invoice No.</th>
-              <th style={{ padding: "10px 12px", textAlign: "left" }}>Pelanggan</th>
-              <th style={{ padding: "10px 8px", textAlign: "center", width: 88, minWidth: 88 }}>Status</th>
-              <th style={{ padding: "10px 12px", textAlign: "right" }}>Jumlah</th>
-              <th style={{ padding: "10px 12px", textAlign: "right" }}>Terbayar</th>
-              <th style={{ padding: "10px 12px", textAlign: "right" }}>Terhutang</th>
-              <th style={{ padding: "10px 12px", textAlign: "left" }}>Tanggal</th>
-              <th style={{ padding: "10px 12px", textAlign: "left", width: 140, minWidth: 140 }}>Aksi</th>
-            </tr>
-          </thead>
+                return (
+                  <tr key={inv.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "14px", verticalAlign: "top" }}>
+                      <Link
+                        href={`/invoice/${inv.id}`}
+                        style={{ fontWeight: 800, textDecoration: "none", color: "#111", fontSize: 14, display: "block" }}
+                      >
+                        {invLabel}
+                      </Link>
+                      <div style={{ color: "#999", fontSize: 12, marginTop: 4 }}>
+                        Tanggal: {formatTanggalIndo(inv.invoice_date)}
+                      </div>
+                    </td>
 
-          <tbody>
-            {(invoices || []).map((inv: any) => {
-              const badge = badgeStyle(inv.payStatus);
-              const customerName = inv?.customers?.name || inv.customer_name || "-";
+                    <td style={{ padding: "14px", textAlign: "center", verticalAlign: "middle" }}>
+                      <span
+                        style={{
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          fontSize: 11,
+                          fontWeight: 800,
+                          letterSpacing: "0.03em",
+                          background: badge.bg,
+                          border: `1px solid ${badge.border}`,
+                          color: badge.color,
+                          whiteSpace: "nowrap",
+                          display: "inline-block",
+                        }}
+                      >
+                        {inv.payStatus}
+                      </span>
+                    </td>
 
-              return (
-                <tr key={inv.id} style={{ borderTop: "1px solid #eee" }}>
-                  <td style={{ padding: "10px 12px" }}>
-                    <Link
-                      href={`/invoice/${inv.id}`}
-                      style={{ fontWeight: 800, textDecoration: "none", color: "#111" }}
-                    >
-                      {inv.invoice_number || "(Tanpa Nomor)"}
-                    </Link>
-                  </td>
+                    <td style={{ padding: "14px", color: "#333", verticalAlign: "middle" }}>{customerName}</td>
 
-                  <td style={{ padding: "10px 12px" }}>{customerName}</td>
+                    <td style={{ padding: "14px", textAlign: "right", fontWeight: 700, color: "#333", verticalAlign: "middle" }}>
+                      {rupiah(inv.grandTotal)}
+                    </td>
+                    <td style={{ padding: "14px", textAlign: "right", fontWeight: 700, color: "#333", verticalAlign: "middle" }}>
+                      {rupiah(inv.paid)}
+                    </td>
+                    <td style={{ padding: "14px", textAlign: "right", fontWeight: 700, color: "#333", verticalAlign: "middle" }}>
+                      {rupiah(inv.remaining)}
+                    </td>
 
-                  <td style={{ padding: "10px 8px", textAlign: "center", width: 88 }}>
-                    <span
-                      style={{
-                        padding: "3px 8px",
-                        borderRadius: 999,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        background: badge.bg,
-                        border: `1px solid ${badge.border}`,
-                        color: badge.color,
-                        whiteSpace: "nowrap",
-                        display: "inline-block",
-                      }}
-                    >
-                      {inv.payStatus}
-                    </span>
-                  </td>
+                    <td style={{ padding: "12px 14px", verticalAlign: "middle" }}>
+                      <InvoiceActionsClient
+                        id={inv.id}
+                        invoiceNumber={inv.invoice_number}
+                        remaining={inv.remaining}
+                        payStatus={inv.payStatus}
+                        hasQuotation={Boolean(inv.quotation_id)}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
 
-                  <td style={{ padding: "10px 12px", textAlign: "right" }}>{rupiah(inv.grandTotal)}</td>
-                  <td style={{ padding: "10px 12px", textAlign: "right" }}>{rupiah(inv.paid)}</td>
-                  <td style={{ padding: "10px 12px", textAlign: "right" }}>{rupiah(inv.remaining)}</td>
-                  <td style={{ padding: "10px 12px" }}>{inv.invoice_date || "-"}</td>
-
-                  <td style={{ padding: "10px 12px", width: 140, verticalAlign: "middle" }}>
-                    <InvoiceActionsClient
-                      id={inv.id}
-                      invoiceNumber={inv.invoice_number}
-                      remaining={inv.remaining}
-                      payStatus={inv.payStatus}
-                      hasQuotation={Boolean(inv.quotation_id)}
-                    />
+              {!invoices?.length && (
+                <tr>
+                  <td colSpan={7} style={{ padding: 28, textAlign: "center", color: "#999" }}>
+                    Tidak ada invoice yang cocok dengan filter.
                   </td>
                 </tr>
-              );
-            })}
-
-            {!invoices?.length && (
-              <tr>
-                <td colSpan={8} style={{ padding: 20, textAlign: "center", color: "#666" }}>
-                  Tidak ada invoice yang cocok dengan filter.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div
-        style={{
-          marginTop: 12,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 10,
-          color: "#666",
-          fontSize: 13,
-        }}
-      >
-        <div>
-          Menampilkan <b>{Math.min(fromIdx + 1, totalRows)}</b>–<b>{Math.min(toIdx + 1, totalRows)}</b> dari{" "}
-          <b>{totalRows}</b>
+              )}
+            </tbody>
+          </table>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Link href={firstUrl} style={pagerBtn()}>« First</Link>
-          <Link href={prevUrl} style={pagerBtn()}>‹ Prev</Link>
-          <Link href={nextUrl} style={pagerBtn()}>Next ›</Link>
-          <Link href={lastUrl} style={pagerBtn()}>Last »</Link>
-        </div>
+        <InvoicePaginationClient
+          page={page}
+          totalPages={totalPages}
+          totalRows={totalRows}
+          pageSize={pageSize}
+          baseQuery={baseQuery}
+        />
       </div>
     </div>
   );
-}
-function pagerBtn(): React.CSSProperties {
-  return {
-    padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid #eee",
-    textDecoration: "none",
-    color: "#111",
-    background: "white",
-  };
 }

@@ -41,6 +41,16 @@ export default function ForgotPasswordPage() {
   }
 
   return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: 24,
+        background: "#f6f7f9",
+        boxSizing: "border-box",
+      }}
+    >
     <div style={{ width: 420, maxWidth: "100%" }}>
       <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: "#111827" }}>Lupa Password?</h2>
       <p style={{ marginTop: 6, color: "#374151", fontSize: 13, lineHeight: 1.4 }}>
@@ -101,6 +111,7 @@ export default function ForgotPasswordPage() {
           Kembali ke login
         </Link>
       </div>
+    </div>
     </div>
   );
 }

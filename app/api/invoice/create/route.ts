@@ -6,6 +6,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
+import { coerceDateOrToday, generateDocumentNumber } from "@/lib/document-numbering";
 
 type Item = {
   product_id: string;
@@ -298,6 +299,14 @@ export async function POST(req: Request) {
     amount_paid: 0,
     status: "draft",
   };
+
+  if (!invoicePayload.invoice_number) {
+    invoicePayload.invoice_number = await generateDocumentNumber({
+      orgId,
+      docType: "invoice",
+      documentDate: coerceDateOrToday(invoicePayload.invoice_date || invoice_date),
+    });
+  }
 
   const { data: inv, error: invErr } = await supabase
     .from("invoices")

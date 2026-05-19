@@ -102,9 +102,8 @@ export default async function Navbar() {
   return (
     <div style={wrap()}>
       <div style={inner()}>
-        <Link href="/dashboard" style={brand()}>
-          InvoiceKu
-        </Link>
+        {/* Brand ada di sidebar; area atas hanya info org + logout */}
+        <div style={{ flex: 1, minWidth: 0 }} />
 
         <div style={right()}>
           <div style={{ textAlign: "right", lineHeight: 1.25 }}>

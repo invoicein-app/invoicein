@@ -3,8 +3,8 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
 import { requireCanWrite } from "@/lib/subscription";
+import { coerceDateOrToday, generateDocumentNumber } from "@/lib/document-numbering";
 
 type ItemIn = { product_id?: string | null; name: string; qty: number; price: number };
 
@@ -18,61 +18,6 @@ function clampInt(n: any, min: number, max: number) {
   if (x < min) return min;
   if (x > max) return max;
   return x;
-}
-
-function pad(n: number, len = 4) {
-  return String(n).padStart(len, "0");
-}
-
-function yyyymm(d = new Date()) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  return `${y}${m}`;
-}
-
-// format: QTN-YYYYMM-0001
-function makeNumber(prefix: string, ym: string, seq: number) {
-  return `${prefix}-${ym}-${pad(seq, 4)}`;
-}
-
-async function getNextQuotationNumber(orgId: string) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  // fallback kalau service role gak ada: tetap unik, gak bakal null
-  if (!serviceKey) {
-    const ym = yyyymm();
-    return `QTN-${ym}-${Date.now().toString().slice(-6)}`;
-  }
-
-  const admin = createClient(url, serviceKey);
-
-  const ym = yyyymm();
-  const prefix = "QTN";
-  const like = `${prefix}-${ym}-%`;
-
-  const { data: rows, error } = await admin
-    .from("quotations")
-    .select("quotation_number")
-    .eq("organization_id", orgId)
-    .like("quotation_number", like)
-    .order("quotation_number", { ascending: false })
-    .limit(1);
-
-  if (error) {
-    // fallback aman
-    return `QTN-${ym}-${Date.now().toString().slice(-6)}`;
-  }
-
-  let next = 1;
-  const last = String((rows as any)?.[0]?.quotation_number || "");
-  if (last) {
-    const parts = last.split("-");
-    const lastSeq = Number(parts[2]);
-    if (Number.isFinite(lastSeq) && lastSeq > 0) next = lastSeq + 1;
-  }
-
-  return makeNumber(prefix, ym, next);
 }
 
 export async function POST(req: Request) {
@@ -202,7 +147,12 @@ export async function POST(req: Request) {
   const total = Math.max(0, afterDisc + taxAmount);
 
   // quotation_number wajib (not null)
-  const quotation_number = await getNextQuotationNumber(orgId);
+  const normalizedQuotationDate = coerceDateOrToday(quotation_date);
+  const quotation_number = await generateDocumentNumber({
+    orgId,
+    docType: "quotation",
+    documentDate: normalizedQuotationDate,
+  });
 
   // insert header
   const { data: quo, error: quoErr } = await supabase
@@ -211,7 +161,7 @@ export async function POST(req: Request) {
       organization_id: orgId,
 
       quotation_number,
-      quotation_date,
+      quotation_date: normalizedQuotationDate,
 
       customer_id: customer_id || null,
       customer_name: customer_name,

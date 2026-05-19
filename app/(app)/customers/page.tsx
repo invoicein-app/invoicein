@@ -5,6 +5,11 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
 import { listTableStyles } from "../components/list-page-layout";
+import {
+  formPrimaryButton,
+  tableActionDanger,
+  tableActionSecondary,
+} from "../components/app-action-buttons";
 
 type CustomerForm = {
   name: string;
@@ -162,8 +167,11 @@ export default function CustomersPage() {
         setPage(1);
       }}
       perPageOptions={[10, 20, 30, 50]}
+      hidePerPage
     >
-      <button type="button" onClick={openCreate} style={btnPrimary()}>+ Tambah Customer</button>
+      <button type="button" onClick={openCreate} style={formPrimaryButton()}>
+        + Tambah Customer
+      </button>
     </ListFiltersClient>
   );
 
@@ -189,8 +197,14 @@ export default function CustomersPage() {
               <td style={listTableStyles.td}>{c.phone || "-"}</td>
               <td style={{ ...listTableStyles.td, whiteSpace: "pre-wrap" }}>{c.address || "-"}</td>
               <td style={listTableStyles.td}>
-                <button onClick={() => openEdit(c)} style={miniBtn()}>Edit</button>
-                <button onClick={() => deleteCustomer(c.id)} style={miniBtnDanger()}>Hapus</button>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button type="button" onClick={() => openEdit(c)} style={tableActionSecondary()}>
+                    Edit
+                  </button>
+                  <button type="button" onClick={() => deleteCustomer(c.id)} style={tableActionDanger()}>
+                    Hapus
+                  </button>
+                </div>
               </td>
             </tr>
           ))
@@ -214,7 +228,11 @@ export default function CustomersPage() {
         toIdx={toIdx}
         clientPagination={clientPagination}
         tableContent={tableContent}
-        emptyMessage="Belum ada customer."
+        listCardTitle="Master Data Customer"
+        onPageSizeChange={(v) => {
+          setPageSize(v);
+          setPage(1);
+        }}
       />
 
       {msg ? (
@@ -233,7 +251,9 @@ export default function CustomersPage() {
                 <h3 style={{ margin: 0 }}>{mode === "create" ? "Tambah Customer" : "Edit Customer"}</h3>
                 <p style={{ marginTop: 6, color: "#666" }}>Data ini dipakai untuk invoice & surat jalan</p>
               </div>
-              <button onClick={() => setSheetOpen(false)} style={btn()}>Tutup</button>
+              <button type="button" onClick={() => setSheetOpen(false)} style={tableActionSecondary()}>
+                Tutup
+              </button>
             </div>
             <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
               <label style={label()}>
@@ -249,8 +269,12 @@ export default function CustomersPage() {
                 <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={{ ...input(), minHeight: 90 }} />
               </label>
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button onClick={() => setSheetOpen(false)} style={btn()}>Batal</button>
-                <button onClick={saveCustomer} style={btnPrimary()}>Simpan</button>
+                <button type="button" onClick={() => setSheetOpen(false)} style={tableActionSecondary()}>
+                  Batal
+                </button>
+                <button type="button" onClick={saveCustomer} style={formPrimaryButton()}>
+                  Simpan
+                </button>
               </div>
             </div>
             {msg ? <p style={{ marginTop: 10, color: "#b00" }}>{msg}</p> : null}
@@ -261,18 +285,6 @@ export default function CustomersPage() {
   );
 }
 
-function btn(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", textDecoration: "none", color: "#111" };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer" };
-}
-function miniBtn(): React.CSSProperties {
-  return { padding: "6px 10px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", marginRight: 8 };
-}
-function miniBtnDanger(): React.CSSProperties {
-  return { padding: "6px 10px", borderRadius: 10, border: "1px solid #b00", background: "#fff5f5", cursor: "pointer" };
-}
 function label(): React.CSSProperties {
   return { display: "grid", gap: 6, fontSize: 13, color: "#444" };
 }
