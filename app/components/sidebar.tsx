@@ -10,7 +10,15 @@ const TEAL = "#1E7F75";
 const INACTIVE = "#949494";
 const NAV_TOP = 56;
 
-type NavItem = { href: string; label: string; adminOnly?: boolean; icon: NavIconId };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: NavIconId;
+  /** Org membership role admin/owner/super_admin */
+  adminOnly?: boolean;
+  /** App-level billing admin (app_user_roles or BILLING_ADMIN_EMAILS) */
+  billingAdminOnly?: boolean;
+};
 
 type NavIconId =
   | "dashboard"
@@ -24,7 +32,8 @@ type NavIconId =
   | "warehouse"
   | "activity"
   | "settings"
-  | "feedback";
+  | "feedback"
+  | "billing";
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
@@ -38,6 +47,7 @@ const navItems: NavItem[] = [
   { href: "/warehouses", label: "Gudang", icon: "warehouse" },
   { href: "/settings/activity", label: "Activity", icon: "activity", adminOnly: true },
   { href: "/settings", label: "Pengaturan", icon: "settings" },
+  { href: "/admin/billing", label: "Billing Admin", icon: "billing", billingAdminOnly: true },
   { href: "/admin/feedback", label: "Kritik & Masukan", icon: "feedback", adminOnly: true },
 ];
 
@@ -56,43 +66,53 @@ export default function Sidebar({ collapsed, onToggleCollapse }: Props) {
   const pathname = usePathname();
 
   const [role, setRole] = useState<string>("");
-  const [loadingRole, setLoadingRole] = useState(true);
+  const [canBillingAdmin, setCanBillingAdmin] = useState(false);
+  const [loadingNav, setLoadingNav] = useState(true);
   const [hoverHref, setHoverHref] = useState<string | null>(null);
 
-  async function loadRole() {
-    setLoadingRole(true);
+  async function loadNavAccess() {
+    setLoadingNav(true);
     try {
       const { data: userRes } = await supabase.auth.getUser();
       const user = userRes.user;
       if (!user) {
         setRole("");
+        setCanBillingAdmin(false);
         return;
       }
 
-      const { data: membership } = await supabase
-        .from("memberships")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
+      const [membershipRes, billingAccessRes] = await Promise.all([
+        supabase
+          .from("memberships")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle(),
+        fetch("/api/admin/billing/access", { credentials: "include" }).then((r) => r.json().catch(() => ({ allowed: false }))),
+      ]);
 
-      setRole(String((membership as any)?.role || ""));
+      setRole(String((membershipRes.data as { role?: string } | null)?.role || ""));
+      setCanBillingAdmin(Boolean((billingAccessRes as { allowed?: boolean })?.allowed));
     } finally {
-      setLoadingRole(false);
+      setLoadingNav(false);
     }
   }
 
   useEffect(() => {
-    loadRole();
+    loadNavAccess();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const canSeeAdmin = useMemo(() => isAdminRole(role), [role]);
 
   const items = useMemo(() => {
-    return navItems.filter((it) => (!it.adminOnly ? true : canSeeAdmin));
-  }, [canSeeAdmin]);
+    return navItems.filter((it) => {
+      if (it.billingAdminOnly) return canBillingAdmin;
+      if (it.adminOnly) return canSeeAdmin;
+      return true;
+    });
+  }, [canSeeAdmin, canBillingAdmin]);
 
   return (
     <aside style={wrap(collapsed)}>
@@ -178,7 +198,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }: Props) {
         </button>
       </div>
 
-      {loadingRole ? (
+      {loadingNav ? (
         <div style={{ fontSize: 11, color: "#bbb", marginBottom: 8, paddingLeft: collapsed ? 0 : 4, textAlign: collapsed ? "center" : "left" }}>
           …
         </div>
@@ -394,6 +414,14 @@ function NavIcon({ id, variant }: { id: NavIconId; variant: "active" | "hover" |
       return (
         <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
           <path d="M21 15a2 2 0 01-2 2H8l-4 3V5a2 2 0 012-2h13a2 2 0 012 2v10z" stroke={c} strokeWidth="1.75" strokeLinejoin="round" />
+        </svg>
+      );
+    case "billing":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect x="2" y="5" width="20" height="14" rx="2" stroke={c} strokeWidth="1.75" />
+          <path d="M2 10h20" stroke={c} strokeWidth="1.75" />
+          <path d="M6 15h4" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
         </svg>
       );
     default:
