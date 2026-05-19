@@ -1,11 +1,39 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import Link from "next/link";
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordFallback />}>
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
+
+function ResetPasswordFallback() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: 24,
+        background: "#f6f7f9",
+        boxSizing: "border-box",
+      }}
+    >
+      <div style={{ width: 420, maxWidth: "100%" }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: "#111827" }}>Reset Password</h2>
+        <p style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>Memuat...</p>
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordContent() {
   const supabase = useMemo(() => supabaseBrowser(), []);
   const router = useRouter();
   const params = useSearchParams();
