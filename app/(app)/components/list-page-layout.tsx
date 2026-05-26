@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import AppHeaderNav from "./app-header-nav";
-import { APP_BORDER, APP_BG, APP_TEAL } from "./app-ui-tokens";
+import { APP_BORDER, APP_TEAL } from "./app-ui-tokens";
+import {
+  listPageContentCard,
+  listPageHeaderRow,
+  listPageShell,
+  listPageSubtitle,
+  listPageTitle,
+  listPageCardHeading,
+  listPageHeaderActions,
+} from "./list-page-shell-styles";
 
 type ClientPagination = {
   onFirst: () => void;
@@ -32,14 +41,6 @@ type Props = {
   perPageOptions?: number[];
 };
 
-const shell: React.CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  background: APP_BG,
-  minHeight: "100%",
-  padding: "16px 20px 40px",
-};
-
 const btnOutline: React.CSSProperties = {
   padding: "10px 16px",
   borderRadius: 8,
@@ -64,16 +65,6 @@ const btnSolid: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-const card: React.CSSProperties = {
-  marginTop: 20,
-  background: "#fff",
-  border: `1px solid ${APP_BORDER}`,
-  borderRadius: 10,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-  padding: "20px 20px 8px",
-  boxSizing: "border-box",
-};
-
 export default function ListPageLayout({
   title,
   subtitle,
@@ -95,24 +86,13 @@ export default function ListPageLayout({
   const cardHeading = listCardTitle ?? `Master Data · ${title}`;
 
   return (
-    <div style={shell}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          flexWrap: "wrap",
-          marginBottom: 4,
-        }}
-      >
+    <div style={listPageShell}>
+      <div style={listPageHeaderRow}>
         <div style={{ minWidth: 0 }}>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#333" }}>{title}</h1>
-          {subtitle ? (
-            <div style={{ color: "#64748b", marginTop: 6, fontSize: 14, lineHeight: 1.45, maxWidth: 720 }}>{subtitle}</div>
-          ) : null}
+          <h1 style={listPageTitle}>{title}</h1>
+          {subtitle ? <div style={listPageSubtitle}>{subtitle}</div> : null}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <div style={listPageHeaderActions}>
           {secondaryLink ? (
             <Link href={secondaryLink.href} style={btnOutline}>
               {secondaryLink.label}
@@ -127,8 +107,8 @@ export default function ListPageLayout({
         </div>
       </div>
 
-      <div style={card}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#333", marginBottom: 16 }}>{cardHeading}</div>
+      <div style={listPageContentCard}>
+        <div style={listPageCardHeading}>{cardHeading}</div>
 
         <div style={{ marginBottom: 16 }}>{filters}</div>
 

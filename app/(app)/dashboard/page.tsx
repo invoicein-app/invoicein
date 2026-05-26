@@ -243,6 +243,26 @@ export default async function DashboardPage() {
 
   const attentionTop = attention.slice(0, 8);
 
+  const monthStartStr = `${thisMonthKey}-01`;
+  const monthEndDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+  const monthEndStr = `${thisMonthKey}-${String(monthEndDay).padStart(2, "0")}`;
+
+  const { data: expenseRows } = await supabase
+    .from("expenses")
+    .select("amount, payment_status")
+    .eq("org_id", orgId)
+    .gte("expense_date", monthStartStr)
+    .lte("expense_date", monthEndStr);
+
+  let expensePaidThisMonth = 0;
+  let expenseUnpaidThisMonth = 0;
+  for (const e of expenseRows || []) {
+    const amt = Number((e as any).amount) || 0;
+    if ((e as any).payment_status === "paid") expensePaidThisMonth += amt;
+    else expenseUnpaidThisMonth += amt;
+  }
+  const profitEstimateThisMonth = paidSumThisMonth - expensePaidThisMonth;
+
   const monthBars = monthKeys6.map((k) => ({ month: k, value: paidByMonth.get(k) || 0 }));
   const maxBar = Math.max(1, ...monthBars.map((x) => x.value));
 
@@ -307,6 +327,22 @@ export default async function DashboardPage() {
             <span style={kpiInsetStat()}>Product: {productCount ?? 0}</span>
           </div>
         </div>
+
+        <div style={kpiCardGray()}>
+          <div style={kpiLabel()}>Pengeluaran Lunas</div>
+          <div style={kpiValue()}>{rupiah(expensePaidThisMonth)}</div>
+          <div style={kpiInset()}>
+            Belum lunas: <b>{rupiah(expenseUnpaidThisMonth)}</b>
+          </div>
+        </div>
+
+        <div style={kpiCardCream()}>
+          <div style={kpiLabel()}>Perkiraan Laba Bulan Ini</div>
+          <div style={kpiValue()}>{rupiah(profitEstimateThisMonth)}</div>
+          <div style={kpiInset()}>
+            Omset lunas − pengeluaran lunas
+          </div>
+        </div>
       </div>
 
       {/* Menu Utama */}
@@ -324,6 +360,12 @@ export default async function DashboardPage() {
           </a>
           <a href="/products" style={menuBtnOutline()}>
             Barang
+          </a>
+          <a href="/expenses" style={menuBtnOutline()}>
+            Pengeluaran
+          </a>
+          <a href="/expenses/summary" style={menuBtnOutline()}>
+            Ringkasan Laba
           </a>
         </div>
       </div>

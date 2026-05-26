@@ -33,7 +33,8 @@ type NavIconId =
   | "activity"
   | "settings"
   | "feedback"
-  | "billing";
+  | "billing"
+  | "expense";
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
@@ -41,6 +42,7 @@ const navItems: NavItem[] = [
   { href: "/invoice", label: "Invoice", icon: "invoice" },
   { href: "/delivery-notes", label: "Surat Jalan", icon: "delivery" },
   { href: "/purchase-orders", label: "Purchase Order", icon: "po" },
+  { href: "/expenses", label: "Pengeluaran", icon: "expense" },
   { href: "/customers", label: "Customer", icon: "customer" },
   { href: "/products", label: "Barang", icon: "product" },
   { href: "/vendors", label: "Vendor", icon: "vendor" },
@@ -422,6 +424,12 @@ function NavIcon({ id, variant }: { id: NavIconId; variant: "active" | "hover" |
           <rect x="2" y="5" width="20" height="14" rx="2" stroke={c} strokeWidth="1.75" />
           <path d="M2 10h20" stroke={c} strokeWidth="1.75" />
           <path d="M6 15h4" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
+        </svg>
+      );
+    case "expense":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M12 2v20M17 7H9.5a3.5 3.5 0 100 7H14a3.5 3.5 0 110 7H6" stroke={c} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     default:
