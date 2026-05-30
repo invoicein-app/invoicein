@@ -10,13 +10,10 @@ export default function DeliveryNotesFiltersClient() {
   const sp = useSearchParams();
 
   const qParam = sp.get("q") || "";
-  const psParam = sp.get("ps") || "20";
 
   const [q, setQ] = useState(qParam);
-  const [ps, setPs] = useState(psParam);
 
   useEffect(() => setQ(qParam), [qParam]);
-  useEffect(() => setPs(psParam || "20"), [psParam]);
 
   const baseParams = useMemo(() => {
     const p = new URLSearchParams(sp.toString());
@@ -39,17 +36,12 @@ export default function DeliveryNotesFiltersClient() {
     return () => clearTimeout(t);
   }, [q]);
 
-  useEffect(() => {
-    const next = new URLSearchParams(baseParams.toString());
-    if (ps) next.set("ps", ps);
-    else next.delete("ps");
-    pushParams(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ps]);
+  const controlHeight = 44;
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    padding: "12px 40px 12px 14px",
+    height: controlHeight,
+    padding: "0 40px 0 14px",
     borderRadius: 8,
     border: `1px solid ${APP_BORDER}`,
     outline: "none",
@@ -59,8 +51,8 @@ export default function DeliveryNotesFiltersClient() {
   };
 
   return (
-    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-      <div style={{ flex: "1 1 280px", minWidth: 0, position: "relative" }}>
+    <div className="app-filter-bar" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="app-filter-bar__search" style={{ flex: "1 1 280px", minWidth: 0, position: "relative" }}>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -86,33 +78,11 @@ export default function DeliveryNotesFiltersClient() {
         </span>
       </div>
 
-      <div style={{ flex: "0 0 140px", minWidth: 130 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 6, textTransform: "uppercase" }}>
-          Per halaman
-        </div>
-        <select
-          value={ps}
-          onChange={(e) => setPs(e.target.value)}
-          style={{
-            ...inputStyle,
-            padding: "10px 12px",
-            cursor: "pointer",
-            fontWeight: 700,
-            color: "#333",
-          }}
-        >
-          <option value="10">10</option>
-          <option value="20">20</option>
-          <option value="30">30</option>
-          <option value="50">50</option>
-        </select>
-      </div>
-
       <button
         type="button"
         onClick={() => router.push(pathname)}
         style={{
-          padding: "10px 16px",
+          padding: "0 16px",
           borderRadius: 8,
           border: `2px solid ${APP_TEAL}`,
           background: "#fff",
@@ -120,7 +90,8 @@ export default function DeliveryNotesFiltersClient() {
           cursor: "pointer",
           fontWeight: 700,
           fontSize: 14,
-          height: 44,
+          height: controlHeight,
+          boxSizing: "border-box",
         }}
       >
         Reset

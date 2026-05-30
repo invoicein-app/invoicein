@@ -246,37 +246,37 @@ export default function RecurringExpensesPage() {
           </>
         }
         actions={
-          <button type="button" onClick={openCreate} style={formPrimaryButton()}>
+          <button type="button" onClick={openCreate} style={{ ...formPrimaryButton(), width: "100%" }}>
             + Tambah Biaya Bulanan
           </button>
         }
         cardTitle="Template Biaya Bulanan"
       >
         {msg ? <div style={expenseAlertBox()}>{msg}</div> : null}
-        <div style={expenseTableWrap}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 860 }}>
+        <div className="app-table-scroll" style={expenseTableWrap}>
+          <table className="app-data-table app-table--expenses-recurring">
           <thead>
-            <tr style={{ background: "#f9fafb" }}>
-              <th style={th()}>Nama</th>
-              <th style={th()}>Kategori</th>
-              <th style={th()}>Frekuensi</th>
-              <th style={{ ...th(), textAlign: "right" }}>Nominal</th>
-              <th style={th()}>Jadwal</th>
-              <th style={th()}>Status</th>
-              <th style={th()}>Periode ini</th>
-              <th style={th()}>Aksi</th>
+            <tr>
+              <th>Nama</th>
+              <th>Kategori</th>
+              <th>Frekuensi</th>
+              <th>Nominal</th>
+              <th>Jadwal</th>
+              <th>Status</th>
+              <th>Periode ini</th>
+              <th>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} style={td()}>
+                <td colSpan={8} data-label="">
                   Loading...
                 </td>
               </tr>
             ) : templates.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ ...td(), textAlign: "center", color: "#94a3b8", padding: 28 }}>
+                <td colSpan={8} data-label="" style={{ textAlign: "center", color: "#94a3b8" }}>
                   Belum ada biaya bulanan. Tambah gaji, wifi, listrik, sewa, dll.
                 </td>
               </tr>
@@ -284,23 +284,27 @@ export default function RecurringExpensesPage() {
               templates.map((t) => {
                 const alreadyCreated = createdTemplateIds.has(t.id);
                 return (
-                  <tr key={t.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ ...td(), fontWeight: 700 }}>{t.name}</td>
-                    <td style={td()}>{t.category}</td>
-                    <td style={td()}>{labelFrequency(t.frequency || "monthly")}</td>
-                    <td style={{ ...td(), textAlign: "right", fontWeight: 800 }}>{rupiah(Number(t.default_amount))}</td>
-                    <td style={td()}>{scheduleLabel(t)}</td>
-                    <td style={td()}>{t.is_active ? "Aktif" : "Nonaktif"}</td>
-                    <td style={td()}>
+                  <tr key={t.id}>
+                    <td data-label="Nama">{t.name}</td>
+                    <td data-label="Kategori" className="app-expense-recurring-col-optional">
+                      {t.category}
+                    </td>
+                    <td data-label="Frekuensi" className="app-expense-recurring-col-optional">
+                      {labelFrequency(t.frequency || "monthly")}
+                    </td>
+                    <td data-label="Nominal">{rupiah(Number(t.default_amount))}</td>
+                    <td data-label="Jadwal">{scheduleLabel(t)}</td>
+                    <td data-label="Status">{t.is_active ? "Aktif" : "Nonaktif"}</td>
+                    <td data-label="Periode ini">
                       {!t.is_active ? (
                         <span style={{ color: "#94a3b8", fontSize: 12 }}>Nonaktif</span>
                       ) : alreadyCreated ? (
-                        <span style={{ color: "#065f46", fontWeight: 700, fontSize: 12 }}>Sudah dicatat</span>
+                        <span style={{ color: "#065f46", fontWeight: 600, fontSize: 12 }}>Sudah dicatat</span>
                       ) : (
                         <span style={{ color: "#b45309", fontWeight: 600, fontSize: 12 }}>Belum dicatat</span>
                       )}
                     </td>
-                    <td style={td()}>
+                    <td data-label="Aksi" className="app-td-actions">
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button type="button" onClick={() => openEdit(t)} style={tableActionSecondary()}>
                           Ubah
@@ -320,8 +324,8 @@ export default function RecurringExpensesPage() {
       </ExpenseSubPageShell>
 
       {sheetOpen ? (
-        <div style={backdrop()}>
-          <div style={sheet()}>
+        <div className="app-modal-backdrop" style={backdrop()}>
+          <div className="app-modal-sheet" style={sheet()}>
             <h3 style={{ margin: 0 }}>{mode === "create" ? "Tambah Biaya Bulanan" : "Edit Biaya Bulanan"}</h3>
             <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
               <label style={label()}>
@@ -422,7 +426,7 @@ export default function RecurringExpensesPage() {
                   style={{ ...input(), minHeight: 72 }}
                 />
               </label>
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <div className="app-modal-sheet__actions" style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                 <button type="button" onClick={() => setSheetOpen(false)} style={tableActionSecondary()}>
                   Batal
                 </button>
@@ -436,21 +440,6 @@ export default function RecurringExpensesPage() {
       ) : null}
     </>
   );
-}
-
-function th(): React.CSSProperties {
-  return {
-    textAlign: "left",
-    padding: "12px 10px",
-    fontSize: 12,
-    fontWeight: 800,
-    color: "#64748b",
-    borderBottom: "1px solid #e5e7eb",
-  };
-}
-
-function td(): React.CSSProperties {
-  return { padding: "14px 10px", verticalAlign: "middle", color: "#334155" };
 }
 
 function label(): React.CSSProperties {

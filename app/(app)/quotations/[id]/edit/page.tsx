@@ -310,8 +310,8 @@ export default function QuotationEditPage() {
   }
 
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+    <div className="app-form-page" style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
+      <div className="app-form-page__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ margin: 0 }}>
             Edit Quotation {quotationNumber ? <span style={{ fontFamily: "ui-monospace" }}>{quotationNumber}</span> : ""}
@@ -321,7 +321,7 @@ export default function QuotationEditPage() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="app-form-page__header-actions" style={{ display: "flex", gap: 8 }}>
           <button onClick={() => router.push("/quotations")} style={btn()}>
             Kembali
           </button>
@@ -338,7 +338,7 @@ export default function QuotationEditPage() {
         </div>
       ) : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+      <div className="app-form-page__grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
         <div style={card()}>
           <h3 style={{ margin: 0 }}>Info Quotation</h3>
 
@@ -458,7 +458,7 @@ export default function QuotationEditPage() {
       </div>
 
       <div style={{ marginTop: 12, ...card() }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className="app-form-page__section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <h3 style={{ margin: 0 }}>Items</h3>
           <div style={{ display: "flex", gap: 8 }}>
             <a href="/products" style={btn()}>
@@ -470,7 +470,7 @@ export default function QuotationEditPage() {
           </div>
         </div>
 
-        <div style={{ marginTop: 10, overflowX: "auto" }}>
+        <div className="app-form-table-scroll" style={{ marginTop: 10, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>

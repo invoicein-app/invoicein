@@ -1,0 +1,627 @@
+/* Shared list/form UX — all viewports */
+
+.app-list-page__card {
+  min-width: 0;
+}
+
+.app-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-data-table .app-td-actions > div {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Desktop: tabel sub-halaman pengeluaran */
+.app-table--expenses-recurring {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 720px;
+}
+
+.app-table--expenses-recurring thead {
+  background: #f9fafb;
+}
+
+.app-table--expenses-recurring th {
+  text-align: left;
+  padding: 12px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.app-table--expenses-recurring td {
+  padding: 14px 10px;
+  vertical-align: middle;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.app-table--expenses-summary {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.app-table--expenses-summary thead {
+  background: #f9fafb;
+}
+
+.app-table--expenses-summary th {
+  text-align: left;
+  padding: 12px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.app-table--expenses-summary td {
+  padding: 12px 10px;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Sidebar tetap tampil + jendela hampir persegi: area konten sempit, tabel lebar */
+@media (max-width: 1100px) {
+  .app-list-page__header {
+    flex-wrap: wrap;
+  }
+
+  .app-list-page__header-actions {
+    justify-content: flex-start;
+    max-width: 100%;
+  }
+
+  .app-list-page__card {
+    overflow: hidden;
+  }
+
+  .app-data-table {
+    min-width: 720px;
+  }
+
+  .app-table--purchase-orders th:nth-child(4),
+  .app-table--purchase-orders td:nth-child(4) {
+    display: none;
+  }
+
+  .app-table--quotations th:nth-child(4),
+  .app-table--quotations td:nth-child(4) {
+    display: none;
+  }
+}
+
+/* Shared mobile UX for app list/form/module pages (desktop unchanged below 768) */
+
+@media (max-width: 768px) {
+  /* —— List pages (ListPageLayout, ExpenseSubPageShell, delivery-notes) —— */
+  .app-list-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 14px 28px !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-list-page__header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .app-list-page__header-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+  }
+
+  .app-list-page__header-actions > a,
+  .app-list-page__header-actions > button {
+    flex: 1 1 auto;
+    min-height: 44px;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .app-list-page__card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 14px !important;
+    padding: 14px 12px 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-list-page__card-title {
+    font-size: 16px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .app-list-page__footer {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .app-list-page__footer nav {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+  }
+
+  .app-list-page__alert {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  /* Filters */
+  .app-filter-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .app-filter-bar__search {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .app-filter-bar > *:not(.app-filter-bar__search) {
+    width: 100% !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .app-filter-bar select,
+  .app-filter-bar input[type="month"],
+  .app-filter-bar input[type="date"],
+  .app-filter-bar input[type="checkbox"] {
+    min-height: 44px;
+  }
+
+  .app-filter-bar label {
+    box-sizing: border-box !important;
+  }
+
+  .app-filter-bar > button,
+  .app-filter-bar > a {
+    min-height: 44px;
+    justify-content: center !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  /* Module tab nav (Pengeluaran, Piutang) */
+  .app-module-nav {
+    margin: 0 0 12px !important;
+    padding: 12px !important;
+    border-radius: 10px !important;
+  }
+
+  .app-module-nav__tabs {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .app-module-nav__tabs > a {
+    width: 100% !important;
+    justify-content: center !important;
+    white-space: normal !important;
+    text-align: center !important;
+    min-height: 44px !important;
+  }
+
+  .app-module-nav--receivables {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* Tables */
+  .app-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-data-table {
+    min-width: 520px;
+  }
+
+  .app-data-table .app-td-actions > div,
+  .app-data-table .app-td-actions {
+    flex-wrap: wrap !important;
+    white-space: normal !important;
+  }
+
+  .app-data-table .app-td-actions button,
+  .app-data-table .app-td-actions a {
+    min-height: 40px;
+  }
+
+  /* Pengeluaran: kartu per baris (bukan tabel sempit + scroll) */
+  .app-filter-bar__cta {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+  }
+
+  .app-filter-bar__cta button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Modul pengeluaran: header sub-halaman + kartu */
+  .app-expense-module {
+    padding-bottom: 24px !important;
+  }
+
+  .app-expense-module .app-list-page__card {
+    padding: 14px 12px 12px !important;
+  }
+
+  .app-subpage-header-actions {
+    width: 100% !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .app-subpage-header-actions > button,
+  .app-subpage-header-actions > input,
+  .app-subpage-header-actions > a {
+    width: 100% !important;
+    min-height: 44px;
+    box-sizing: border-box;
+    justify-content: center !important;
+  }
+
+  .app-expense-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .app-expense-kpi-value {
+    font-size: 20px !important;
+    font-weight: 800 !important;
+  }
+
+  .app-expense-profit-value {
+    font-size: 24px !important;
+    font-weight: 800 !important;
+  }
+
+  /* Tabel → kartu per baris (pengeluaran, biaya bulanan, ringkasan kategori) */
+  .app-table--expenses,
+  .app-table--expenses-recurring,
+  .app-table--expenses-summary {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+
+  .app-table--expenses thead,
+  .app-table--expenses-recurring thead,
+  .app-table--expenses-summary thead {
+    display: none !important;
+  }
+
+  .app-table--expenses tbody tr,
+  .app-table--expenses-recurring tbody tr,
+  .app-table--expenses-summary tbody tr {
+    display: block !important;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  }
+
+  .app-table--expenses tbody tr td,
+  .app-table--expenses-recurring tbody tr td,
+  .app-table--expenses-summary tbody tr td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 12px;
+    width: 100% !important;
+    padding: 10px 0 !important;
+    border: none !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    text-align: right !important;
+    background: transparent !important;
+    box-sizing: border-box;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .app-table--expenses-recurring tbody tr td[data-label="Nama"] {
+    font-weight: 700;
+    font-size: 15px;
+    color: #0f172a;
+  }
+
+  .app-table--expenses tbody tr td:last-child,
+  .app-table--expenses-recurring tbody tr td:last-child,
+  .app-table--expenses-summary tbody tr td:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  .app-table--expenses tbody tr td:first-child,
+  .app-table--expenses-recurring tbody tr td:first-child,
+  .app-table--expenses-summary tbody tr td:first-child {
+    padding-top: 0 !important;
+  }
+
+  .app-table--expenses tbody tr td::before,
+  .app-table--expenses-recurring tbody tr td::before,
+  .app-table--expenses-summary tbody tr td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: 12px;
+    color: #64748b;
+    text-align: left;
+    flex: 0 0 auto;
+    max-width: 42%;
+  }
+
+  .app-table--expenses tbody tr td[colspan],
+  .app-table--expenses-recurring tbody tr td[colspan],
+  .app-table--expenses-summary tbody tr td[colspan] {
+    display: block !important;
+    text-align: center !important;
+    padding: 20px 8px !important;
+    border: none !important;
+    font-weight: 500;
+  }
+
+  .app-table--expenses tbody tr td[colspan]::before,
+  .app-table--expenses-recurring tbody tr td[colspan]::before,
+  .app-table--expenses-summary tbody tr td[colspan]::before {
+    display: none !important;
+  }
+
+  .app-table--expenses .app-expense-col-optional,
+  .app-table--expenses-recurring .app-expense-recurring-col-optional {
+    display: none !important;
+  }
+
+  .app-table--expenses .app-td-actions,
+  .app-table--expenses-recurring .app-td-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .app-table--expenses .app-td-actions::before,
+  .app-table--expenses-recurring .app-td-actions::before {
+    align-self: flex-start;
+    margin-bottom: 4px;
+  }
+
+  .app-table--expenses .app-td-actions > div,
+  .app-table--expenses-recurring .app-td-actions > div {
+    width: 100% !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .app-table--expenses .app-td-actions button,
+  .app-table--expenses-recurring .app-td-actions button {
+    width: 100% !important;
+    min-height: 44px;
+    justify-content: center !important;
+  }
+
+  .app-table--expenses .app-expense-status-badge {
+    margin-left: auto;
+  }
+
+  .app-table--receivables-summary th:nth-child(5),
+  .app-table--receivables-summary td:nth-child(5),
+  .app-table--receivables-summary th:nth-child(6),
+  .app-table--receivables-summary td:nth-child(6) {
+    display: none;
+  }
+
+  .app-table--receivables-detail th:nth-child(3),
+  .app-table--receivables-detail td:nth-child(3),
+  .app-table--receivables-detail th:nth-child(5),
+  .app-table--receivables-detail td:nth-child(5) {
+    display: none;
+  }
+
+  .app-table--delivery-notes th:nth-child(4),
+  .app-table--delivery-notes td:nth-child(4) {
+    display: none;
+  }
+
+  /* KPI / summary pills */
+  .app-summary-pills {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .app-summary-pills > span {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    text-align: center;
+  }
+
+  /* —— Form / detail pages —— */
+  .app-form-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 12px 14px 32px !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-form-page__header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .app-form-page__header-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .app-form-page__header-actions > a,
+  .app-form-page__header-actions > button {
+    width: 100% !important;
+    min-height: 44px;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .app-form-page__grid-2,
+  .app-form-page__section-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .app-detail-page {
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .app-form-page__summary-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .app-form-page__info-row {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+  }
+
+  .app-form-page__info-row > span:first-child {
+    margin-bottom: 2px;
+  }
+
+  .app-form-page__pill-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .app-form-page__pill-row > button {
+    width: 100% !important;
+    min-height: 44px;
+  }
+
+  .app-form-page .app-form-page__totals {
+    max-width: none !important;
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  .app-form-embedded input,
+  .app-form-embedded select,
+  .app-form-embedded textarea,
+  .app-form-embedded button {
+    font-size: 16px;
+  }
+
+  .app-form-embedded .app-form-table-scroll table {
+    min-width: 480px;
+  }
+
+  .app-table--invoice-form th:nth-child(2),
+  .app-table--invoice-form td:nth-child(2) {
+    display: none;
+  }
+
+  .app-table--invoice-detail th:nth-child(2),
+  .app-table--invoice-detail td:nth-child(2),
+  .app-table--invoice-detail th:nth-child(4),
+  .app-table--invoice-detail td:nth-child(4) {
+    display: none;
+  }
+
+  .app-form-page__section-head {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .app-form-page__section-actions {
+    flex-wrap: wrap !important;
+    width: 100% !important;
+  }
+
+  .app-form-page__section-actions > a,
+  .app-form-page__section-actions > button {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+
+  .app-form-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    margin-left: -4px;
+    margin-right: -4px;
+    padding: 0 4px;
+  }
+
+  .app-form-table-scroll table {
+    min-width: 560px;
+  }
+
+  .app-form-page input,
+  .app-form-page select,
+  .app-form-page textarea {
+    font-size: 16px;
+  }
+
+  /* Modals / sheets */
+  .app-modal-backdrop {
+    padding: 12px !important;
+    align-items: flex-end !important;
+  }
+
+  .app-modal-sheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92dvh !important;
+    border-radius: 14px 14px 0 0 !important;
+    padding: 16px 14px 24px !important;
+  }
+
+  .app-modal-sheet input,
+  .app-modal-sheet select,
+  .app-modal-sheet textarea {
+    font-size: 16px;
+  }
+
+  .app-modal-sheet label {
+    gap: 8px !important;
+  }
+
+  .app-modal-sheet__actions {
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+  }
+
+  .app-modal-sheet__actions > button {
+    width: 100% !important;
+    min-height: 44px;
+  }
+
+}

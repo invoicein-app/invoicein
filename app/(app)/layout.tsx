@@ -1,6 +1,7 @@
 // app/(app)/layout.tsx
 export const runtime = "nodejs";
 
+import "./components/app-mobile-pages.css";
 import Navbar from "@/app/components/navbar";
 import AppShell from "@/app/components/app-shell";
 import FeedbackWidget from "@/app/components/feedback/feedback-widget";

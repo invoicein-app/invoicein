@@ -447,8 +447,8 @@ export default function PONewPage() {
   }
 
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+    <div className="app-form-page" style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
+      <div className="app-form-page__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <div>
           <h1 style={{ margin: 0 }}>PO Baru</h1>
           <p style={{ marginTop: 6, color: "#666" }}>
@@ -456,7 +456,7 @@ export default function PONewPage() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="app-form-page__header-actions" style={{ display: "flex", gap: 8 }}>
           <Link href="/purchase-orders" style={btn()}>
             Kembali
           </Link>
@@ -468,7 +468,7 @@ export default function PONewPage() {
 
       {msg ? <div style={errBox()}>{msg}</div> : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+      <div className="app-form-page__grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
         <div style={card()}>
           <h3 style={{ margin: 0 }}>Info PO</h3>
 
@@ -580,7 +580,7 @@ export default function PONewPage() {
       </div>
 
       <div style={{ marginTop: 12, ...card() }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div className="app-form-page__section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <div>
             <h3 style={{ margin: 0 }}>Items</h3>
             <div style={{ marginTop: 6, color: "#666", fontSize: 13 }}>
@@ -598,7 +598,7 @@ export default function PONewPage() {
           </button>
         </div>
 
-        <div style={{ marginTop: 10, overflowX: "auto" }}>
+        <div className="app-form-table-scroll" style={{ marginTop: 10, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>

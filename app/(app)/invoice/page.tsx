@@ -235,9 +235,13 @@ export default async function InvoiceListPage({
   const baseQuery = currentParams.toString();
 
   return (
-    <div style={{ width: "100%", padding: "16px 20px 40px", boxSizing: "border-box", background: "#F8F9FA", minHeight: "100%" }}>
+    <div
+      className="invoice-list-page"
+      style={{ width: "100%", padding: "16px 20px 40px", boxSizing: "border-box", background: "#F8F9FA", minHeight: "100%" }}
+    >
       {/* Page title row (main content header) */}
       <div
+        className="invoice-page__topbar"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -292,6 +296,7 @@ export default async function InvoiceListPage({
 
       {/* Main card */}
       <div
+        className="invoice-list-card"
         style={{
           borderRadius: 10,
           border: "1px solid #e5e7eb",
@@ -303,8 +308,8 @@ export default async function InvoiceListPage({
       >
         <InvoiceFiltersClient customers={(customers || []) as any} />
 
-        <div style={{ marginTop: 20, overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 720 }}>
+        <div className="invoice-table-scroll" style={{ marginTop: 20, overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 680 }}>
             <thead>
               <tr style={{ background: "#f0f2f5", color: "#333" }}>
                 <th style={{ padding: "12px 14px", textAlign: "left", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>

@@ -10,6 +10,8 @@ import SjButtonClient from "../sj-button-client";
 import DotmatrixButtonClient from "../dotmatrix-button-client";
 import CancelInvoiceButtonClient from "../cancel-invoice-button-client";
 import SentInvoiceButtonClient from "../sent-invoice-button-client";
+import { formPageHeaderActions } from "../../components/app-action-buttons";
+import { APP_TEAL } from "../../components/app-ui-tokens";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -172,8 +174,8 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     docStatus !== "cancelled";
 
   return (
-    <div style={pageWrap()}>
-      <div style={headerRow()}>
+    <div className="app-form-page app-detail-page" style={pageWrap()}>
+      <div className="app-form-page__header" style={headerRow()}>
         <div>
           <h1 style={headerTitle()}>
             Invoice {(invoice as any).invoice_number || "-"}
@@ -200,7 +202,7 @@ export default async function InvoiceViewPage({ params }: PageProps) {
           </div>
         </div>
 
-        <div style={headerActions()}>
+        <div className="app-form-page__header-actions" style={formPageHeaderActions()}>
           <BackButton />
           <PdfButtonClient href={`/api/invoice/pdf/${id}`} />
           <DotmatrixButtonClient href={`/api/invoice/pdf-dotmatrix/${id}`} />
@@ -217,7 +219,7 @@ export default async function InvoiceViewPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div style={summaryRow()}>
+      <div className="app-form-page__summary-row" style={summaryRow()}>
         <div style={summaryCard()}>
           <div style={summaryLabel()}>Total Invoice</div>
           <div style={summaryValue()}>{rupiah(grandTotal)}</div>
@@ -232,27 +234,27 @@ export default async function InvoiceViewPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div style={sectionGrid()}>
+      <div className="app-form-page__section-grid" style={sectionGrid()}>
         <div style={card()}>
           <div style={sectionTitle()}>Customer</div>
           <div style={cardBody()}>
-            <div style={infoRow()}>
+            <div className="app-form-page__info-row" style={infoRow()}>
               <span style={infoK()}>Nama</span>
               <span style={infoV()}>{(invoice as any).customer_name || "-"}</span>
             </div>
-            <div style={infoRow()}>
+            <div className="app-form-page__info-row" style={infoRow()}>
               <span style={infoK()}>Telepon</span>
               <span style={infoV()}>{(invoice as any).customer_phone || "-"}</span>
             </div>
-            <div style={infoRow()}>
+            <div className="app-form-page__info-row" style={infoRow()}>
               <span style={infoK()}>Alamat</span>
               <span style={infoV()}>{(invoice as any).customer_address || "-"}</span>
             </div>
-            <div style={infoRow()}>
+            <div className="app-form-page__info-row" style={infoRow()}>
               <span style={infoK()}>Gudang</span>
               <span style={infoV()}>{(invoice as any).warehouse_id || "-"}</span>
             </div>
-            <div style={infoRow()}>
+            <div className="app-form-page__info-row" style={infoRow()}>
               <span style={infoK()}>Sent At</span>
               <span style={infoV()}>{(invoice as any).sent_at ? fmtDate((invoice as any).sent_at) : "-"}</span>
             </div>
@@ -271,8 +273,8 @@ export default async function InvoiceViewPage({ params }: PageProps) {
         <div style={card()}>
           <div style={sectionTitle()}>Items</div>
           <div style={cardBody()}>
-            <div style={tableScroll()}>
-              <table style={table()}>
+            <div className="app-form-table-scroll" style={tableScroll()}>
+              <table className="app-table--invoice-detail" style={table()}>
                 <thead>
                   <tr style={{ textAlign: "left" }}>
                     <th style={th()}>Nama</th>
@@ -305,7 +307,7 @@ export default async function InvoiceViewPage({ params }: PageProps) {
                 </tbody>
               </table>
             </div>
-            <div style={totalsBlock()}>
+            <div className="app-form-page__totals" style={totalsBlock()}>
               <div style={totalRow()}>
                 <span style={totalK()}>Subtotal</span>
                 <span style={totalV()}>{rupiah(subtotal)}</span>
@@ -328,7 +330,7 @@ export default async function InvoiceViewPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div style={sectionGrid()}>
+      <div className="app-form-page__section-grid" style={sectionGrid()}>
         <div style={card()}>
           <div style={sectionTitle()}>Surat Jalan</div>
           <div style={cardBody()}>
@@ -342,7 +344,7 @@ export default async function InvoiceViewPage({ params }: PageProps) {
         <div style={card()}>
           <div style={sectionTitle()}>Pembayaran</div>
           <div style={cardBody()}>
-            <PaymentsClient invoiceId={id} />
+            <PaymentsClient invoiceId={id} remaining={remaining} />
           </div>
         </div>
       </div>
@@ -372,15 +374,6 @@ function headerSub(): React.CSSProperties {
 }
 function headerBadgeWrap(): React.CSSProperties {
   return { marginTop: 10 };
-}
-function headerActions(): React.CSSProperties {
-  return {
-    display: "flex",
-    gap: 8,
-    alignItems: "center",
-    flexWrap: "wrap",
-    flexShrink: 0,
-  };
 }
 function summaryRow(): React.CSSProperties {
   return {
@@ -430,7 +423,7 @@ function sectionTitle(): React.CSSProperties {
   return {
     fontSize: 12,
     fontWeight: 800,
-    color: "#64748b",
+    color: APP_TEAL,
     letterSpacing: "0.02em",
     padding: "14px 18px",
     borderBottom: "1px solid #f1f5f9",

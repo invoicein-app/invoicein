@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import Sidebar from "@/app/components/sidebar";
 
 const STORAGE_KEY = "invoiceku-sidebar-collapsed";
-const EXPANDED = 264;
-const COLLAPSED = 80;
+const MOBILE_MAX = 768;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     try {
@@ -18,6 +19,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       /* ignore */
     }
   }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_MAX}px)`);
+    const sync = () => {
+      const mobile = mq.matches;
+      setIsMobile(mobile);
+      if (!mobile) setMobileNavOpen(false);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileNavOpen]);
 
   const toggle = useCallback(() => {
     setCollapsed((c) => {
@@ -31,25 +53,43 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const colW = collapsed ? COLLAPSED : EXPANDED;
+  const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
 
   return (
-    <div
-      style={{
-        width: "100%",
-        maxWidth: 1600,
-        margin: "0 auto",
-        padding: "0 20px 28px",
-        display: "grid",
-        gridTemplateColumns: `${colW}px minmax(0, 1fr)`,
-        gap: 0,
-        alignItems: "start",
-        boxSizing: "border-box",
-        transition: "grid-template-columns 0.22s ease",
-      }}
-    >
-      <Sidebar collapsed={collapsed} onToggleCollapse={toggle} />
-      <main style={{ minWidth: 0, background: "#F8F9FA", minHeight: "calc(100vh - 56px)" }}>{children}</main>
-    </div>
+    <>
+      {mobileNavOpen ? (
+        <button
+          type="button"
+          className="app-sidebar-backdrop"
+          aria-label="Tutup menu"
+          onClick={closeMobileNav}
+        />
+      ) : null}
+
+      <button
+        type="button"
+        className="app-mobile-menu-fab"
+        aria-expanded={mobileNavOpen}
+        aria-label={mobileNavOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
+        onClick={() => setMobileNavOpen((o) => !o)}
+      >
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+          <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+        </svg>
+        <span>Menu</span>
+      </button>
+
+      <div className={`app-shell${collapsed ? " app-shell--collapsed" : ""}`}>
+        <div className="app-sidebar-layer">
+          <Sidebar
+            collapsed={isMobile ? false : collapsed}
+            onToggleCollapse={toggle}
+            mobileOpen={mobileNavOpen}
+            onCloseMobile={closeMobileNav}
+          />
+        </div>
+        <main className="app-shell-main">{children}</main>
+      </div>
+    </>
   );
 }

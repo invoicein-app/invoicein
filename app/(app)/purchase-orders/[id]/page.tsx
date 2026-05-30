@@ -4,6 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import PoActionsClient from "./po-actions-client";
+import {
+  formPageBackLink,
+  formPageHeaderActions,
+  formPagePrimaryLink,
+  formPageSoftLink,
+} from "../../components/app-action-buttons";
+import { APP_TEAL } from "../../components/app-ui-tokens";
 
 type PO = {
   id: string;
@@ -155,8 +162,8 @@ export default function PODetailPage() {
     : "#";
 
   return (
-    <div style={{ padding: 6 }}>
-      <div style={topbar()}>
+    <div className="app-form-page" style={{ padding: 6 }}>
+      <div className="app-form-page__header" style={topbar()}>
         <div>
           <div style={{ fontWeight: 1000, fontSize: 18 }}>Detail PO</div>
           <div style={{ color: "#6b7280", marginTop: 4, fontSize: 13 }}>
@@ -164,17 +171,11 @@ export default function PODetailPage() {
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="app-form-page__header-actions" style={formPageHeaderActions()}>
           <button
+            type="button"
             onClick={() => router.push("/purchase-orders")}
-            style={btnSoft()}
+            style={formPageBackLink()}
             disabled={loading}
           >
             Kembali
@@ -184,7 +185,7 @@ export default function PODetailPage() {
             href={pdfPreviewHref}
             target="_blank"
             rel="noreferrer"
-            style={btnSoftLink()}
+            style={formPageSoftLink()}
             aria-disabled={!po?.id}
             onClick={(e) => {
               if (!po?.id) e.preventDefault();
@@ -195,7 +196,7 @@ export default function PODetailPage() {
 
           <a
             href={pdfDownloadHref}
-            style={btnPrimaryLink()}
+            style={formPagePrimaryLink()}
             aria-disabled={!po?.id}
             onClick={(e) => {
               if (!po?.id) e.preventDefault();
@@ -212,7 +213,7 @@ export default function PODetailPage() {
 
       {err ? <div style={errBox()}>{err}</div> : null}
 
-      <div style={grid()}>
+      <div className="app-form-page__grid-2" style={grid()}>
         <div style={card()}>
           <div style={sectionTitle()}>Vendor</div>
           {loading ? (
@@ -273,7 +274,7 @@ export default function PODetailPage() {
         <div style={card()}>
           <div style={sectionTitle()}>Items</div>
 
-          <div style={tableWrap()}>
+          <div className="app-form-table-scroll" style={tableWrap()}>
             <table style={table()}>
               <thead>
                 <tr>
@@ -386,52 +387,10 @@ function card(): React.CSSProperties {
 function sectionTitle(): React.CSSProperties {
   return {
     fontSize: 12,
-    fontWeight: 950,
-    color: "#6b7280",
+    fontWeight: 800,
+    color: APP_TEAL,
     marginBottom: 10,
     letterSpacing: 0.2,
-  };
-}
-function btnSoft(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    background: "white",
-    color: "#111827",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
-}
-function btnSoftLink(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    background: "white",
-    color: "#111827",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    textDecoration: "none",
-    display: "inline-flex",
-    alignItems: "center",
-  };
-}
-function btnPrimaryLink(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #111827",
-    background: "#111827",
-    color: "white",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    textDecoration: "none",
-    display: "inline-flex",
-    alignItems: "center",
   };
 }
 function errBox(): React.CSSProperties {

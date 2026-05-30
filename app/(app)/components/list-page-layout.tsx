@@ -86,13 +86,13 @@ export default function ListPageLayout({
   const cardHeading = listCardTitle ?? `Master Data · ${title}`;
 
   return (
-    <div style={listPageShell}>
-      <div style={listPageHeaderRow}>
+    <div className="app-list-page" style={listPageShell}>
+      <div className="app-list-page__header" style={listPageHeaderRow}>
         <div style={{ minWidth: 0 }}>
           <h1 style={listPageTitle}>{title}</h1>
           {subtitle ? <div style={listPageSubtitle}>{subtitle}</div> : null}
         </div>
-        <div style={listPageHeaderActions}>
+        <div className="app-list-page__header-actions" style={listPageHeaderActions}>
           {secondaryLink ? (
             <Link href={secondaryLink.href} style={btnOutline}>
               {secondaryLink.label}
@@ -107,14 +107,17 @@ export default function ListPageLayout({
         </div>
       </div>
 
-      <div style={listPageContentCard}>
-        <div style={listPageCardHeading}>{cardHeading}</div>
+      <div className="app-list-page__card" style={listPageContentCard}>
+        <div className="app-list-page__card-title" style={listPageCardHeading}>
+          {cardHeading}
+        </div>
 
         <div style={{ marginBottom: 16 }}>{filters}</div>
 
-        <div style={{ width: "100%", overflowX: "auto" }}>{tableContent}</div>
+        <div className="app-table-scroll">{tableContent}</div>
 
         <div
+          className="app-list-page__footer"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -231,6 +234,8 @@ function pagerActive(): React.CSSProperties {
     fontSize: 14,
   };
 }
+
+export const APP_DATA_TABLE_CLASS = "app-data-table";
 
 export const listTableStyles = {
   table: { width: "100%" as const, borderCollapse: "collapse" as const, fontSize: 14, minWidth: 640 },

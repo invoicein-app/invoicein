@@ -42,6 +42,8 @@ export const listPageContentCard: CSSProperties = {
   boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
   padding: "20px 20px 8px",
   boxSizing: "border-box",
+  minWidth: 0,
+  maxWidth: "100%",
 };
 
 export const listPageCardHeading: CSSProperties = {

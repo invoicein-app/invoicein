@@ -15,9 +15,12 @@ type Props = {
   hidePerPage?: boolean;
 };
 
+const FILTER_CONTROL_HEIGHT = 44;
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "12px 40px 12px 14px",
+  height: FILTER_CONTROL_HEIGHT,
+  padding: "0 40px 0 14px",
   borderRadius: 8,
   border: `1px solid ${APP_BORDER}`,
   outline: "none",
@@ -26,8 +29,30 @@ const inputStyle: React.CSSProperties = {
   background: "#fff",
 };
 
+const selectStyle: React.CSSProperties = {
+  height: FILTER_CONTROL_HEIGHT,
+  minWidth: 72,
+  padding: "0 12px",
+  borderRadius: 8,
+  border: `1px solid ${APP_BORDER}`,
+  outline: "none",
+  boxSizing: "border-box",
+  fontSize: 14,
+  fontWeight: 700,
+  color: "#333",
+  background: "#fff",
+  cursor: "pointer",
+};
+
+const perPageLabelStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: "#64748b",
+  whiteSpace: "nowrap",
+};
+
 const resetBtn: React.CSSProperties = {
-  padding: "10px 16px",
+  padding: "0 16px",
   borderRadius: 8,
   border: `2px solid ${APP_TEAL}`,
   background: "#fff",
@@ -35,7 +60,8 @@ const resetBtn: React.CSSProperties = {
   cursor: "pointer",
   fontWeight: 700,
   fontSize: 14,
-  height: 44,
+  height: FILTER_CONTROL_HEIGHT,
+  boxSizing: "border-box",
   flex: "0 0 auto",
 };
 
@@ -51,8 +77,8 @@ export default function ListFiltersClient({
   hidePerPage = false,
 }: Props) {
   return (
-    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-      <div style={{ flex: "1 1 280px", minWidth: 0, position: "relative" }}>
+    <div className="app-filter-bar" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="app-filter-bar__search" style={{ flex: "1 1 280px", minWidth: 0, position: "relative" }}>
         <input
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -79,20 +105,16 @@ export default function ListFiltersClient({
       </div>
 
       {!hidePerPage && onPerPageChange && perPageOptions.length > 0 ? (
-        <div style={{ flex: "0 0 140px", minWidth: 130 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 6, textTransform: "uppercase" }}>
+        <div className="app-filter-bar__per-page" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <label htmlFor="list-filter-ps" style={perPageLabelStyle}>
             Per halaman
-          </div>
+          </label>
           <select
+            id="list-filter-ps"
             value={perPage}
             onChange={(e) => onPerPageChange(Number(e.target.value))}
-            style={{
-              ...inputStyle,
-              padding: "10px 12px",
-              cursor: "pointer",
-              fontWeight: 700,
-              color: "#333",
-            }}
+            style={selectStyle}
+            aria-label="Jumlah baris per halaman"
           >
             {perPageOptions.map((n) => (
               <option key={n} value={n}>

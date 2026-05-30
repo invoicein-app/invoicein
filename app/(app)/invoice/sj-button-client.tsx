@@ -1,8 +1,12 @@
-// app/invoice/sj-button-client.tsx  (REPLACE FULL)
-// versi rapi: ukuran tombol konsisten, sejajar, gak “kotak tinggi”
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  formPageMutedButton,
+  formPagePrimaryButton,
+  formPagePrimaryButtonDisabled,
+  formPageSoftLink,
+} from "../components/app-action-buttons";
 
 type SjState =
   | { loading: true }
@@ -81,31 +85,9 @@ export default function SjButtonClient({ invoiceId }: { invoiceId: string }) {
     }
   }
 
-  const baseBtn: React.CSSProperties = {
-    height: 44,
-    padding: "0 14px",
-    borderRadius: 12,
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  };
-
   if (state.loading) {
     return (
-      <button
-        disabled
-        style={{
-          ...baseBtn,
-          border: "1px solid #ddd",
-          background: "#f3f4f6",
-          color: "#6b7280",
-          cursor: "not-allowed",
-        }}
-      >
+      <button type="button" disabled style={formPageMutedButton()}>
         Mengecek SJ...
       </button>
     );
@@ -114,13 +96,9 @@ export default function SjButtonClient({ invoiceId }: { invoiceId: string }) {
   if (state.exists) {
     return (
       <button
+        type="button"
         onClick={() => (window.location.href = `/delivery-notes/${state.id}`)}
-        style={{
-          ...baseBtn,
-          border: "1px solid #111",
-          background: "white",
-          color: "#111",
-        }}
+        style={formPageSoftLink()}
       >
         Lihat SJ
       </button>
@@ -129,15 +107,10 @@ export default function SjButtonClient({ invoiceId }: { invoiceId: string }) {
 
   return (
     <button
+      type="button"
       onClick={createSj}
       disabled={busy}
-      style={{
-        ...baseBtn,
-        border: "1px solid #0a5",
-        background: busy ? "#e7fff3" : "#0a5",
-        color: busy ? "#064" : "white",
-        cursor: busy ? "not-allowed" : "pointer",
-      }}
+      style={busy ? formPagePrimaryButtonDisabled() : formPagePrimaryButton()}
     >
       {busy ? "Membuat..." : "Buat SJ"}
     </button>

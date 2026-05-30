@@ -9,6 +9,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { formPageDangerButton, formPageDangerButtonDisabled } from "../components/app-action-buttons";
 
 export default function CancelInvoiceButtonClient(props: {
   invoiceId: string;
@@ -56,34 +57,14 @@ export default function CancelInvoiceButtonClient(props: {
   }
 
   return (
-    <button onClick={onCancel} disabled={props.disabled || loading} style={props.disabled || loading ? btnDisabled() : btnDanger()}>
+    <button
+      type="button"
+      onClick={onCancel}
+      disabled={props.disabled || loading}
+      style={props.disabled || loading ? formPageDangerButtonDisabled() : formPageDangerButton()}
+    >
       {loading ? "Cancelling..." : "Cancel"}
     </button>
   );
-}
-function btnDanger(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #b91c1c",
-    background: "#fff1f2",
-    color: "#b91c1c",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
-}
-
-function btnDisabled(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #e5e7eb",
-    background: "#f9fafb",
-    color: "#9ca3af",
-    fontWeight: 900,
-    cursor: "not-allowed",
-    whiteSpace: "nowrap",
-  };
 }
 

@@ -26,6 +26,10 @@ function formatMoneyInput(n: number) {
   return x.toLocaleString("id-ID");
 }
 
+function defaultPayAmount(remaining: number) {
+  return formatMoneyInput(Math.max(0, Math.floor(Number.isFinite(remaining) ? remaining : 0)));
+}
+
 function todayInput() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -138,7 +142,7 @@ export default function InvoiceActionsClient({
   // Visibility: only show actions that are relevant for this status. Do not show disabled buttons.
   const showBayar = status === "UNPAID" || status === "PARTIAL";
   const showCancel = status === "UNPAID" || status === "PARTIAL";
-  const showEdit = status === "DRAFT";
+  const showEdit = status !== "CANCELLED";
   const showDelete = status === "DRAFT" && !hasQuotation;
 
   const [openPay, setOpenPay] = useState(false);
@@ -268,7 +272,7 @@ export default function InvoiceActionsClient({
             onClick={() => {
               setPayMsg("");
               setPayDate(todayInput());
-              setAmountText("");
+              setAmountText(defaultPayAmount(remaining));
               setOpenPay(true);
             }}
             style={btnPrimary()}
@@ -346,12 +350,11 @@ export default function InvoiceActionsClient({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  if (paying) return;
-                  setOpenPay(false);
-                }}
+                onClick={() => setOpenPay(false)}
+                disabled={paying}
+                aria-label="Tutup"
                 style={{
-                  ...btnSoft(true),
+                  ...btnSoft(paying),
                   width: 36,
                   height: 36,
                   padding: 0,
@@ -419,7 +422,7 @@ export default function InvoiceActionsClient({
                 type="button"
                 onClick={() => setOpenPay(false)}
                 disabled={paying}
-                style={btnSoft(!paying)}
+                style={btnSoft(paying)}
               >
                 Batal
               </button>
@@ -427,7 +430,7 @@ export default function InvoiceActionsClient({
                 type="button"
                 onClick={submitPayment}
                 disabled={paying}
-                style={btnDark(!paying)}
+                style={btnDark(paying)}
               >
                 {paying ? "Menyimpan..." : "Simpan"}
               </button>

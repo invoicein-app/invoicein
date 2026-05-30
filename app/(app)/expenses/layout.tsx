@@ -19,8 +19,9 @@ export default function ExpensesLayout({ children }: { children: ReactNode }) {
   const [hoverHref, setHoverHref] = useState<string | null>(null);
 
   return (
-    <div style={expenseModuleWrap}>
+    <div className="app-expense-module" style={expenseModuleWrap}>
       <nav
+        className="app-module-nav"
         aria-label="Navigasi modul pengeluaran"
         style={{
           marginBottom: EXPENSE_NAV_BOTTOM,
@@ -44,6 +45,7 @@ export default function ExpensesLayout({ children }: { children: ReactNode }) {
           Modul Pengeluaran
         </div>
         <div
+          className="app-module-nav__tabs"
           style={{
             display: "flex",
             gap: 10,

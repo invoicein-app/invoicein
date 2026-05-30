@@ -244,7 +244,7 @@ export default function QuotationsListPage() {
   );
 
   const tableContent = (
-    <table style={{ ...listTableStyles.table, minWidth: 960 }}>
+    <table className="app-data-table app-table--quotations" style={listTableStyles.table}>
       <thead>
         <tr style={listTableStyles.thead}>
           <th style={listTableStyles.th}>No</th>
@@ -303,7 +303,7 @@ export default function QuotationsListPage() {
                         {locked ? <span style={{ marginLeft: 8, ...miniPill() }}>locked</span> : null}
                       </td>
 
-                      <td style={listTableStyles.td}>
+                      <td className="app-td-actions" style={listTableStyles.td}>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap" }}>
                           <button type="button" onClick={() => router.push(`/quotations/${r.id}`)} style={tableActionSecondary()}>
                             Detail

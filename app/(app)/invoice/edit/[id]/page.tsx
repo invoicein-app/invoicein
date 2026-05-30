@@ -1,5 +1,7 @@
 "use client";
 
+import { formPageClasses as fpc } from "../../../components/form-page-classes";
+
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -11,6 +13,8 @@ type Item = {
   qty: number;
   price: number;
   sort_order: number;
+  product_id?: string;
+  item_key?: string;
 };
 
 function digitsOnly(raw: string) {
@@ -30,7 +34,8 @@ export default function InvoiceEditPage() {
   const [msg, setMsg] = useState("");
 
   const currentStatus = String(inv?.status || "").toLowerCase();
-  const isDraft = currentStatus === "draft";
+  const amountPaid = Math.max(0, Number(inv?.amount_paid || 0));
+  const isEditable = currentStatus !== "cancelled";
 
   async function load() {
     setLoading(true);
@@ -89,18 +94,21 @@ export default function InvoiceEditPage() {
     return { sub, disc, tax, total: Math.max(0, afterDisc + tax) };
   }, [inv, items]);
 
+  const remainingAfterEdit = Math.max(0, calc.total - amountPaid);
+  const overpayment = Math.max(0, amountPaid - calc.total);
+
   function patchInv(p: any) {
-    if (!isDraft) return;
+    if (!isEditable) return;
     setInv((prev: any) => ({ ...prev, ...p }));
   }
 
   function patchItem(i: number, p: Partial<Item>) {
-    if (!isDraft) return;
+    if (!isEditable) return;
     setItems((prev) => prev.map((x, idx) => (idx === i ? ({ ...x, ...p } as any) : x)));
   }
 
   function addItem() {
-    if (!isDraft) return;
+    if (!isEditable) return;
     setItems((prev) => [
       ...prev,
       { id: `new-${Date.now()}`, name: "", qty: 1, price: 0, sort_order: prev.length } as any,
@@ -108,15 +116,15 @@ export default function InvoiceEditPage() {
   }
 
   function removeItem(i: number) {
-    if (!isDraft) return;
+    if (!isEditable) return;
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   async function save() {
     setMsg("");
 
-    if (!isDraft) {
-      return setMsg("Hanya invoice draft yang boleh diedit.");
+    if (!isEditable) {
+      return setMsg("Invoice ini tidak bisa diedit.");
     }
 
     if (!inv?.customer_name?.trim()) return setMsg("Customer name wajib diisi.");
@@ -125,7 +133,7 @@ export default function InvoiceEditPage() {
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/invoices/${id}`, {
+      const res = await fetch(`/api/invoice/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,7 +149,9 @@ export default function InvoiceEditPage() {
             warehouse_id: inv.warehouse_id || null,
           },
           items: items.map((it, idx) => ({
+            product_id: String(it.product_id || "").trim(),
             name: it.name,
+            item_key: String(it.item_key || "").trim(),
             qty: Number(it.qty || 0),
             price: Number(it.price || 0),
             sort_order: idx,
@@ -165,33 +175,62 @@ export default function InvoiceEditPage() {
   if (!inv) return <div style={{ padding: 18 }}>Invoice tidak ditemukan.</div>;
 
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+    <div className={fpc.page} style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
+      <div className={fpc.header} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
         <div>
           <h1 style={{ margin: 0 }}>Edit Invoice</h1>
           <p style={{ marginTop: 6, color: "#666" }}>
             {inv.invoice_number} • status: {inv.status || "-"}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className={fpc.headerActions} style={{ display: "flex", gap: 8 }}>
           <a href={`/invoice/${id}`} style={btn()}>
             Kembali
           </a>
-          <button onClick={save} disabled={saving || !isDraft} style={saving || !isDraft ? btnDisabled() : btnPrimary()}>
+          <button onClick={save} disabled={saving || !isEditable} style={saving || !isEditable ? btnDisabled() : btnPrimary()}>
             {saving ? "Menyimpan..." : "Simpan"}
           </button>
         </div>
       </div>
 
-      {!isDraft ? (
+      {!isEditable ? (
         <div style={warnBox()}>
-          Invoice ini sudah <b>{String(inv.status || "").toUpperCase()}</b> dan tidak bisa diedit lagi.
+          Invoice ini sudah <b>dibatalkan</b> dan tidak bisa diedit lagi.
+        </div>
+      ) : amountPaid > 0 ? (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid #bae6fd",
+            background: "#f0f9ff",
+            color: "#0c4a6e",
+            fontWeight: 600,
+            fontSize: 14,
+            lineHeight: 1.5,
+          }}
+        >
+          Sudah terbayar <b>{rupiah(amountPaid)}</b>.
+          {overpayment > 0 ? (
+            <>
+              {" "}
+              Setelah simpan, total di bawah tagihan — kelebihan bayar{" "}
+              <b>{rupiah(overpayment)}</b> (catat sebagai refund/kredit manual).
+            </>
+          ) : (
+            <>
+              {" "}
+              Setelah simpan, sisa tagihan otomatis{" "}
+              <b>{rupiah(remainingAfterEdit)}</b> — pembayaran tidak perlu dihapus.
+            </>
+          )}
         </div>
       ) : null}
 
       {msg ? <div style={{ color: "#b00", marginTop: 12 }}>{msg}</div> : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+      <div className={fpc.grid2} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
         <div style={card()}>
           <h3 style={{ margin: 0 }}>Info</h3>
           <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
@@ -202,7 +241,7 @@ export default function InvoiceEditPage() {
                 value={inv.invoice_date || ""}
                 onChange={(e) => patchInv({ invoice_date: e.target.value })}
                 style={input()}
-                disabled={!isDraft}
+                disabled={!isEditable}
               />
             </label>
 
@@ -213,7 +252,7 @@ export default function InvoiceEditPage() {
                 value={inv.due_date || ""}
                 onChange={(e) => patchInv({ due_date: e.target.value })}
                 style={input()}
-                disabled={!isDraft}
+                disabled={!isEditable}
               />
             </label>
 
@@ -223,7 +262,7 @@ export default function InvoiceEditPage() {
                 value={inv.customer_name || ""}
                 onChange={(e) => patchInv({ customer_name: e.target.value })}
                 style={input()}
-                disabled={!isDraft}
+                disabled={!isEditable}
               />
             </label>
 
@@ -233,7 +272,7 @@ export default function InvoiceEditPage() {
                 value={inv.customer_phone || ""}
                 onChange={(e) => patchInv({ customer_phone: e.target.value })}
                 style={input()}
-                disabled={!isDraft}
+                disabled={!isEditable}
               />
             </label>
 
@@ -243,7 +282,7 @@ export default function InvoiceEditPage() {
                 value={inv.customer_address || ""}
                 onChange={(e) => patchInv({ customer_address: e.target.value })}
                 style={{ ...input(), minHeight: 80 }}
-                disabled={!isDraft}
+                disabled={!isEditable}
               />
             </label>
 
@@ -253,7 +292,7 @@ export default function InvoiceEditPage() {
                 value={inv.note || ""}
                 onChange={(e) => patchInv({ note: e.target.value })}
                 style={{ ...input(), minHeight: 80 }}
-                disabled={!isDraft}
+                disabled={!isEditable}
               />
             </label>
           </div>
@@ -271,7 +310,7 @@ export default function InvoiceEditPage() {
                 value={String(inv.discount_value ?? 0)}
                 onChange={(e) => patchInv({ discount_value: Math.min(100, digitsOnly(e.target.value)) })}
                 style={input()}
-                disabled={!isDraft}
+                disabled={!isEditable}
               />
             </label>
 
@@ -284,7 +323,7 @@ export default function InvoiceEditPage() {
                 value={String(inv.tax_value ?? 0)}
                 onChange={(e) => patchInv({ tax_value: Math.min(100, digitsOnly(e.target.value)) })}
                 style={input()}
-                disabled={!isDraft}
+                disabled={!isEditable}
               />
             </label>
 
@@ -299,15 +338,15 @@ export default function InvoiceEditPage() {
       </div>
 
       <div style={{ marginTop: 12, ...card() }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className={fpc.sectionHead} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ margin: 0 }}>Items</h3>
-          <button onClick={addItem} style={btn()} disabled={!isDraft}>
+          <button onClick={addItem} style={btn()} disabled={!isEditable}>
             + Tambah Item
           </button>
         </div>
 
-        <div style={{ marginTop: 10, overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div className={fpc.tableScroll} style={{ marginTop: 10, overflowX: "auto" }}>
+          <table className="app-table--invoice-form" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <th style={th()}>Nama</th>
@@ -325,7 +364,7 @@ export default function InvoiceEditPage() {
                       value={it.name}
                       onChange={(e) => patchItem(i, { name: e.target.value })}
                       style={input()}
-                      disabled={!isDraft}
+                      disabled={!isEditable}
                     />
                   </td>
                   <td style={td()}>
@@ -334,7 +373,7 @@ export default function InvoiceEditPage() {
                       value={it.qty}
                       onChange={(e) => patchItem(i, { qty: Number(e.target.value || 0) })}
                       style={input()}
-                      disabled={!isDraft}
+                      disabled={!isEditable}
                     />
                   </td>
                   <td style={td()}>
@@ -343,12 +382,12 @@ export default function InvoiceEditPage() {
                       value={it.price}
                       onChange={(e) => patchItem(i, { price: Number(e.target.value || 0) })}
                       style={input()}
-                      disabled={!isDraft}
+                      disabled={!isEditable}
                     />
                   </td>
                   <td style={td()}>{rupiah(num(it.qty) * num(it.price))}</td>
                   <td style={td()}>
-                    <button onClick={() => removeItem(i)} style={btn()} disabled={!isDraft}>
+                    <button onClick={() => removeItem(i)} style={btn()} disabled={!isEditable}>
                       Hapus
                     </button>
                   </td>

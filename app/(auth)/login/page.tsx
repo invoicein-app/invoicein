@@ -4,6 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import AppLogo from "@/app/components/app-logo";
 
 const TEAL = "#2D7D71";
 const TEAL_MINT = "#E6F4F1";
@@ -110,7 +111,10 @@ export default function OwnerAdminLoginPage() {
               boxSizing: "border-box",
             }}
           >
-            <div style={{ fontSize: 22, fontWeight: 900, color: TEAL, letterSpacing: "0.06em" }}>INVOICEKU</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: TEAL, letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 10 }}>
+              <AppLogo size={32} />
+              INVOICEKU
+            </div>
             <p style={{ margin: "12px 0 0", fontSize: 14, lineHeight: 1.55, color: MUTED, fontWeight: 500 }}>
               Kelola stok, invoice, purchase order, surat jalan, dan pembayaran tanpa pusing — lebih cepat, rapi,
               dan minim kesalahan.
@@ -132,7 +136,7 @@ export default function OwnerAdminLoginPage() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
-              <LogoMark />
+              <AppLogo size={36} />
               <span style={{ fontSize: 18, fontWeight: 800, color: TEXT }}>Invoiceku</span>
             </div>
 
@@ -350,27 +354,6 @@ export default function OwnerAdminLoginPage() {
         </div>
       </div>
     </>
-  );
-}
-
-function LogoMark() {
-  return (
-    <span
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        background: TEAL,
-        display: "grid",
-        placeItems: "center",
-        flexShrink: 0,
-      }}
-    >
-      <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="1.8" fill="none" opacity={0.35} />
-      </svg>
-    </span>
   );
 }
 

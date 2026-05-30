@@ -52,7 +52,8 @@ export default function InvoiceQuickPay({ invoiceId, invoiceNumber, remaining }:
     // ✅ jangan buka modal kalau sudah lunas
     if (disabledPay) return;
     setPaidAt(todayISO());
-    setAmountDigits("");
+    const sisa = typeof remaining === "number" ? Math.max(0, Math.floor(remaining)) : 0;
+    setAmountDigits(sisa > 0 ? String(sisa) : "");
     setOpen(true);
   }
 

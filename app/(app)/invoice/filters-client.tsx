@@ -104,6 +104,7 @@ export default function InvoiceFiltersClient({
     <div>
       {/* Top: title + search + CTA */}
       <div
+        className="invoice-filters-top"
         style={{
           display: "flex",
           alignItems: "center",
@@ -115,7 +116,7 @@ export default function InvoiceFiltersClient({
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#333" }}>Rekap Data Invoice</h2>
         <div style={{ flex: "1 1 120px", minWidth: 0 }} />
 
-        <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 420, minWidth: 200 }}>
+        <div className="invoice-filters-search" style={{ position: "relative", flex: "1 1 260px", maxWidth: 420, minWidth: 200 }}>
           <input
             value={inv}
             onChange={(e) => setInv(e.target.value)}
@@ -142,6 +143,7 @@ export default function InvoiceFiltersClient({
 
         <Link
           href="/invoice/new"
+          className="invoice-filters-cta"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -164,6 +166,7 @@ export default function InvoiceFiltersClient({
 
       {/* Filter row */}
       <div
+        className="invoice-filters-row"
         style={{
           display: "flex",
           alignItems: "center",
@@ -239,6 +242,7 @@ export default function InvoiceFiltersClient({
 
         <button
           type="button"
+          className="invoice-filters-reset"
           onClick={() => router.push(pathname)}
           style={{
             marginLeft: "auto",

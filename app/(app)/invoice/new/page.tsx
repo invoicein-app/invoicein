@@ -3,6 +3,13 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { num, rupiah } from "@/lib/money";
+import { formPageClasses as fpc } from "../../components/form-page-classes";
+import {
+  formPageBackLink,
+  formPageHeaderActions,
+  formPageSaveButton,
+  formPageSaveButtonDisabled,
+} from "../../components/app-action-buttons";
 import { useSearchParams } from "next/navigation";
 
 type Customer = {
@@ -42,6 +49,8 @@ type Item = {
   qtyText: string;
   priceText: string;
   openSug?: boolean;
+  priceManual?: boolean;
+  latestPriceHint?: number | null;
 };
 
 type PrefillData = {
@@ -168,6 +177,7 @@ function InvoiceNewInner() {
   ]);
 
   const [sourceQuotationId, setSourceQuotationId] = useState<string>("");
+  const [latestPriceMap, setLatestPriceMap] = useState<Record<string, number>>({});
 
   function applyTerms(days: number) {
     const d = Math.max(0, Math.floor(num(days)));
@@ -335,6 +345,61 @@ function InvoiceNewInner() {
   }, [customerId, customers]);
 
   useEffect(() => {
+    if (!customerId) {
+      setLatestPriceMap({});
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      const productIds = Array.from(
+        new Set(
+          items
+            .map((it) => String(it.product_id || "").trim())
+            .filter(Boolean)
+        )
+      );
+
+      const qs = new URLSearchParams({ customer_id: customerId });
+      if (productIds.length > 0) qs.set("product_ids", productIds.join(","));
+
+      try {
+        const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
+          credentials: "include",
+        });
+        const json = await res.json().catch(() => ({}));
+        if (cancelled || !res.ok) return;
+
+        const prices = (json?.prices || {}) as Record<string, number>;
+        setLatestPriceMap(prices);
+
+        if (productIds.length === 0) return;
+
+        setItems((prev) =>
+          prev.map((it) => {
+            if (!it.product_id || it.priceManual) return it;
+            const latest = prices[String(it.product_id)];
+            if (!latest || latest <= 0) return it;
+            return {
+              ...it,
+              price: latest,
+              priceText: formatThousandsID(latest),
+              latestPriceHint: latest,
+            };
+          })
+        );
+      } catch {
+        /* ignore lookup errors */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
+
+  useEffect(() => {
     loadBalancesForWarehouse(warehouseId);
   }, [warehouseId, orgId]);
 
@@ -422,13 +487,23 @@ function InvoiceNewInner() {
 
   function onChangePrice(rowIdx: number, raw: string) {
     const n = digitsToNumber(raw);
-    setItem(rowIdx, { price: n, priceText: formatThousandsID(n) });
+    setItem(rowIdx, {
+      price: n,
+      priceText: formatThousandsID(n),
+      priceManual: true,
+      latestPriceHint: null,
+    });
   }
 
   function onBlurPrice(rowIdx: number) {
     const it = items[rowIdx];
     const n = Math.max(0, Math.floor(num(it.price)));
-    setItem(rowIdx, { price: n, priceText: formatThousandsID(n) });
+    setItem(rowIdx, {
+      price: n,
+      priceText: formatThousandsID(n),
+      priceManual: true,
+      latestPriceHint: null,
+    });
   }
 
   const availableProducts = useMemo(() => {
@@ -455,9 +530,38 @@ function InvoiceNewInner() {
     return balancesMap[key];
   }
 
-  function pickSuggestion(rowIdx: number, p: Product) {
-    const priceN = Math.max(0, Math.floor(Number(p.price || 0)));
+  async function pickSuggestion(rowIdx: number, p: Product) {
+    const catalogPrice = Math.max(0, Math.floor(Number(p.price || 0)));
     const itemKey = productToItemKey(p);
+
+    let priceN = catalogPrice;
+    let hint: number | null = null;
+
+    if (customerId) {
+      const cached = latestPriceMap[p.id];
+      if (cached != null && cached > 0) {
+        priceN = cached;
+        hint = cached;
+      } else {
+        try {
+          const qs = new URLSearchParams({
+            customer_id: customerId,
+            product_id: p.id,
+          });
+          const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
+            credentials: "include",
+          });
+          const json = await res.json().catch(() => ({}));
+          if (res.ok && Number(json?.latest_price) > 0) {
+            priceN = Math.floor(Number(json.latest_price));
+            hint = priceN;
+            setLatestPriceMap((prev) => ({ ...prev, [p.id]: priceN }));
+          }
+        } catch {
+          /* fallback to catalog price */
+        }
+      }
+    }
 
     setItems((prev) =>
       prev.map((it, idx) =>
@@ -469,6 +573,8 @@ function InvoiceNewInner() {
               item_key: itemKey,
               price: priceN,
               priceText: priceN ? formatThousandsID(priceN) : "",
+              priceManual: false,
+              latestPriceHint: hint,
               openSug: false,
             }
           : it
@@ -677,8 +783,9 @@ function InvoiceNewInner() {
   }
 
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
+    <div className={fpc.page} style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div
+        className={fpc.header}
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -689,21 +796,26 @@ function InvoiceNewInner() {
         <div>
           <h1 style={{ margin: 0 }}>Invoice Baru</h1>
           <p style={{ marginTop: 6, color: "#666" }}>
-            Pilih item dari master barang. Gudang opsional.
+            Pilih item dari master barang. Setelah disimpan, invoice langsung aktif — bisa bayar, edit, atau batalkan.
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <a href="/invoice" style={btn()}>
+        <div className={fpc.headerActions} style={formPageHeaderActions()}>
+          <a href="/invoice" style={formPageBackLink()}>
             Kembali
           </a>
-          <button onClick={save} disabled={saving || prefilling} style={btnPrimary()}>
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving || prefilling}
+            style={saving || prefilling ? formPageSaveButtonDisabled() : formPageSaveButton()}
+          >
             {saving ? "Menyimpan..." : "Simpan Invoice"}
           </button>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+      <div className={fpc.grid2} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
         <div style={card()}>
           <h3 style={{ margin: 0 }}>Info Invoice</h3>
 
@@ -729,7 +841,7 @@ function InvoiceNewInner() {
                 />
               </label>
 
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className={fpc.pillRow} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button type="button" onClick={() => applyTerms(7)} style={pillBtn(termsDays === 7)}>
                   Terms 7 hari
                 </button>
@@ -752,7 +864,17 @@ function InvoiceNewInner() {
                   </option>
                 ))}
               </select>
-              {loadingCust ? <small style={{ color: "#666" }}>Loading customer...</small> : null}
+              {loadingCust ? (
+                <small style={{ color: "#666" }}>Loading customer...</small>
+              ) : customerId ? (
+                <small style={{ color: "#666" }}>
+                  Harga barang akan mengikuti harga terakhir untuk customer ini (bisa diubah manual).
+                </small>
+              ) : (
+                <small style={{ color: "#666" }}>
+                  Pilih customer dari daftar agar harga terakhir per buyer otomatis terisi.
+                </small>
+              )}
             </label>
 
             <label style={label()}>
@@ -878,9 +1000,9 @@ function InvoiceNewInner() {
       </div>
 
       <div style={{ marginTop: 12, ...card() }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className={fpc.sectionHead} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ margin: 0 }}>Items</h3>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className={fpc.sectionActions} style={{ display: "flex", gap: 8 }}>
             <a href="/products" style={btn()}>
               + Kelola Barang
             </a>
@@ -890,8 +1012,8 @@ function InvoiceNewInner() {
           </div>
         </div>
 
-        <div style={{ marginTop: 10, overflowX: "auto", overflowY: "visible", position: "relative" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div className={fpc.tableScroll} style={{ marginTop: 10, overflowX: "auto", overflowY: "visible", position: "relative" }}>
+          <table className="app-table--invoice-form" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <th style={th()}>Barang</th>
@@ -1022,9 +1144,15 @@ function InvoiceNewInner() {
                           placeholder="Harga"
                           style={input()}
                         />
-                        <small style={{ color: "#666" }}>
-                          {it.price > 0 ? `Rp ${it.price.toLocaleString("id-ID")}` : " "}
-                        </small>
+                        {it.latestPriceHint && it.latestPriceHint === it.price ? (
+                          <small style={{ color: "#0c4a6e", fontWeight: 600 }}>
+                            Harga terakhir untuk customer ini: {rupiah(it.latestPriceHint)}
+                          </small>
+                        ) : (
+                          <small style={{ color: "#666" }}>
+                            {it.price > 0 ? `Rp ${it.price.toLocaleString("id-ID")}` : " "}
+                          </small>
+                        )}
                       </div>
                     </td>
 
@@ -1104,17 +1232,6 @@ function btn(): React.CSSProperties {
     cursor: "pointer",
     textDecoration: "none",
     color: "#111",
-  };
-}
-
-function btnPrimary(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #111",
-    background: "#111",
-    color: "white",
-    cursor: "pointer",
   };
 }
 

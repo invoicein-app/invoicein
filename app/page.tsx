@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Inter } from "next/font/google";
+import AppLogo from "./components/app-logo";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,9 +25,7 @@ function LandingHeader() {
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-600 text-white shadow-sm">
-            <InvoiceMarkIcon className="h-5 w-5" />
-          </span>
+          <AppLogo size={36} />
           <span className="text-lg font-bold tracking-tight text-slate-900">
             InvoiceKU
           </span>
@@ -548,9 +547,7 @@ function LandingFooter() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link href="/" className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-500 text-white">
-                <InvoiceMarkIcon className="h-5 w-5" />
-              </span>
+              <AppLogo size={36} />
               <span className="text-lg font-bold text-white">InvoiceKU</span>
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-slate-400">
@@ -667,33 +664,6 @@ function SocialLink({
         </span>
       )}
     </a>
-  );
-}
-
-function InvoiceMarkIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width={20}
-      height={20}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
-    >
-      <path
-        d="M7 3h10a2 2 0 012 2v14l-4-2-4 2-4-2V5a2 2 0 012-2z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M9 8h6M9 11h4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }
 

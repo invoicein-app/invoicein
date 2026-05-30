@@ -5,6 +5,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { num, rupiah } from "@/lib/money";
+import {
+  formPageBackLink,
+  formPageHeaderActions,
+  formPageSaveButton,
+  formPageSaveButtonDisabled,
+} from "../../components/app-action-buttons";
 
 type Customer = { id: string; name: string; phone: string; address: string };
 type Product = {
@@ -258,23 +264,28 @@ export default function QuotationNewPage() {
   }
 
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+    <div className="app-form-page" style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
+      <div className="app-form-page__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <div>
           <h1 style={{ margin: 0 }}>Quotation Baru</h1>
           <p style={{ marginTop: 6, color: "#666" }}>Simpan dulu, nanti bisa convert jadi Invoice</p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <a href="/quotations" style={btn()}>
+        <div className="app-form-page__header-actions" style={formPageHeaderActions()}>
+          <a href="/quotations" style={formPageBackLink()}>
             Kembali
           </a>
-          <button onClick={save} disabled={saving} style={btnPrimary()}>
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            style={saving ? formPageSaveButtonDisabled() : formPageSaveButton()}
+          >
             {saving ? "Menyimpan..." : "Simpan Quotation"}
           </button>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+      <div className="app-form-page__grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
         <div style={card()}>
           <h3 style={{ margin: 0 }}>Info Quotation</h3>
 
@@ -395,9 +406,9 @@ export default function QuotationNewPage() {
       </div>
 
       <div style={{ marginTop: 12, ...card() }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="app-form-page__section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ margin: 0 }}>Items</h3>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="app-form-page__section-actions" style={{ display: "flex", gap: 8 }}>
             <a href="/products" style={btn()}>
               + Kelola Barang
             </a>
@@ -407,7 +418,7 @@ export default function QuotationNewPage() {
           </div>
         </div>
 
-        <div style={{ marginTop: 10, overflowX: "auto" }}>
+        <div className="app-form-table-scroll" style={{ marginTop: 10, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
@@ -535,16 +546,6 @@ function btn(): React.CSSProperties {
     cursor: "pointer",
     textDecoration: "none",
     color: "#111",
-  };
-}
-function btnPrimary(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #111",
-    background: "#111",
-    color: "white",
-    cursor: "pointer",
   };
 }
 function th(): React.CSSProperties {

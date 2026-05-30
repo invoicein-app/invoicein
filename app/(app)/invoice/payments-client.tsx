@@ -29,7 +29,13 @@ function toRpInput(digits: string) {
   return digits ? rupiah(num) : "";
 }
 
-export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
+export default function PaymentsClient({
+  invoiceId,
+  remaining = 0,
+}: {
+  invoiceId: string;
+  remaining?: number;
+}) {
   const [loading, setLoading] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -42,7 +48,10 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
     return `${yyyy}-${mm}-${dd}`;
   });
 
-  const [amountDigits, setAmountDigits] = useState("");
+  const [amountDigits, setAmountDigits] = useState(() => {
+    const sisa = Math.max(0, Math.floor(remaining));
+    return sisa > 0 ? String(sisa) : "";
+  });
   const amountNum = useMemo(
     () => (amountDigits ? parseInt(amountDigits, 10) : 0),
     [amountDigits]
@@ -135,7 +144,7 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
   }
 
   return (
-    <div style={{ width: "100%" }}>
+    <div className="app-form-embedded" style={{ width: "100%" }}>
       <div style={{ fontSize: 13, color: "#64748b", marginBottom: 14 }}>Tambah pembayaran (bisa cicil)</div>
 
       <div style={{ display: "grid", gap: 12 }}>
@@ -203,7 +212,7 @@ export default function PaymentsClient({ invoiceId }: { invoiceId: string }) {
 
         {err && <div style={{ color: "#b91c1c", marginBottom: 8 }}>{err}</div>}
 
-        <div style={{ overflowX: "auto" }}>
+        <div className="app-form-table-scroll" style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ textAlign: "left", color: "#666" }}>

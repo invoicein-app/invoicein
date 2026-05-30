@@ -120,7 +120,7 @@ export default function PONewPage() {
   }
 
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
+    <div className="app-form-page" style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <div>
           <h1 style={{ margin: 0 }}>PO Baru</h1>
@@ -134,7 +134,7 @@ export default function PONewPage() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+      <div className="app-form-page__grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
         <div style={card()}>
           <h3 style={{ margin: 0 }}>Info PO</h3>
           <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
@@ -182,7 +182,7 @@ export default function PONewPage() {
           <button onClick={addItem} style={btn()}>+ Tambah Item</button>
         </div>
 
-        <div style={{ marginTop: 10, overflowX: "auto" }}>
+        <div className="app-form-table-scroll" style={{ marginTop: 10, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>

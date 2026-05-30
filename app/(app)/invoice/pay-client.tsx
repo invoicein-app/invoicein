@@ -94,7 +94,10 @@ export default function PayClient({
     <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
       <button
         disabled={disabled}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setDigits(String(Math.max(0, Math.floor(remaining))));
+          setOpen(true);
+        }}
         style={{
           padding: "8px 10px",
           borderRadius: 10,

@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import {
+  formPageBackLink,
+  formPageDangerButton,
+  formPageHeaderActions,
+  formPagePrimaryButton,
+  formPagePrimaryButtonDisabled,
+  formPagePrimaryLink,
+  formPageSoftLink,
+} from "../../components/app-action-buttons";
+import { APP_TEAL } from "../../components/app-ui-tokens";
 
 export default function DeliveryNoteViewPage() {
   const supabase = supabaseBrowser();
@@ -120,14 +130,23 @@ export default function DeliveryNoteViewPage() {
   const statusLower = String(dn.status || "draft").toLowerCase();
   const isPosted = statusLower === "posted";
   const isCancelled = statusLower === "cancelled";
+  const customerLabel =
+    String(dn.customer_name || "").trim() || dn.invoices?.customer_name || "-";
+  const invoiceLabel = dn.invoice_id
+    ? dn.invoices?.invoice_number || dn.invoice_id
+    : "Manual (tanpa invoice)";
 
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-        <div>
-          <h1 style={{ margin: 0 }}>{dn.sj_number}</h1>
-          <p style={{ marginTop: 6, color: "#666" }}>
-            Tanggal: {dn.sj_date} • Dari Invoice: {dn.invoices?.invoice_number}
+    <div className="app-form-page app-detail-page" style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
+      <div
+        className="app-form-page__header"
+        style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827" }}>{dn.sj_number}</h1>
+          <p style={{ marginTop: 6, color: "#6b7280", fontSize: 14 }}>
+            Tanggal: {dn.sj_date} • Customer: {customerLabel} • {dn.invoice_id ? "Invoice" : "Sumber"}:{" "}
+            {invoiceLabel}
           </p>
           <div style={{ marginTop: 8 }}>
             <span style={badge(isCancelled ? "cancelled" : isPosted ? "posted" : "draft")}>
@@ -136,28 +155,32 @@ export default function DeliveryNoteViewPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <a href="/delivery-notes" style={btn()}>Kembali</a>
+        <div className="app-form-page__header-actions" style={formPageHeaderActions()}>
+          <a href="/delivery-notes" style={formPageBackLink()}>
+            Kembali
+          </a>
 
           <button
+            type="button"
             onClick={handlePost}
             disabled={posting || isPosted || isCancelled}
-            style={posting || isPosted || isCancelled ? btnDisabled() : btnPrimaryBtn()}
+            style={posting || isPosted || isCancelled ? formPagePrimaryButtonDisabled() : formPagePrimaryButton()}
           >
             {posting ? "Posting..." : "Post SJ"}
           </button>
 
           <button
+            type="button"
             onClick={handleCancel}
             disabled={cancelling || isCancelled}
-            style={cancelling || isCancelled ? btnDisabled() : btnDanger()}
+            style={cancelling || isCancelled ? formPageDangerButtonDisabled() : formPageDangerButton()}
           >
             {cancelling ? "Cancelling..." : "Cancel SJ"}
           </button>
 
           <a
             href={`/api/delivery-notes/pdf/${dn.id}`}
-            style={btnPrimary()}
+            style={formPagePrimaryLink()}
             target="_blank"
             rel="noreferrer"
           >
@@ -166,27 +189,41 @@ export default function DeliveryNoteViewPage() {
 
           <a
             href={`/api/delivery-notes/pdf-dotmatrix/${dn.id}`}
-            style={btn()}
+            style={formPageSoftLink()}
             target="_blank"
             rel="noreferrer"
           >
             Download Dotmatrix SJ
           </a>
 
-          <a href={`/invoice/${dn.invoice_id}`} style={btn()}>Buka Invoice</a>
+          {dn.invoice_id ? (
+            <a href={`/invoice/${dn.invoice_id}`} style={formPageSoftLink()}>
+              Buka Invoice
+            </a>
+          ) : null}
         </div>
       </div>
 
-      <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="app-form-page__grid-2" style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div style={card()}>
-          <h3 style={{ margin: 0 }}>Alamat Kirim</h3>
+          <h3 style={sectionTitle()}>Customer</h3>
+          <p style={{ marginTop: 10 }}>{customerLabel}</p>
+          {(dn.customer_phone || dn.invoices?.customer_phone) && (
+            <p style={{ marginTop: 8, color: "#444" }}>
+              <b>Telepon:</b> {dn.customer_phone || dn.invoices?.customer_phone}
+            </p>
+          )}
+        </div>
+
+        <div style={card()}>
+          <h3 style={sectionTitle()}>Alamat Kirim</h3>
           <p style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>
             {dn.shipping_address || dn.invoices?.customer_address || "-"}
           </p>
         </div>
 
         <div style={card()}>
-          <h3 style={{ margin: 0 }}>Driver / Kurir</h3>
+          <h3 style={sectionTitle()}>Driver / Kurir</h3>
           <p style={{ marginTop: 10 }}>{dn.driver_name || "-"}</p>
           <p style={{ marginTop: 10, color: "#444" }}>
             <b>Gudang:</b> {dn.warehouse_id || "-"}
@@ -199,9 +236,9 @@ export default function DeliveryNoteViewPage() {
         </div>
       </div>
 
-      <div style={{ marginTop: 12, ...card() }}>
-        <h3 style={{ margin: 0 }}>Items</h3>
-        <div style={{ marginTop: 10, overflowX: "auto" }}>
+      <div style={{ marginTop: 14, ...card() }}>
+        <h3 style={sectionTitle()}>Items</h3>
+        <div className="app-form-table-scroll" style={{ marginTop: 10, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
@@ -236,22 +273,17 @@ export default function DeliveryNoteViewPage() {
 }
 
 function card(): React.CSSProperties {
-  return { border: "1px solid #eee", borderRadius: 12, padding: 14, background: "white" };
+  return {
+    border: "1px solid #e5e7eb",
+    borderRadius: 14,
+    padding: 14,
+    background: "white",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
+  };
 }
-function btn(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", textDecoration: "none", color: "#111", background: "white" };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", textDecoration: "none" };
-}
-function btnPrimaryBtn(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer" };
-}
-function btnDanger(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ef4444", background: "#fff1f2", color: "#b91c1c", cursor: "pointer" };
-}
-function btnDisabled(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #d1d5db", background: "#f3f4f6", color: "#9ca3af", cursor: "not-allowed" };
+
+function sectionTitle(): React.CSSProperties {
+  return { margin: 0, fontSize: 12, fontWeight: 800, color: APP_TEAL, letterSpacing: 0.2, marginBottom: 10 };
 }
 function th(): React.CSSProperties {
   return { textAlign: "left", borderBottom: "1px solid #eee", padding: "8px 6px", color: "#666", fontWeight: 600 };

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import AppLogo from "./app-logo";
 
 const TEAL = "#1E7F75";
 const INACTIVE = "#949494";
@@ -34,7 +35,8 @@ type NavIconId =
   | "settings"
   | "feedback"
   | "billing"
-  | "expense";
+  | "expense"
+  | "receivable";
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
@@ -43,6 +45,7 @@ const navItems: NavItem[] = [
   { href: "/delivery-notes", label: "Surat Jalan", icon: "delivery" },
   { href: "/purchase-orders", label: "Purchase Order", icon: "po" },
   { href: "/expenses", label: "Pengeluaran", icon: "expense" },
+  { href: "/receivables", label: "Piutang", icon: "receivable" },
   { href: "/customers", label: "Customer", icon: "customer" },
   { href: "/products", label: "Barang", icon: "product" },
   { href: "/vendors", label: "Vendor", icon: "vendor" },
@@ -61,9 +64,11 @@ function isAdminRole(role: string) {
 type Props = {
   collapsed: boolean;
   onToggleCollapse: () => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 };
 
-export default function Sidebar({ collapsed, onToggleCollapse }: Props) {
+export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile }: Props) {
   const supabase = supabaseBrowser();
   const pathname = usePathname();
 
@@ -116,8 +121,14 @@ export default function Sidebar({ collapsed, onToggleCollapse }: Props) {
     });
   }, [canSeeAdmin, canBillingAdmin]);
 
+  const closeIfMobile = () => {
+    onCloseMobile?.();
+  };
+
+  const sidebarClass = ["app-sidebar", mobileOpen ? "app-sidebar--open" : ""].filter(Boolean).join(" ");
+
   return (
-    <aside style={wrap(collapsed)}>
+    <aside className={sidebarClass} style={wrap(collapsed)}>
       <div
         style={{
           display: "flex",
@@ -132,6 +143,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }: Props) {
         {!collapsed ? (
           <Link
             href="/dashboard"
+            onClick={closeIfMobile}
             style={{
               display: "flex",
               alignItems: "center",
@@ -145,35 +157,17 @@ export default function Sidebar({ collapsed, onToggleCollapse }: Props) {
               minWidth: 0,
             }}
           >
-            <span
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: TEAL,
-                display: "grid",
-                placeItems: "center",
-                flexShrink: 0,
-              }}
-            >
-              <LogoGlyph />
-            </span>
+            <AppLogo size={36} />
             Invoiceku
           </Link>
         ) : (
-          <Link href="/dashboard" style={{ display: "grid", placeItems: "center", textDecoration: "none" }} title="Invoiceku">
-            <span
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: TEAL,
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
-              <LogoGlyph />
-            </span>
+          <Link
+            href="/dashboard"
+            onClick={closeIfMobile}
+            style={{ display: "grid", placeItems: "center", textDecoration: "none" }}
+            title="Invoiceku"
+          >
+            <AppLogo size={40} />
           </Link>
         )}
 
@@ -226,6 +220,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }: Props) {
               title={collapsed ? it.label : undefined}
               style={navItemStyle(collapsed, isActive, hovered)}
               aria-current={isActive ? "page" : undefined}
+              onClick={closeIfMobile}
               onMouseEnter={() => setHoverHref(it.href)}
               onMouseLeave={() => setHoverHref(null)}
             >
@@ -308,14 +303,6 @@ function ChevronIcon({ collapsed }: { collapsed: boolean }) {
   return (
     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden style={{ transform: collapsed ? "rotate(180deg)" : "none" }}>
       <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function LogoGlyph() {
-  return (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -430,6 +417,15 @@ function NavIcon({ id, variant }: { id: NavIconId; variant: "active" | "hover" |
       return (
         <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
           <path d="M12 2v20M17 7H9.5a3.5 3.5 0 100 7H14a3.5 3.5 0 110 7H6" stroke={c} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "receivable":
+      return (
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect x="3" y="6" width="18" height="12" rx="2.5" stroke={c} strokeWidth="1.75" />
+          <path d="M3 10h18" stroke={c} strokeWidth="1.75" />
+          <path d="M7 14h5" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
+          <path d="M16 14h1" stroke={c} strokeWidth="1.75" strokeLinecap="round" />
         </svg>
       );
     default:

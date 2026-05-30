@@ -157,7 +157,7 @@ export default function PurchaseOrdersListPage() {
   );
 
   const tableContent = (
-    <table style={{ ...listTableStyles.table, minWidth: 800 }}>
+    <table className="app-data-table app-table--purchase-orders" style={listTableStyles.table}>
       <thead>
         <tr style={listTableStyles.thead}>
           <th style={listTableStyles.th}>No</th>
@@ -187,8 +187,8 @@ export default function PurchaseOrdersListPage() {
                 <td style={listTableStyles.td}>
                   <span style={{ ...badge(), ...badgeStyle(st) }}>{statusLabel(st)}</span>
                 </td>
-                <td style={{ ...listTableStyles.td, verticalAlign: "middle" }}>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap" }}>
+                <td className="app-td-actions" style={{ ...listTableStyles.td, verticalAlign: "middle" }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                     <button type="button" onClick={() => router.push(`/purchase-orders/${r.id}`)} style={tableActionSecondary()}>
                       Detail
                     </button>

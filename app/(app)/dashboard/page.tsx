@@ -269,7 +269,7 @@ export default async function DashboardPage() {
   const chartRangeLabel = `${formatMonthKeyId(monthKeys6[0])} – ${formatMonthKeyId(monthKeys6[5])}`;
 
   return (
-    <div style={pageWrap()}>
+    <div className="dash-page" style={pageWrap()}>
       {/* Main header: title + bell / profile */}
       <div style={dashHeaderRow()}>
         <div>
@@ -293,10 +293,10 @@ export default async function DashboardPage() {
 
       {/* Rekap Data Invoice */}
       <h2 style={sectionHeading()}>Rekap Data Invoice</h2>
-      <div style={kpiGrid()}>
+      <div className="dash-kpi-grid" style={kpiGrid()}>
         <div style={kpiCardCream()}>
           <div style={kpiLabel()}>Outstanding</div>
-          <div style={kpiValue()}>{outstandingCount}</div>
+          <div className="dash-kpi-value" style={kpiValue()}>{outstandingCount}</div>
           <div style={kpiInset()}>
             Sisa tagihan : <b>{rupiah(outstandingSum)}</b>
           </div>
@@ -304,7 +304,7 @@ export default async function DashboardPage() {
 
         <div style={kpiCardGray()}>
           <div style={kpiLabel()}>Paid Bulan Ini</div>
-          <div style={kpiValue()}>{rupiah(paidSumThisMonth)}</div>
+          <div className="dash-kpi-value" style={kpiValue()}>{rupiah(paidSumThisMonth)}</div>
           <div style={kpiInset()}>
             {formatMonthKeyId(thisMonthKey)}
           </div>
@@ -312,7 +312,7 @@ export default async function DashboardPage() {
 
         <div style={kpiCardGray()}>
           <div style={kpiLabel()}>Paid Bulan Lalu</div>
-          <div style={kpiValue()}>{rupiah(paidSumLastMonth)}</div>
+          <div className="dash-kpi-value" style={kpiValue()}>{rupiah(paidSumLastMonth)}</div>
           <div style={kpiInset()}>
             {formatMonthKeyId(lastMonthKey)}
           </div>
@@ -320,7 +320,7 @@ export default async function DashboardPage() {
 
         <div style={kpiCardBlue()}>
           <div style={kpiLabel()}>Total Invoice</div>
-          <div style={kpiValue()}>{invoices.length}</div>
+          <div className="dash-kpi-value" style={kpiValue()}>{invoices.length}</div>
           <div style={{ ...kpiInset(), display: "flex", flexWrap: "wrap", gap: "8px 16px" }}>
             <span style={kpiInsetStat()}>Paid: {paidCount}</span>
             <span style={kpiInsetStat()}>Cust: {customerCount ?? 0}</span>
@@ -330,7 +330,7 @@ export default async function DashboardPage() {
 
         <div style={kpiCardGray()}>
           <div style={kpiLabel()}>Pengeluaran Lunas</div>
-          <div style={kpiValue()}>{rupiah(expensePaidThisMonth)}</div>
+          <div className="dash-kpi-value" style={kpiValue()}>{rupiah(expensePaidThisMonth)}</div>
           <div style={kpiInset()}>
             Belum lunas: <b>{rupiah(expenseUnpaidThisMonth)}</b>
           </div>
@@ -338,35 +338,10 @@ export default async function DashboardPage() {
 
         <div style={kpiCardCream()}>
           <div style={kpiLabel()}>Perkiraan Laba Bulan Ini</div>
-          <div style={kpiValue()}>{rupiah(profitEstimateThisMonth)}</div>
+          <div className="dash-kpi-value" style={kpiValue()}>{rupiah(profitEstimateThisMonth)}</div>
           <div style={kpiInset()}>
             Omset lunas − pengeluaran lunas
           </div>
-        </div>
-      </div>
-
-      {/* Menu Utama */}
-      <div style={menuUtamaBox()}>
-        <div style={menuUtamaTitle()}>Menu Utama</div>
-        <div style={menuUtamaRow()}>
-          <a href="/invoice/new" style={menuBtnPrimary()}>
-            <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Buat Invoice
-          </a>
-          <a href="/invoice" style={menuBtnOutline()}>
-            Daftar Invoice
-          </a>
-          <a href="/delivery-notes" style={menuBtnOutline()}>
-            Surat Jalan
-          </a>
-          <a href="/products" style={menuBtnOutline()}>
-            Barang
-          </a>
-          <a href="/expenses" style={menuBtnOutline()}>
-            Pengeluaran
-          </a>
-          <a href="/expenses/summary" style={menuBtnOutline()}>
-            Ringkasan Laba
-          </a>
         </div>
       </div>
 
@@ -385,14 +360,14 @@ export default async function DashboardPage() {
             </p>
           ) : (
             <>
-              <div style={tableHeaderRow()}>
+              <div className="dash-attn-header" style={tableHeaderRow()}>
                 <div>Nomor Invoice</div>
                 <div style={{ textAlign: "right" }}>Nominal</div>
                 <div style={{ textAlign: "center" }}>Status</div>
               </div>
               <div style={{ marginTop: 0 }}>
                 {attentionTop.map((x) => (
-                  <a key={x.id} href={`/invoice/${x.id}`} style={tableRow()}>
+                  <a key={x.id} href={`/invoice/${x.id}`} className="dash-attn-row" style={tableRow()}>
                     <div>
                       <div style={{ fontWeight: 800, color: "#111", fontSize: 14 }}>
                         {x.invoice_number || `Invoice ${x.id.slice(0, 8)}…`}
@@ -401,11 +376,11 @@ export default async function DashboardPage() {
                         {x.invoice_date || "-"}
                       </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
+                    <div className="dash-attn-nominal" style={{ textAlign: "right" }}>
                       <div style={{ fontWeight: 700, fontSize: 14, color: "#111" }}>{rupiah(x.remaining)}</div>
                       <div style={{ color: "#64748b", fontSize: 12 }}>dari {rupiah(x.grandTotal)}</div>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "center" }}>
+                    <div className="dash-attn-status" style={{ display: "flex", justifyContent: "center" }}>
                       <span style={pill(x.payState)}>{x.payState}</span>
                     </div>
                   </a>
@@ -434,6 +409,7 @@ export default async function DashboardPage() {
               return (
                 <div
                   key={m.month}
+                  className="dash-chart-bar"
                   style={{
                     display: "grid",
                     gridTemplateColumns: "88px 1fr 100px",
@@ -453,7 +429,7 @@ export default async function DashboardPage() {
                   >
                     <div style={{ width: `${pct}%`, height: "100%", background: "#2D7D71", borderRadius: 5 }} />
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#334155", textAlign: "right" }}>
+                  <div className="dash-chart-value" style={{ fontSize: 12, fontWeight: 600, color: "#334155", textAlign: "right" }}>
                     {rupiah(m.value)}
                   </div>
                 </div>
@@ -588,65 +564,6 @@ function kpiLabel(): React.CSSProperties {
 
 function kpiValue(): React.CSSProperties {
   return { marginTop: 8, fontSize: 26, fontWeight: 900, color: "#0f172a", letterSpacing: "-0.02em" };
-}
-
-function menuUtamaBox(): React.CSSProperties {
-  return {
-    marginTop: 20,
-    padding: 18,
-    borderRadius: 12,
-    background: "#fff",
-    border: "1px solid #e2e8f0",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-    boxSizing: "border-box",
-  };
-}
-
-function menuUtamaTitle(): React.CSSProperties {
-  return { fontSize: 15, fontWeight: 800, color: "#1e293b", marginBottom: 14 };
-}
-
-function menuUtamaRow(): React.CSSProperties {
-  return {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-    gap: 12,
-  };
-}
-
-function menuBtnPrimary(): React.CSSProperties {
-  return {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    padding: "12px 14px",
-    borderRadius: 8,
-    background: "#2D7D71",
-    color: "#fff",
-    fontWeight: 700,
-    fontSize: 14,
-    textDecoration: "none",
-    border: "1px solid #2D7D71",
-    boxSizing: "border-box",
-  };
-}
-
-function menuBtnOutline(): React.CSSProperties {
-  return {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "12px 14px",
-    borderRadius: 8,
-    background: "#fff",
-    color: "#2D7D71",
-    fontWeight: 700,
-    fontSize: 14,
-    textDecoration: "none",
-    border: "2px solid #2D7D71",
-    boxSizing: "border-box",
-  };
 }
 
 function bottomGrid(): React.CSSProperties {

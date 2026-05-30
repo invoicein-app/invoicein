@@ -7,6 +7,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import {
+  formPageDangerButton,
+  formPagePrimaryLink,
+  formPageSoftLink,
+  formPageBackLink,
+} from "../../components/app-action-buttons";
 
 function isAdminRole(role: string) {
   const r = String(role || "").toLowerCase();
@@ -166,24 +172,22 @@ export default function PoActionsClient(props: {
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
       {canEdit && (
-        <Link href={`/purchase-orders/${id}/edit`} style={btnSoftLink()}>
+        <Link href={`/purchase-orders/${id}/edit`} style={formPageSoftLink()}>
           Edit
         </Link>
       )}
 
       {canSend && (
-        <button onClick={onSend} disabled={busy} style={btnSoft()}>
+        <button type="button" onClick={onSend} disabled={busy} style={formPageBackLink()}>
           Send
         </button>
       )}
 
-      {/* ✅ ini tombol GRN yang bener: bukan call API, tapi masuk ke UI receive */}
       {canReceive && (
         <Link
           href={`/purchase-orders/${id}/receive`}
-          style={btnPrimaryLink()}
+          style={formPagePrimaryLink()}
           onClick={(e) => {
-            // prevent spam click while busy
             if (busy) e.preventDefault();
           }}
         >
@@ -192,13 +196,13 @@ export default function PoActionsClient(props: {
       )}
 
       {canCancel && (
-        <button onClick={onCancel} disabled={busy} style={btnSoft()}>
+        <button type="button" onClick={onCancel} disabled={busy} style={formPageBackLink()}>
           Cancel
         </button>
       )}
 
       {canDelete && (
-        <button onClick={onDelete} disabled={busy} style={btnDanger()}>
+        <button type="button" onClick={onDelete} disabled={busy} style={formPageDangerButton()}>
           Delete
         </button>
       )}
@@ -210,53 +214,4 @@ export default function PoActionsClient(props: {
       )}
     </div>
   );
-}
-
-function btnSoftLink(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    background: "white",
-    color: "#111827",
-    fontWeight: 900,
-    textDecoration: "none",
-  };
-}
-
-function btnSoft(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    background: "white",
-    fontWeight: 900,
-    cursor: "pointer",
-  };
-}
-
-function btnPrimaryLink(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #111827",
-    background: "#111827",
-    color: "white",
-    fontWeight: 900,
-    textDecoration: "none",
-    display: "inline-flex",
-    alignItems: "center",
-  };
-}
-
-function btnDanger(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #b91c1c",
-    background: "#fef2f2",
-    color: "#991b1b",
-    fontWeight: 900,
-    cursor: "pointer",
-  };
 }

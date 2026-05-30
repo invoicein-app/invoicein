@@ -1,9 +1,19 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import DeliveryNotesFiltersClient from "./delivery-notes-filters-client";
+import DeliveryNotesListFooterClient from "./delivery-notes-list-footer-client";
 import AppHeaderNav from "../components/app-header-nav";
-import { APP_BORDER, APP_BG, APP_TEAL } from "../components/app-ui-tokens";
-import { tableActionSecondary } from "../components/app-action-buttons";
+import { APP_BORDER, APP_TEAL } from "../components/app-ui-tokens";
+import { formPrimaryButton, tableActionSecondary } from "../components/app-action-buttons";
+import {
+  listPageContentCard,
+  listPageHeaderActions,
+  listPageHeaderRow,
+  listPageCardHeading,
+  listPageShell,
+  listPageSubtitle,
+  listPageTitle,
+} from "../components/list-page-shell-styles";
 
 function badgeStyle(status: string) {
   const s = String(status || "").toLowerCase();
@@ -45,7 +55,7 @@ export default async function DeliveryNotesListPage({
     .from("delivery_notes")
     .select("id", { count: "exact", head: true })
     .order("created_at", { ascending: false });
-  if (q) countQ = countQ.ilike("sj_number", `%${q}%`);
+  if (q) countQ = countQ.or(`sj_number.ilike.%${q}%,customer_name.ilike.%${q}%`);
 
   const { count: totalCount, error: countErr } = await countQ;
   const totalRows = totalCount ?? 0;
@@ -53,10 +63,10 @@ export default async function DeliveryNotesListPage({
 
   let dataQ = supabase
     .from("delivery_notes")
-    .select("id, sj_number, sj_date, status, invoice_id, invoices(invoice_number, customer_name)")
+    .select("id, sj_number, sj_date, status, invoice_id, customer_name, invoices(invoice_number, customer_name)")
     .order("created_at", { ascending: false })
     .range(fromIdx, toIdx);
-  if (q) dataQ = dataQ.ilike("sj_number", `%${q}%`);
+  if (q) dataQ = dataQ.or(`sj_number.ilike.%${q}%,customer_name.ilike.%${q}%`);
 
   const { data: rows, error } = await dataQ;
 
@@ -69,24 +79,18 @@ export default async function DeliveryNotesListPage({
   const lastUrl = buildUrl(currentParams, { p: String(totalPages) });
 
   return (
-    <div style={{ width: "100%", boxSizing: "border-box", background: APP_BG, minHeight: "100%", padding: "16px 20px 40px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          flexWrap: "wrap",
-          marginBottom: 20,
-        }}
-      >
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#333" }}>Surat Jalan</h1>
-          <div style={{ color: "#64748b", marginTop: 6, fontSize: 14, lineHeight: 1.45, maxWidth: 720 }}>
-            Dibuat dari invoice dan bisa jadi trigger stok sesuai pengaturan organisasi
+    <div className="app-list-page" style={listPageShell}>
+      <div className="app-list-page__header" style={listPageHeaderRow}>
+        <div style={{ minWidth: 0 }}>
+          <h1 style={listPageTitle}>Surat Jalan</h1>
+          <div style={listPageSubtitle}>
+            Dari invoice atau manual — posting SJ dapat memicu stok sesuai pengaturan organisasi
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className="app-list-page__header-actions" style={listPageHeaderActions}>
+          <Link href="/delivery-notes/new" style={formPrimaryButton()}>
+            + Buat Surat Jalan Manual
+          </Link>
           <Link href="/dashboard" style={btnOutline()}>
             Dashboard
           </Link>
@@ -97,17 +101,10 @@ export default async function DeliveryNotesListPage({
         </div>
       </div>
 
-      <div
-        style={{
-          background: "#fff",
-          border: `1px solid ${APP_BORDER}`,
-          borderRadius: 10,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-          padding: "20px 20px 8px",
-          boxSizing: "border-box",
-        }}
-      >
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#333", marginBottom: 16 }}>Master Data Surat Jalan</div>
+      <div className="app-list-page__card" style={listPageContentCard}>
+        <div className="app-list-page__card-title" style={listPageCardHeading}>
+          Master Data Surat Jalan
+        </div>
 
         <div style={{ marginBottom: 16 }}>
           <DeliveryNotesFiltersClient />
@@ -117,8 +114,8 @@ export default async function DeliveryNotesListPage({
           <div style={{ marginBottom: 14, ...errBox() }}>{countErr.message}</div>
         ) : null}
 
-        <div style={{ width: "100%", overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 720 }}>
+        <div className="app-table-scroll">
+          <table className="app-data-table app-table--delivery-notes" style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 640 }}>
             <thead>
               <tr style={{ background: "#f9fafb" }}>
                 <th style={{ ...th(), minWidth: 180 }}>Nomor SJ</th>
@@ -136,8 +133,10 @@ export default async function DeliveryNotesListPage({
                   <tr key={r.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                     <td style={tdStrong()}>{r.sj_number || "-"}</td>
                     <td style={td()}>{r.sj_date || "-"}</td>
-                    <td style={td()}>{r.invoices?.invoice_number || "-"}</td>
-                    <td style={td()}>{r.invoices?.customer_name || "-"}</td>
+                    <td style={td()}>
+                      {r.invoices?.invoice_number || (r.invoice_id ? "-" : "Manual")}
+                    </td>
+                    <td style={td()}>{r.customer_name || r.invoices?.customer_name || "-"}</td>
                     <td style={{ ...td(), textAlign: "center" }}>
                       <span
                         style={{
@@ -153,7 +152,7 @@ export default async function DeliveryNotesListPage({
                         {badge.label}
                       </span>
                     </td>
-                    <td style={td()}>
+                    <td className="app-td-actions" style={td()}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <Link href={`/delivery-notes/${r.id}`} style={tableActionSecondary()}>
                           View
@@ -180,67 +179,18 @@ export default async function DeliveryNotesListPage({
           </table>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 16,
-            marginTop: 16,
-            paddingTop: 16,
-            paddingBottom: 8,
-            borderTop: `1px solid ${APP_BORDER}`,
-            fontSize: 13,
-            color: "#64748b",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span>Menampilkan</span>
-            <b style={{ color: "#333" }}>{pageSize}</b>
-            <span>
-              Dari <b style={{ color: "#333" }}>{totalRows}</b> Data
-            </span>
-            {totalRows > 0 ? (
-              <span style={{ color: "#94a3b8" }}>
-                ({Math.min(fromIdx + 1, totalRows)}–{Math.min(toIdx + 1, totalRows)})
-              </span>
-            ) : null}
-          </div>
-
-          <nav style={{ display: "flex", alignItems: "center", gap: 8 }} aria-label="Pagination">
-            {page <= 1 ? (
-              <span style={pagerDisabled()}>&lt; Prev</span>
-            ) : (
-              <Link href={prevUrl} style={pagerBtn()}>
-                &lt; Prev
-              </Link>
-            )}
-            <span style={pagerActive()}>{page}</span>
-            {page >= totalPages ? (
-              <span style={pagerDisabled()}>Next &gt;</span>
-            ) : (
-              <Link href={nextUrl} style={pagerBtn()}>
-                Next &gt;
-              </Link>
-            )}
-            <span style={{ width: 8 }} />
-            {page <= 1 ? (
-              <span style={pagerDisabled()}>«</span>
-            ) : (
-              <Link href={firstUrl} style={pagerBtn()}>
-                «
-              </Link>
-            )}
-            {page >= totalPages ? (
-              <span style={pagerDisabled()}>»</span>
-            ) : (
-              <Link href={lastUrl} style={pagerBtn()}>
-                »
-              </Link>
-            )}
-          </nav>
-        </div>
+        <DeliveryNotesListFooterClient
+          pageSize={pageSize}
+          totalRows={totalRows}
+          fromIdx={fromIdx}
+          toIdx={toIdx}
+          page={page}
+          totalPages={totalPages}
+          prevUrl={prevUrl}
+          nextUrl={nextUrl}
+          firstUrl={firstUrl}
+          lastUrl={lastUrl}
+        />
       </div>
 
       {error ? (
@@ -260,43 +210,6 @@ function btnOutline(): React.CSSProperties {
     textDecoration: "none",
     fontWeight: 700,
     fontSize: 14,
-  };
-}
-
-function pagerBtn(): React.CSSProperties {
-  return {
-    padding: "6px 12px",
-    borderRadius: 8,
-    border: `1px solid ${APP_BORDER}`,
-    background: "#fff",
-    color: "#334155",
-    textDecoration: "none",
-    fontSize: 13,
-    fontWeight: 600,
-  };
-}
-
-function pagerActive(): React.CSSProperties {
-  return {
-    minWidth: 36,
-    height: 36,
-    display: "inline-grid",
-    placeItems: "center",
-    padding: "0 10px",
-    borderRadius: "50%",
-    background: APP_TEAL,
-    color: "#fff",
-    fontWeight: 800,
-    fontSize: 14,
-  };
-}
-
-function pagerDisabled(): React.CSSProperties {
-  return {
-    ...pagerBtn(),
-    opacity: 0.45,
-    pointerEvents: "none",
-    cursor: "not-allowed",
   };
 }
 

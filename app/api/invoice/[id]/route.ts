@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
+import { canEditInvoice, deriveInvoiceStatusAfterEdit, resyncInvoiceStockAfterEdit } from "@/lib/invoice-finalize";
+import { upsertCustomerLatestPrices } from "@/lib/customer-item-latest-price";
 
 type UpdateInvoiceBody = {
   header?: Record<string, any>;
@@ -183,11 +185,9 @@ export async function PATCH(
   }
 
   const currentStatus = String(before.status || "").toLowerCase();
-  if (currentStatus !== "draft") {
-    return NextResponse.json(
-      { error: "Hanya invoice draft yang boleh diedit." },
-      { status: 400 }
-    );
+  const editCheck = canEditInvoice({ status: currentStatus });
+  if (!editCheck.allowed) {
+    return NextResponse.json({ error: editCheck.reason || "Invoice tidak bisa diedit." }, { status: 400 });
   }
 
   const safeHeader = pickSafeHeader(body.header || {});
@@ -297,6 +297,12 @@ export async function PATCH(
   const afterDisc = Math.max(0, subtotal - discountAmount);
   const taxAmount = afterDisc * (taxValue / 100);
   const total = Math.max(0, afterDisc + taxAmount);
+  const amountPaid = Math.max(0, Math.floor(num(before.amount_paid || 0)));
+  const nextStatus = deriveInvoiceStatusAfterEdit({
+    currentStatus,
+    amountPaid,
+    newTotal: total,
+  });
 
   const headerPatch = {
     ...safeHeader,
@@ -304,6 +310,7 @@ export async function PATCH(
     discount_amount: discountAmount,
     tax_amount: taxAmount,
     total,
+    status: nextStatus,
   };
 
   const { data: updatedInvoice, error: upInvErr } = await supabase
@@ -338,12 +345,43 @@ export async function PATCH(
     sort_order: idx,
   }));
 
-  const { error: insErr } = await supabase
+  const { data: insertedItems, error: insErr } = await supabase
     .from("invoice_items")
-    .insert(payloadItems);
+    .insert(payloadItems)
+    .select("id, product_id, item_key, price");
 
   if (insErr) {
     return NextResponse.json({ error: insErr.message }, { status: 400 });
+  }
+
+  if (currentStatus !== "draft" && currentStatus !== "cancelled") {
+    const stockSync = await resyncInvoiceStockAfterEdit({
+      supabase,
+      orgId,
+      invoiceId: id,
+      warehouseId: String(headerPatch.warehouse_id ?? before.warehouse_id ?? "") || null,
+    });
+    if (!stockSync.ok) {
+      return NextResponse.json({ error: stockSync.error }, { status: 400 });
+    }
+  }
+
+  const customerIdForPrices = String(
+    safeHeader.customer_id ?? updatedInvoice.customer_id ?? before.customer_id ?? ""
+  ).trim();
+
+  if (customerIdForPrices) {
+    await upsertCustomerLatestPrices({
+      supabase,
+      orgId,
+      customerId: customerIdForPrices,
+      lines: (insertedItems || []).map((row: any) => ({
+        product_id: row.product_id,
+        item_key: row.item_key,
+        price: row.price,
+        invoice_item_id: row.id,
+      })),
+    });
   }
 
   await logActivity({
@@ -361,9 +399,16 @@ export async function PATCH(
     },
   });
 
+  const remaining = Math.max(0, total - amountPaid);
+  const overpayment = Math.max(0, amountPaid - total);
+
   return NextResponse.json({
     ok: true,
     invoice: updatedInvoice,
+    amount_paid: amountPaid,
+    remaining,
+    overpayment,
+    status: nextStatus,
   });
 }
 

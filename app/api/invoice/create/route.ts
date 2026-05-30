@@ -7,6 +7,8 @@ import { createClient } from "@supabase/supabase-js";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
 import { coerceDateOrToday, generateDocumentNumber } from "@/lib/document-numbering";
+import { finalizeInvoice } from "@/lib/invoice-finalize";
+import { upsertCustomerLatestPrices } from "@/lib/customer-item-latest-price";
 
 type Item = {
   product_id: string;
@@ -329,9 +331,10 @@ export async function POST(req: Request) {
     sort_order: idx,
   }));
 
-  const { error: itemErr } = await supabase
+  const { data: insertedItems, error: itemErr } = await supabase
     .from("invoice_items")
-    .insert(payloadItems);
+    .insert(payloadItems)
+    .select("id, product_id, item_key, price");
 
   if (itemErr) {
     await supabase.from("invoices").delete().eq("id", inv.id);
@@ -389,12 +392,43 @@ export async function POST(req: Request) {
     },
   });
 
+  const finalized = await finalizeInvoice({
+    supabase,
+    orgId,
+    invoiceId: inv.id,
+    userId: user.id,
+    actorRole,
+    activityAction: "invoice.create_finalize",
+  });
+
+  if (!finalized.ok) {
+    await supabase.from("invoice_items").delete().eq("invoice_id", inv.id);
+    await supabase.from("invoices").delete().eq("id", inv.id);
+    return NextResponse.json({ error: finalized.error }, { status: 400 });
+  }
+
+  if (customer_id) {
+    await upsertCustomerLatestPrices({
+      supabase,
+      orgId,
+      customerId: customer_id,
+      lines: (insertedItems || []).map((row: any) => ({
+        product_id: row.product_id,
+        item_key: row.item_key,
+        price: row.price,
+        invoice_item_id: row.id,
+      })),
+    });
+  }
+
   return NextResponse.json(
     {
       id: inv.id,
       invoice_number: inv.invoice_number ?? null,
       quotation_id: inv.quotation_id ?? null,
       quotation_number: inv.quotation_number ?? quotationNumber ?? null,
+      status: "sent",
+      stock_moved: finalized.stock_moved,
       subtotal,
       discount_amount: discountAmount,
       tax_amount: taxAmount,

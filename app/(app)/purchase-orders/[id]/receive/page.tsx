@@ -12,7 +12,14 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
-
+import {
+  formPageBackLink,
+  formPageHeaderActions,
+  formPageSaveButton,
+  formPageSaveButtonDisabled,
+  tableActionSecondary,
+} from "../../../components/app-action-buttons";
+import { APP_BORDER, APP_TEAL } from "../../../components/app-ui-tokens";
 type Warehouse = {
   id: string;
   code: string;
@@ -348,29 +355,35 @@ export default function POReceivePage() {
   const poNo = po?.po_number || "-";
   const vendor = po?.vendor_name || "-";
 
+  const postDisabled = !canPost || posting || loading;
+
   return (
-    <div style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+    <div className="app-form-page" style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
+      <div className="app-form-page__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ margin: 0 }}>Terima Barang (GRN)</h1>
-          <div style={{ marginTop: 6, color: "#666", fontWeight: 700 }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827" }}>Terima Barang (GRN)</h1>
+          <div style={{ marginTop: 6, color: "#64748b", fontWeight: 600, fontSize: 14 }}>
             PO: {poNo} • Vendor: {vendor}
           </div>
-          <div style={{ marginTop: 8, fontWeight: 900, color: canPost ? "#0f766e" : "#b45309" }}>
+          <div style={{ marginTop: 8, fontWeight: 800, fontSize: 13, color: canPost ? APP_TEAL : "#b45309" }}>
             Status: {statusText} {canPost ? "" : "(tidak bisa GRN)"}
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link href={`/purchase-orders/${id}`} style={btn()}>
+        <div className="app-form-page__header-actions" style={formPageHeaderActions()}>
+          <Link href={`/purchase-orders/${id}`} style={formPageBackLink()}>
             Kembali
           </Link>
-          <button onClick={postReceive} disabled={!canPost || posting || loading} style={btnPrimary()}>
+          <button
+            type="button"
+            onClick={postReceive}
+            disabled={postDisabled}
+            style={postDisabled ? formPageSaveButtonDisabled() : formPageSaveButton()}
+          >
             {posting ? "Posting..." : "Post Receive"}
           </button>
         </div>
       </div>
-
       {msg ? <div style={errBox()}>{msg}</div> : null}
 
       {!canPost ? (
@@ -379,10 +392,9 @@ export default function POReceivePage() {
         </div>
       ) : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+      <div className="app-form-page__grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
         <div style={card()}>
-          <h3 style={{ margin: 0 }}>Info Receive</h3>
-
+          <h3 style={sectionTitle()}>Info Receive</h3>
           <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
             <label style={label()}>
               Gudang (Ship To)
@@ -427,10 +439,9 @@ export default function POReceivePage() {
         </div>
 
         <div style={card()}>
-          <h3 style={{ margin: 0 }}>Ringkasan</h3>
+          <h3 style={sectionTitle()}>Ringkasan</h3>
           <div style={{ marginTop: 10 }}>
-            <Row k="Total qty diterima (sekarang)" v={<b>{totalQtyNow}</b>} />
-            <div style={{ marginTop: 10, color: "#666", fontSize: 13 }}>
+            <Row k="Total qty diterima (sekarang)" v={<b style={{ color: APP_TEAL }}>{totalQtyNow}</b>} />            <div style={{ marginTop: 10, color: "#666", fontSize: 13 }}>
               Setelah Post, GRN tersimpan, stok gudang bertambah (via trigger/ledger), PO auto update jadi PARTIALLY_RECEIVED / RECEIVED.
             </div>
           </div>
@@ -438,39 +449,29 @@ export default function POReceivePage() {
       </div>
 
       <div style={{ marginTop: 12, ...card() }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0 }}>Items Receive</h3>
-          <button onClick={load} style={btn()} disabled={loading || posting}>
+        <div className="app-form-page__section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <h3 style={{ ...sectionTitle(), margin: 0 }}>Items Receive</h3>
+          <button type="button" onClick={load} style={tableActionSecondary()} disabled={loading || posting}>
             Refresh
           </button>
         </div>
-
-        <div style={{ marginTop: 10, overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div className="app-form-table-scroll" style={{ marginTop: 10, overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
-              <tr>
-                <th style={th()}>Item</th>
-                <th style={th()}>Ordered</th>
-                <th style={th()}>Received</th>
-                <th style={th()}>Remaining</th>
-                <th style={th()}>Receive Now</th>
-                <th style={th()}>Prod Date</th>
-                <th style={th()}>Exp Date</th>
-              </tr>
+              <tr style={{ background: "#f9fafb" }}><th style={th()}>Item</th><th style={th()}>Ordered</th><th style={th()}>Received</th><th style={th()}>Remaining</th><th style={th()}>Receive Now</th><th style={th()}>Prod Date</th><th style={th()}>Exp Date</th></tr>
             </thead>
             <tbody>
               {lines.map((ln) => {
                 const over = Math.floor(num(ln.qty_now)) > Math.floor(num(ln.remaining));
                 return (
-                  <tr key={ln.po_item_id}>
-                    <td style={td()}>
+                  <tr key={ln.po_item_id}>{[
+                    <td key="item" style={td()}>
                       <div style={{ fontWeight: 900 }}>{ln.item_name}</div>
-                    </td>
-                    <td style={td()}>{ln.ordered}</td>
-                    <td style={td()}>{ln.received}</td>
-                    <td style={td()}>{ln.remaining}</td>
-
-                    <td style={td()}>
+                    </td>,
+                    <td key="ordered" style={td()}>{ln.ordered}</td>,
+                    <td key="received" style={td()}>{ln.received}</td>,
+                    <td key="remaining" style={td()}>{ln.remaining}</td>,
+                    <td key="qty" style={td()}>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -480,7 +481,7 @@ export default function POReceivePage() {
                         onBlur={() => onBlurQty(ln.po_item_id)}
                         style={{
                           ...input(),
-                          borderColor: over ? "#ef4444" : "#ddd",
+                          borderColor: over ? "#ef4444" : APP_BORDER,
                           background: over ? "#fff1f2" : "white",
                           maxWidth: 120,
                         }}
@@ -490,9 +491,8 @@ export default function POReceivePage() {
                       <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
                         max: {ln.remaining}
                       </div>
-                    </td>
-
-                    <td style={td()}>
+                    </td>,
+                    <td key="prod" style={td()}>
                       <input
                         type="date"
                         value={ln.production_date}
@@ -506,9 +506,8 @@ export default function POReceivePage() {
                         style={{ ...input(), maxWidth: 150 }}
                         disabled={!canPost}
                       />
-                    </td>
-
-                    <td style={td()}>
+                    </td>,
+                    <td key="exp" style={td()}>
                       <div style={{ display: "grid", gap: 6 }}>
                         <select
                           value={ln.expiry_preset}
@@ -528,7 +527,6 @@ export default function POReceivePage() {
                           <option value="2y">2 tahun</option>
                           <option value="3y">3 tahun</option>
                         </select>
-
                         <input
                           type="date"
                           value={ln.expired_date}
@@ -546,8 +544,8 @@ export default function POReceivePage() {
                           Optional (jasa/benda mati boleh kosong).
                         </div>
                       </div>
-                    </td>
-                  </tr>
+                    </td>,
+                  ]}</tr>
                 );
               })}
             </tbody>
@@ -572,32 +570,67 @@ function Row({ k, v }: { k: string; v: any }) {
 }
 
 function card(): React.CSSProperties {
-  return { border: "1px solid #eee", borderRadius: 12, padding: 14, background: "white", boxSizing: "border-box" };
+  return {
+    border: `1px solid ${APP_BORDER}`,
+    borderRadius: 14,
+    padding: 14,
+    background: "white",
+    boxSizing: "border-box",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
+  };
+}
+function sectionTitle(): React.CSSProperties {
+  return {
+    margin: 0,
+    fontSize: 12,
+    fontWeight: 800,
+    color: APP_TEAL,
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
+  };
 }
 function label(): React.CSSProperties {
-  return { display: "grid", gap: 6, fontSize: 13, color: "#444", fontWeight: 800 };
+  return { display: "grid", gap: 6, fontSize: 13, color: "#444", fontWeight: 700 };
 }
 function input(): React.CSSProperties {
-  return { padding: 10, borderRadius: 10, border: "1px solid #ddd", width: "100%", boxSizing: "border-box", outline: "none", background: "white" };
-}
-function btn(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", textDecoration: "none", color: "#111", fontWeight: 900 };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer", fontWeight: 900 };
+  return {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: `1px solid ${APP_BORDER}`,
+    width: "100%",
+    boxSizing: "border-box",
+    outline: "none",
+    background: "white",
+    fontSize: 14,
+  };
 }
 function errBox(): React.CSSProperties {
-  return { marginTop: 12, padding: 12, borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 900 };
+  return { marginTop: 12, padding: 12, borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 800 };
 }
 function warnBox(): React.CSSProperties {
-  return { padding: 12, borderRadius: 12, border: "1px solid #fed7aa", background: "#fff7ed", color: "#9a3412", fontWeight: 900 };
+  return { padding: 12, borderRadius: 12, border: "1px solid #fed7aa", background: "#fff7ed", color: "#9a3412", fontWeight: 800 };
 }
 function th(): React.CSSProperties {
-  return { textAlign: "left", borderBottom: "1px solid #eee", padding: "8px 6px", color: "#666", fontWeight: 700, whiteSpace: "nowrap" };
+  return {
+    textAlign: "left",
+    borderBottom: `1px solid ${APP_BORDER}`,
+    padding: "12px 10px",
+    color: "#64748b",
+    fontWeight: 800,
+    fontSize: 12,
+    whiteSpace: "nowrap",
+  };
 }
 function td(): React.CSSProperties {
-  return { borderBottom: "1px solid #f2f2f2", padding: "10px 6px", verticalAlign: "top" };
+  return { borderBottom: "1px solid #f1f5f9", padding: "12px 10px", verticalAlign: "top", color: "#334155" };
 }
 function shipToCard(): React.CSSProperties {
-  return { marginTop: 8, border: "1px solid #e5e7eb", borderRadius: 12, padding: 10, background: "#fafafa", lineHeight: 1.35 };
+  return {
+    marginTop: 8,
+    border: `1px solid ${APP_BORDER}`,
+    borderRadius: 12,
+    padding: 10,
+    background: "#e8f4f3",
+    lineHeight: 1.35,
+  };
 }

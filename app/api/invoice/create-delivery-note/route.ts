@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     const { data: inv, error: invErr } = await supabaseUser
       .from("invoices")
       .select(
-        "id, org_id, customer_address, warehouse_id, status, invoice_number"
+        "id, org_id, customer_address, customer_name, customer_phone, warehouse_id, status, invoice_number"
       )
       .eq("id", invoiceId)
       .maybeSingle();
@@ -213,6 +213,8 @@ export async function POST(req: NextRequest) {
     const insertPayload = {
       org_id: inv.org_id,
       invoice_id: invoiceId,
+      customer_name: asText((inv as any).customer_name) || "",
+      customer_phone: asText((inv as any).customer_phone) || null,
       sj_date: new Date().toISOString().slice(0, 10),
       warehouse_id: inv.warehouse_id || null,
       shipping_address: inv.customer_address || "",

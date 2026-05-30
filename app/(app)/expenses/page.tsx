@@ -287,14 +287,16 @@ export default function ExpensesPage() {
           </option>
         ))}
       </select>
-      <button type="button" onClick={openCreate} style={formPrimaryButton()}>
-        + Catat Pengeluaran
-      </button>
+      <div className="app-filter-bar__cta" style={{ flex: "1 1 auto" }}>
+        <button type="button" onClick={openCreate} style={{ ...formPrimaryButton(), width: "100%" }}>
+          + Catat Pengeluaran
+        </button>
+      </div>
     </ListFiltersClient>
   );
 
   const tableContent = (
-    <table style={listTableStyles.table}>
+    <table className="app-data-table app-table--expenses" style={listTableStyles.table}>
       <thead>
         <tr style={listTableStyles.thead}>
           <th style={listTableStyles.th}>Tanggal</th>
@@ -325,30 +327,48 @@ export default function ExpensesPage() {
             const badge = badgePaymentStatus(r.payment_status);
             return (
               <tr key={r.id}>
-                <td style={listTableStyles.td}>{r.expense_date?.slice(0, 10)}</td>
-                <td style={listTableStyles.td}>{r.category}</td>
-                <td style={{ ...listTableStyles.td, fontWeight: 700 }}>{r.description}</td>
-                <td style={{ ...listTableStyles.td, textAlign: "right", fontWeight: 800 }}>
+                <td data-label="Tanggal" style={listTableStyles.td}>
+                  {r.expense_date?.slice(0, 10)}
+                </td>
+                <td data-label="Kategori" style={listTableStyles.td}>
+                  {r.category}
+                </td>
+                <td data-label="Deskripsi" style={{ ...listTableStyles.td, fontWeight: 700 }}>
+                  {r.description}
+                </td>
+                <td
+                  data-label="Nominal"
+                  style={{ ...listTableStyles.td, textAlign: "right", fontWeight: 800 }}
+                >
                   {rupiah(Number(r.amount))}
                 </td>
-                <td style={listTableStyles.td}>
+                <td data-label="Status" style={listTableStyles.td}>
                   <span
+                    className="app-expense-status-badge"
                     style={{
+                      display: "inline-flex",
+                      alignItems: "center",
                       padding: "4px 10px",
                       borderRadius: 999,
                       fontSize: 12,
-                      fontWeight: 800,
+                      fontWeight: 700,
+                      lineHeight: 1.2,
                       background: badge.bg,
                       border: `1px solid ${badge.border}`,
                       color: badge.color,
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {badge.label}
                   </span>
                 </td>
-                <td style={listTableStyles.td}>{labelExpensePaymentMethod(r.payment_method)}</td>
-                <td style={listTableStyles.td}>{r.recurring_template_id ? "Berulang" : "Manual"}</td>
-                <td style={listTableStyles.td}>
+                <td data-label="Metode" className="app-expense-col-optional" style={listTableStyles.td}>
+                  {labelExpensePaymentMethod(r.payment_method)}
+                </td>
+                <td data-label="Sumber" className="app-expense-col-optional" style={listTableStyles.td}>
+                  {r.recurring_template_id ? "Berulang" : "Manual"}
+                </td>
+                <td data-label="Aksi" className="app-td-actions" style={listTableStyles.td}>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {r.payment_status === "unpaid" ? (
                       <button type="button" onClick={() => markPaid(r.id)} style={tableActionPrimary()}>
@@ -394,14 +414,14 @@ export default function ExpensesPage() {
       />
 
       {msg ? (
-        <div style={{ marginTop: 12, padding: "0 24px" }}>
+        <div className="app-list-page__alert" style={{ marginTop: 12 }}>
           <div style={alert()}>{msg}</div>
         </div>
       ) : null}
 
       {sheetOpen ? (
-        <div style={backdrop()}>
-          <div style={sheet()}>
+        <div className="app-modal-backdrop" style={backdrop()}>
+          <div className="app-modal-sheet" style={sheet()}>
             <h3 style={{ margin: 0 }}>{mode === "create" ? "Catat Pengeluaran" : "Edit Pengeluaran"}</h3>
             <p style={{ marginTop: 6, color: "#666", fontSize: 13 }}>
               Default manual: <b>sudah lunas</b>. Ubah jika belum dibayar.
@@ -492,7 +512,7 @@ export default function ExpensesPage() {
                   style={{ ...input(), minHeight: 72 }}
                 />
               </label>
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <div className="app-modal-sheet__actions" style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                 <button type="button" onClick={() => setSheetOpen(false)} style={tableActionSecondary()}>
                   Batal
                 </button>

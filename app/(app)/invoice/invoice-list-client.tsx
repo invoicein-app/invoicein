@@ -66,7 +66,8 @@ export default function InvoiceListClient({ rows }: { rows: InvoiceRow[] }) {
   function openPay(r: InvoiceRow) {
     setTarget(r);
     setPaidAt(todayISO());
-    setAmountDigits("");
+    const sisa = Math.max(0, Math.floor(r.remaining));
+    setAmountDigits(sisa > 0 ? String(sisa) : "");
     setOpen(true);
   }
 

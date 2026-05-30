@@ -169,6 +169,9 @@ export default function CustomersPage() {
       perPageOptions={[10, 20, 30, 50]}
       hidePerPage
     >
+      <a href="/customers/pricelist" style={tableActionSecondary()}>
+        Daftar Harga Customer
+      </a>
       <button type="button" onClick={openCreate} style={formPrimaryButton()}>
         + Tambah Customer
       </button>

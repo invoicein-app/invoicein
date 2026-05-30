@@ -1,8 +1,10 @@
 "use client";
 
+import { formPagePrimaryLink } from "../components/app-action-buttons";
+
 type Props = {
-  href: string;          // contoh: `/api/invoice/pdf/${id}`
-  label?: string;        // default: "Download PDF"
+  href: string;
+  label?: string;
 };
 
 export default function PdfButtonClient({ href, label = "Download PDF" }: Props) {
@@ -10,21 +12,9 @@ export default function PdfButtonClient({ href, label = "Download PDF" }: Props)
     <button
       type="button"
       onClick={() => window.open(href, "_blank", "noopener,noreferrer")}
-      style={{
-        padding: "8px 12px",
-        borderRadius: 10,
-        border: "1px solid #111",
-        background: "#111",
-        color: "white",
-        cursor: "pointer",
-        fontWeight: 800,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        height: 36,
-      }}
+      style={formPagePrimaryLink()}
     >
-      📄 {label}
+      {label}
     </button>
   );
 }

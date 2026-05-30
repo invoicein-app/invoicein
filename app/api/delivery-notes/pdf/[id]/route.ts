@@ -100,6 +100,8 @@ export async function GET(
       shipping_address,
       driver_name,
       note,
+      customer_name,
+      customer_phone,
       invoice:invoices (
         customer_name,
         customer_phone,
@@ -169,8 +171,8 @@ function SuratJalanDoc(props: { dn: any; items: any[]; org: OrgProfile | null; l
   const sjDate = fmtDateISO(dn?.sj_date);
 
   const inv = dn?.invoice || {};
-  const customerName = safeText(inv?.customer_name) || "-";
-  const customerPhone = safeText(inv?.customer_phone) || "-";
+  const customerName = safeText(dn?.customer_name) || safeText(inv?.customer_name) || "-";
+  const customerPhone = safeText(dn?.customer_phone) || safeText(inv?.customer_phone) || "-";
   const customerAddr = safeText(dn?.shipping_address || inv?.customer_address) || "-";
   const driver = safeText(dn?.driver_name) || "-";
 

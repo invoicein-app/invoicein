@@ -66,6 +66,8 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
     .insert({
       org_id: invGate.org_id,
       invoice_id: invoiceId,
+      customer_name: String(inv.customer_name || "").trim(),
+      customer_phone: String(inv.customer_phone || "").trim() || null,
       sj_date: new Date().toISOString().slice(0, 10),
       shipping_address: (inv.customer_address || "").toString(),
       driver_name: "", // ✅ FIX: jangan null kalau kolom NOT NULL

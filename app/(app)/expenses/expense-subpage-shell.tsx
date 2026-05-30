@@ -31,13 +31,16 @@ export default function ExpenseSubPageShell({
   children,
 }: Props) {
   return (
-    <div style={listPageShell}>
-      <div style={listPageHeaderRow}>
+    <div className="app-list-page" style={listPageShell}>
+      <div className="app-list-page__header" style={listPageHeaderRow}>
         <div style={{ minWidth: 0 }}>
           <h1 style={listPageTitle}>{title}</h1>
           {subtitle ? <div style={listPageSubtitle}>{subtitle}</div> : null}
         </div>
-        <div style={listPageHeaderActions}>
+        <div
+          className="app-list-page__header-actions app-subpage-header-actions"
+          style={listPageHeaderActions}
+        >
           {actions}
           <AppHeaderNav />
         </div>
@@ -46,8 +49,8 @@ export default function ExpenseSubPageShell({
       {plain ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 20 }}>{children}</div>
       ) : (
-        <div style={listPageContentCard}>
-          {cardTitle ? <div style={listPageCardHeading}>{cardTitle}</div> : null}
+        <div className="app-list-page__card" style={listPageContentCard}>
+          {cardTitle ? <div className="app-list-page__card-title" style={listPageCardHeading}>{cardTitle}</div> : null}
           {children}
         </div>
       )}

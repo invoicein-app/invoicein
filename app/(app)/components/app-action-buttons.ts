@@ -114,6 +114,137 @@ export function tableActionDisabled(): CSSProperties {
   };
 }
 
+/** Tombol Kembali di header halaman buat (invoice / quotation / SJ). */
+export function formPageBackLink(): CSSProperties {
+  return {
+    padding: "10px 20px",
+    borderRadius: 12,
+    border: "1px solid #e5e7eb",
+    background: "#ffffff",
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    textDecoration: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+    boxSizing: "border-box",
+  };
+}
+
+/** Tombol Simpan utama di header halaman buat — tema hijau. */
+export function formPageSaveButton(): CSSProperties {
+  return {
+    padding: "10px 20px",
+    borderRadius: 12,
+    border: `1px solid ${TEAL}`,
+    background: TEAL,
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    boxSizing: "border-box",
+  };
+}
+
+export function formPageSaveButtonDisabled(): CSSProperties {
+  return {
+    ...formPageSaveButton(),
+    opacity: 0.55,
+    cursor: "not-allowed",
+  };
+}
+
+/** Wrapper aksi kanan header form (Kembali + Simpan). */
+export function formPageHeaderActions(): CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  };
+}
+
+/** Alias — tombol/link sekunder putih (Edit, Preview, Dotmatrix). */
+export function formPageSoftLink(): CSSProperties {
+  return formPageBackLink();
+}
+
+/** CTA utama hijau untuk link (Download PDF, GRN, Convert). */
+export function formPagePrimaryLink(): CSSProperties {
+  return {
+    ...formPageSaveButton(),
+    textDecoration: "none",
+  };
+}
+
+/** Tombol utama hijau di halaman detail (Post, Send Invoice). */
+export function formPagePrimaryButton(): CSSProperties {
+  return formPageSaveButton();
+}
+
+export function formPagePrimaryButtonDisabled(): CSSProperties {
+  return formPageSaveButtonDisabled();
+}
+
+/** Tombol bahaya (Cancel, Delete). */
+export function formPageDangerButton(): CSSProperties {
+  return {
+    padding: "10px 20px",
+    borderRadius: 12,
+    border: "1px solid #fca5a5",
+    background: "#fef2f2",
+    color: "#991b1b",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    boxSizing: "border-box",
+  };
+}
+
+export function formPageDangerButtonDisabled(): CSSProperties {
+  return {
+    ...formPageDangerButton(),
+    border: "1px solid #e5e7eb",
+    background: "#f9fafb",
+    color: "#9ca3af",
+    cursor: "not-allowed",
+    opacity: 0.75,
+  };
+}
+
+export function formPageMutedButton(): CSSProperties {
+  return {
+    padding: "10px 20px",
+    borderRadius: 12,
+    border: "1px solid #e5e7eb",
+    background: "#f3f4f6",
+    color: "#9ca3af",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "not-allowed",
+    whiteSpace: "nowrap",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxSizing: "border-box",
+  };
+}
+
 /** Link/tombol netral sekunder di toolbar (Refresh) — outline teal tipis. */
 export function toolbarButtonOutline(): CSSProperties {
   return {
@@ -129,16 +260,7 @@ export function toolbarButtonOutline(): CSSProperties {
   };
 }
 
-/** Tombol primer di toolbar / modal (sedikit lebih besar dari aksi tabel). */
+/** Tombol primer di toolbar / modal — selaras formPageSaveButton. */
 export function formPrimaryButton(): CSSProperties {
-  return {
-    padding: "10px 18px",
-    borderRadius: 8,
-    border: `1px solid ${TEAL}`,
-    background: TEAL,
-    color: "#fff",
-    fontWeight: 700,
-    cursor: "pointer",
-    fontSize: 14,
-  };
+  return formPageSaveButton();
 }

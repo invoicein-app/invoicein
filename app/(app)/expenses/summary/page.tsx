@@ -72,24 +72,32 @@ export default function ExpensesSummaryPage() {
         <p style={{ color: "#64748b", margin: 0, lineHeight: 1.5 }}>Memuat...</p>
       ) : data ? (
         <>
-          <div style={expenseKpiGrid}>
+          <div className="app-expense-kpi-grid" style={expenseKpiGrid}>
             <div style={kpiCard("#ecfdf5")}>
               <div style={kpiLabel()}>Omset (Invoice Lunas)</div>
-              <div style={kpiValue()}>{rupiah(data.monthlySalesTotal)}</div>
+              <div className="app-expense-kpi-value" style={kpiValue()}>
+                {rupiah(data.monthlySalesTotal)}
+              </div>
               <div style={kpiHint()}>Berdasarkan tanggal invoice, status PAID</div>
             </div>
             <div style={kpiCard("#f8fafc")}>
               <div style={kpiLabel()}>Total Pengeluaran</div>
-              <div style={kpiValue()}>{rupiah(data.totalExpenses)}</div>
+              <div className="app-expense-kpi-value" style={kpiValue()}>
+                {rupiah(data.totalExpenses)}
+              </div>
               <div style={kpiHint()}>Semua pengeluaran bulan {data.month}</div>
             </div>
             <div style={kpiCard("#eff6ff")}>
               <div style={kpiLabel()}>Sudah Lunas</div>
-              <div style={kpiValue()}>{rupiah(data.paidExpenses)}</div>
+              <div className="app-expense-kpi-value" style={kpiValue()}>
+                {rupiah(data.paidExpenses)}
+              </div>
             </div>
             <div style={kpiCard("#fff7ed")}>
               <div style={kpiLabel()}>Belum Lunas</div>
-              <div style={kpiValue()}>{rupiah(data.unpaidExpenses)}</div>
+              <div className="app-expense-kpi-value" style={kpiValue()}>
+                {rupiah(data.unpaidExpenses)}
+              </div>
             </div>
           </div>
 
@@ -100,7 +108,9 @@ export default function ExpensesSummaryPage() {
             }}
           >
             <div style={kpiLabel()}>Perkiraan Laba Bulanan</div>
-            <div style={{ ...kpiValue(), fontSize: 28 }}>{rupiah(data.profitEstimate)}</div>
+            <div className="app-expense-profit-value" style={{ ...kpiValue(), fontSize: 28 }}>
+              {rupiah(data.profitEstimate)}
+            </div>
             <div style={kpiHint()}>
               Omset lunas ({rupiah(data.monthlySalesTotal)}) − pengeluaran lunas ({rupiah(data.paidExpenses)})
             </div>
@@ -111,22 +121,24 @@ export default function ExpensesSummaryPage() {
               <div style={{ fontSize: 18, fontWeight: 800, color: "#333", marginBottom: 16 }}>
                 Pengeluaran per Kategori
               </div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                <thead>
-                  <tr style={{ background: "#f9fafb" }}>
-                    <th style={th()}>Kategori</th>
-                    <th style={{ ...th(), textAlign: "right" }}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.byCategory.map((row) => (
-                    <tr key={row.category} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={td()}>{row.category}</td>
-                      <td style={{ ...td(), textAlign: "right", fontWeight: 800 }}>{rupiah(row.total)}</td>
+              <div className="app-table-scroll">
+                <table className="app-data-table app-table--expenses-summary">
+                  <thead>
+                    <tr>
+                      <th>Kategori</th>
+                      <th>Total</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {data.byCategory.map((row) => (
+                      <tr key={row.category}>
+                        <td data-label="Kategori">{row.category}</td>
+                        <td data-label="Total">{rupiah(row.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
         </>
@@ -149,24 +161,10 @@ function kpiLabel(): React.CSSProperties {
 }
 
 function kpiValue(): React.CSSProperties {
-  return { fontSize: 22, fontWeight: 900, color: "#111827" };
+  return { fontSize: 22, fontWeight: 800, color: "#111827" };
 }
 
 function kpiHint(): React.CSSProperties {
   return { marginTop: 8, fontSize: 12, color: "#64748b", lineHeight: 1.4 };
 }
 
-function th(): React.CSSProperties {
-  return {
-    textAlign: "left",
-    padding: "10px 8px",
-    fontSize: 12,
-    fontWeight: 800,
-    color: "#64748b",
-    borderBottom: "1px solid #e5e7eb",
-  };
-}
-
-function td(): React.CSSProperties {
-  return { padding: "12px 8px", color: "#334155" };
-}

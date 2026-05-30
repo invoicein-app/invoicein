@@ -10,6 +10,16 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import {
+  formPageBackLink,
+  formPageDangerButton,
+  formPageDangerButtonDisabled,
+  formPageHeaderActions,
+  formPagePrimaryButton,
+  formPagePrimaryButtonDisabled,
+  formPageSoftLink,
+} from "../../components/app-action-buttons";
+import { APP_TEAL } from "../../components/app-ui-tokens";
 
 type Q = {
   id: string;
@@ -211,17 +221,17 @@ export default function QuotationDetailPage() {
   }
 
   return (
-    <div style={{ padding: 6 }}>
-      <div style={topbar()}>
+    <div className="app-form-page app-detail-page" style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
+      <div className="app-form-page__header" style={topbar()}>
         <div>
-          <div style={{ fontWeight: 1000, fontSize: 18 }}>Detail Quotation</div>
-          <div style={{ color: "#6b7280", marginTop: 4, fontSize: 13 }}>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827" }}>Detail Quotation</h1>
+          <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14, fontWeight: 400 }}>
             {q?.quotation_number || "-"} • {q?.quotation_date ? fmtDate(q.quotation_date) : "-"}
-          </div>
+          </p>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <button onClick={() => router.push("/quotations")} style={btnSoft()} disabled={loading}>
+        <div className="app-form-page__header-actions" style={formPageHeaderActions()}>
+          <button type="button" onClick={() => router.push("/quotations")} style={formPageBackLink()} disabled={loading}>
             Kembali
           </button>
 
@@ -230,7 +240,7 @@ export default function QuotationDetailPage() {
               href={`/api/quotations/pdf/${q.id}?download=1`}
               target="_blank"
               rel="noreferrer"
-              style={btnSoftLink()}
+              style={formPageSoftLink()}
               title="Download Quotation (PDF)"
             >
               Download
@@ -238,19 +248,25 @@ export default function QuotationDetailPage() {
           ) : null}
 
           {q?.id ? (
-            <Link href={`/quotations/${q.id}/edit`} style={btnSoftLink()}>
+            <Link href={`/quotations/${q.id}/edit`} style={formPageSoftLink()}>
               Edit
             </Link>
           ) : null}
 
-          <button onClick={convertToInvoice} style={btnPrimary()} disabled={loading || converting}>
+          <button
+            type="button"
+            onClick={convertToInvoice}
+            style={loading || converting ? formPagePrimaryButtonDisabled() : formPagePrimaryButton()}
+            disabled={loading || converting}
+          >
             {converting ? "Converting..." : q?.invoice_id ? "Buka Invoice" : "Convert → Invoice"}
           </button>
 
           <button
+            type="button"
             onClick={deleteQuotation}
             disabled={!canDelete || deleting}
-            style={canDelete && !deleting ? btnDanger() : btnDangerDisabled()}
+            style={canDelete && !deleting ? formPageDangerButton() : formPageDangerButtonDisabled()}
           >
             {deleting ? "Menghapus..." : "Delete"}
           </button>
@@ -259,7 +275,7 @@ export default function QuotationDetailPage() {
 
       {err ? <div style={errBox()}>{err}</div> : null}
 
-      <div style={grid()}>
+      <div className="app-form-page__grid-2" style={grid()}>
         <div style={card()}>
           <div style={sectionTitle()}>Customer</div>
           {loading ? (
@@ -284,7 +300,9 @@ export default function QuotationDetailPage() {
               {q.note ? (
                 <div style={{ marginTop: 10 }}>
                   <div style={k()}>Catatan</div>
-                  <div style={{ marginTop: 6, fontWeight: 850, color: "#111827" }}>{q.note}</div>
+                  <div style={{ marginTop: 6, fontSize: 14, fontWeight: 400, color: "#334155", lineHeight: 1.5 }}>
+                    {q.note}
+                  </div>
                 </div>
               ) : null}
 
@@ -308,7 +326,7 @@ export default function QuotationDetailPage() {
         <div style={card()}>
           <div style={sectionTitle()}>Items</div>
 
-          <div style={tableWrap()}>
+          <div className="app-form-table-scroll" style={tableWrap()}>
             <table style={table()}>
               <thead>
                 <tr>
@@ -362,9 +380,18 @@ export default function QuotationDetailPage() {
 
 function SumRow({ k: kk, v: vv, strong }: { k: string; v: string; strong?: boolean }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: strong ? 1000 : 900, fontSize: strong ? 16 : 13 }}>
-      <div style={{ color: strong ? "#111827" : "#6b7280" }}>{kk}</div>
-      <div>{vv}</div>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline",
+        gap: 12,
+        fontSize: strong ? 16 : 14,
+        fontWeight: strong ? 700 : 500,
+      }}
+    >
+      <div style={{ color: strong ? "#0f172a" : "#64748b" }}>{kk}</div>
+      <div style={{ color: "#0f172a", fontWeight: strong ? 700 : 600 }}>{vv}</div>
     </div>
   );
 }
@@ -379,58 +406,87 @@ function card(): React.CSSProperties {
   return { border: "1px solid #e5e7eb", background: "white", borderRadius: 14, padding: 14, boxShadow: "0 8px 24px rgba(0,0,0,0.05)" };
 }
 function sectionTitle(): React.CSSProperties {
-  return { fontSize: 12, fontWeight: 950, color: "#6b7280", marginBottom: 10, letterSpacing: 0.2 };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 12, border: "1px solid #111827", background: "#111827", color: "white", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" };
-}
-function btnSoft(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb", background: "white", color: "#111827", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" };
-}
-function btnSoftLink(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb", background: "white", color: "#111827", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", display: "inline-flex", alignItems: "center" };
-}
-function btnDanger(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 12, border: "1px solid #dc2626", background: "#fef2f2", color: "#991b1b", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" };
-}
-function btnDangerDisabled(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#9ca3af", fontWeight: 900, cursor: "not-allowed", whiteSpace: "nowrap", opacity: 0.7 };
+  return { fontSize: 12, fontWeight: 700, color: APP_TEAL, marginBottom: 10, letterSpacing: "0.02em" };
 }
 function errBox(): React.CSSProperties {
-  return { marginBottom: 12, padding: 12, borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 900 };
+  return {
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    border: "1px solid #fecaca",
+    background: "#fef2f2",
+    color: "#991b1b",
+    fontWeight: 600,
+    fontSize: 14,
+  };
 }
 function row(): React.CSSProperties {
   return { display: "grid", gridTemplateColumns: "120px 1fr", gap: 10, alignItems: "start" };
 }
 function k(): React.CSSProperties {
-  return { fontSize: 12, fontWeight: 950, color: "#6b7280" };
+  return { fontSize: 13, fontWeight: 600, color: "#64748b" };
 }
 function v(): React.CSSProperties {
-  return { fontWeight: 900, color: "#111827" };
+  return { fontSize: 14, fontWeight: 500, color: "#0f172a", lineHeight: 1.45 };
 }
 function pill(): React.CSSProperties {
-  return { display: "inline-flex", alignItems: "center", padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 950, textTransform: "lowercase" };
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "4px 10px",
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 600,
+    textTransform: "lowercase",
+  };
 }
 function pillSoft(): React.CSSProperties {
-  return { display: "inline-flex", alignItems: "center", padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 950, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", textTransform: "lowercase" };
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "4px 10px",
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 600,
+    border: "1px solid #e5e7eb",
+    background: "#fff",
+    color: "#6b7280",
+    textTransform: "lowercase",
+  };
 }
 function linkSoft(): React.CSSProperties {
-  return { fontWeight: 900, color: "#111827", textDecoration: "underline" };
+  return { fontSize: 14, fontWeight: 600, color: APP_TEAL, textDecoration: "underline" };
 }
 function tableWrap(): React.CSSProperties {
   return { width: "100%", overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 12 };
 }
 function table(): React.CSSProperties {
-  return { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: 680 };
+  return { width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 680 };
 }
 function th(): React.CSSProperties {
-  return { textAlign: "left", fontSize: 12, color: "#6b7280", fontWeight: 950, padding: "10px 12px", borderBottom: "1px solid #e5e7eb", background: "#f9fafb" };
+  return {
+    textAlign: "left",
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: 600,
+    padding: "10px 12px",
+    borderBottom: "1px solid #e5e7eb",
+    background: "#f9fafb",
+  };
 }
 function thRight(): React.CSSProperties {
   return { ...th(), textAlign: "right" };
 }
 function td(): React.CSSProperties {
-  return { padding: "10px 12px", borderBottom: "1px solid #f1f5f9", verticalAlign: "top", fontWeight: 800, color: "#111827", background: "white" };
+  return {
+    padding: "10px 12px",
+    borderBottom: "1px solid #f1f5f9",
+    verticalAlign: "top",
+    fontWeight: 400,
+    color: "#0f172a",
+    background: "white",
+    fontSize: 14,
+  };
 }
 function tdRight(): React.CSSProperties {
   return { ...td(), textAlign: "right" };

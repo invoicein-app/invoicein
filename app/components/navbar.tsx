@@ -38,8 +38,8 @@ export default async function Navbar() {
   // belum login
   if (!user) {
     return (
-      <div style={wrap()}>
-        <div style={inner()}>
+      <div className="app-navbar-bar" style={wrap()}>
+        <div className="app-navbar-inner" style={inner()}>
           <Link href="/dashboard" style={brand()}>
             InvoiceKu
           </Link>
@@ -100,17 +100,28 @@ export default async function Navbar() {
       : "";
 
   return (
-    <div style={wrap()}>
-      <div style={inner()}>
-        {/* Brand ada di sidebar; area atas hanya info org + logout */}
-        <div style={{ flex: 1, minWidth: 0 }} />
+    <div className="app-navbar-bar" style={wrap()}>
+      <div className="app-navbar-inner" style={inner()}>
+        {/* Brand ada di sidebar; spacer desktop — disembunyikan di mobile via CSS */}
+        <div className="app-navbar-spacer" style={{ flex: 1, minWidth: 0 }} aria-hidden />
 
-        <div style={right()}>
-          <div style={{ textAlign: "right", lineHeight: 1.25 }}>
-            <div style={{ fontWeight: 900, fontSize: 13 }}>
+        <div className="app-navbar-right" style={right()}>
+          <div className="app-navbar-info" style={{ textAlign: "right", lineHeight: 1.25 }}>
+            <div className="app-navbar-org" style={{ fontWeight: 900, fontSize: 13 }}>
               {orgName || "—"}
             </div>
-            <div style={{ color: "#64748b", fontSize: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <div
+              className="app-navbar-meta"
+              style={{
+                color: "#64748b",
+                fontSize: 12,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+              }}
+            >
               <span
                 style={{
                   display: "inline-flex",
@@ -152,7 +163,7 @@ export default async function Navbar() {
             </div>
           </div>
 
-          <form action="/api/auth/logout?redirect=/login" method="post">
+          <form className="app-navbar-logout" action="/api/auth/logout?redirect=/login" method="post">
             <button type="submit" style={btnPrimary()}>
               Logout
             </button>

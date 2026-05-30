@@ -10,6 +10,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  formPagePrimaryButton,
+  formPagePrimaryButtonDisabled,
+} from "../components/app-action-buttons";
 
 export default function SentInvoiceButtonClient(props: {
   invoiceId: string;
@@ -23,9 +27,10 @@ export default function SentInvoiceButtonClient(props: {
   const [msg, setMsg] = useState("");
 
   const status = String(currentStatus || "").toLowerCase();
+  const showLegacySend = status === "draft";
   const disabled =
     loading ||
-    status === "sent" ||
+    !showLegacySend ||
     status === "paid" ||
     status === "cancelled";
 
@@ -61,13 +66,17 @@ export default function SentInvoiceButtonClient(props: {
     }
   }
 
+  if (!showLegacySend) {
+    return null;
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <button
         type="button"
         onClick={onSend}
         disabled={disabled}
-        style={disabled ? btnDisabled() : btnPrimary()}
+        style={disabled ? formPagePrimaryButtonDisabled() : formPagePrimaryButton()}
         title={
           disabled
             ? "Invoice sudah tidak bisa di-send lagi"
@@ -84,29 +93,4 @@ export default function SentInvoiceButtonClient(props: {
       ) : null}
     </div>
   );
-}
-function btnPrimary(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #111827",
-    background: "#111827",
-    color: "white",
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
-}
-
-function btnDisabled(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: "#f3f4f6",
-    color: "#9ca3af",
-    fontWeight: 900,
-    cursor: "not-allowed",
-    whiteSpace: "nowrap",
-  };
 }
