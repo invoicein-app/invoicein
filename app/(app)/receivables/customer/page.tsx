@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import ListFiltersClient from "../../components/list-filters-client";
 import ListPageLayout, { listTableStyles } from "../../components/list-page-layout";
 import { formPrimaryButton, tableActionSecondary } from "../../components/app-action-buttons";
@@ -36,7 +36,7 @@ function fmtDate(v: string | null) {
   return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export default function ReceivableCustomerDetailPage() {
+function ReceivableCustomerDetailInner() {
   const sp = useSearchParams();
   const customerId = sp.get("customer_id") || "";
   const customerNameParam = sp.get("customer_name") || "";
@@ -312,4 +312,12 @@ function badgeBase(): React.CSSProperties {
     whiteSpace: "nowrap",
     display: "inline-block",
   };
+}
+
+export default function ReceivableCustomerDetailPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 24, color: "#64748b" }}>Memuat...</div>}>
+      <ReceivableCustomerDetailInner />
+    </Suspense>
+  );
 }

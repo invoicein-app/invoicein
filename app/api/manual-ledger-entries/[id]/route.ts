@@ -24,7 +24,7 @@ function withStatus(row: Record<string, unknown>) {
   const status = deriveManualLedgerStatus({
     totalAmount: Number(row.total_amount || 0),
     paidAmount: Number(row.paid_amount || 0),
-    dueDate: row.due_date,
+    dueDate: normalizeDateOrNull(row.due_date),
     today: toYmd(),
   });
   return {

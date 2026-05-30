@@ -28,11 +28,7 @@ export default function SentInvoiceButtonClient(props: {
 
   const status = String(currentStatus || "").toLowerCase();
   const showLegacySend = status === "draft";
-  const disabled =
-    loading ||
-    !showLegacySend ||
-    status === "paid" ||
-    status === "cancelled";
+  const disabled = loading || !showLegacySend;
 
   async function onSend() {
     setMsg("");

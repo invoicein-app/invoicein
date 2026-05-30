@@ -359,7 +359,9 @@ export async function PATCH(
       supabase,
       orgId,
       invoiceId: id,
-      warehouseId: String(headerPatch.warehouse_id ?? before.warehouse_id ?? "") || null,
+      warehouseId:
+        String(safeHeader.warehouse_id ?? before.warehouse_id ?? updatedInvoice.warehouse_id ?? "") ||
+        null,
     });
     if (!stockSync.ok) {
       return NextResponse.json({ error: stockSync.error }, { status: 400 });
