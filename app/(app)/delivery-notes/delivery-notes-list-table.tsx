@@ -19,7 +19,7 @@ function formatTanggalIndo(iso: string | null | undefined) {
   return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function badgeStyle(status: string) {
+function badgeStyle(status: string | null | undefined) {
   const s = String(status || "").toLowerCase();
   if (s === "posted") return { bg: "#ecfdf5", border: "#6ee7b7", color: "#065f46", label: "POSTED" };
   if (s === "cancelled") return { bg: "#fef2f2", border: "#fca5a5", color: "#991b1b", label: "CANCELLED" };
