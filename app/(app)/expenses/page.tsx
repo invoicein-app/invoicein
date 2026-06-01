@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
 import { listTableStyles } from "../components/list-page-layout";
+import TableEmptyState from "../components/table-empty-state";
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_PAYMENT_METHODS,
@@ -317,11 +318,7 @@ export default function ExpensesPage() {
             </td>
           </tr>
         ) : paginated.length === 0 ? (
-          <tr>
-            <td colSpan={8} style={listTableStyles.empty}>
-              Belum ada pengeluaran untuk filter ini.
-            </td>
-          </tr>
+          <TableEmptyState colSpan={8} message="Belum ada pengeluaran." />
         ) : (
           paginated.map((r) => {
             const badge = badgePaymentStatus(r.payment_status);

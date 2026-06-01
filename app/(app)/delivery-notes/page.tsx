@@ -5,6 +5,8 @@ import DeliveryNotesListFooterClient from "./delivery-notes-list-footer-client";
 import AppHeaderNav from "../components/app-header-nav";
 import { APP_BORDER, APP_TEAL } from "../components/app-ui-tokens";
 import { formPrimaryButton, tableActionSecondary } from "../components/app-action-buttons";
+import { listTableStyles } from "../components/list-page-layout";
+import TableEmptyState from "../components/table-empty-state";
 import {
   listPageContentCard,
   listPageHeaderActions,
@@ -115,35 +117,38 @@ export default async function DeliveryNotesListPage({
         ) : null}
 
         <div className="app-table-scroll">
-          <table className="app-data-table app-table--delivery-notes" style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 640 }}>
+          <table className="app-data-table app-table--delivery-notes" style={listTableStyles.table}>
             <thead>
-              <tr style={{ background: "#f9fafb" }}>
-                <th style={{ ...th(), minWidth: 180 }}>Nomor SJ</th>
-                <th style={th()}>Tanggal</th>
-                <th style={{ ...th(), minWidth: 180 }}>Invoice</th>
-                <th style={{ ...th(), minWidth: 180 }}>Customer</th>
-                <th style={{ ...th(), textAlign: "center" }}>Status</th>
-                <th style={{ ...th(), minWidth: 230 }}>Aksi</th>
+              <tr style={listTableStyles.thead}>
+                <th style={{ ...listTableStyles.th, minWidth: 180 }}>Nomor SJ</th>
+                <th style={listTableStyles.th}>Tanggal</th>
+                <th style={{ ...listTableStyles.th, minWidth: 180 }}>Invoice</th>
+                <th style={{ ...listTableStyles.th, minWidth: 180 }}>Customer</th>
+                <th style={{ ...listTableStyles.th, textAlign: "center" }}>Status</th>
+                <th style={{ ...listTableStyles.th, minWidth: 230 }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {(rows || []).map((r: any) => {
                 const badge = badgeStyle(r.status);
                 return (
-                  <tr key={r.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={tdStrong()}>{r.sj_number || "-"}</td>
-                    <td style={td()}>{r.sj_date || "-"}</td>
-                    <td style={td()}>
+                  <tr key={r.id}>
+                    <td style={{ ...listTableStyles.td, fontWeight: 800, color: "#0f172a" }}>
+                      {r.sj_number || "-"}
+                    </td>
+                    <td style={listTableStyles.td}>{r.sj_date || "-"}</td>
+                    <td style={listTableStyles.td}>
                       {r.invoices?.invoice_number || (r.invoice_id ? "-" : "Manual")}
                     </td>
-                    <td style={td()}>{r.customer_name || r.invoices?.customer_name || "-"}</td>
-                    <td style={{ ...td(), textAlign: "center" }}>
+                    <td style={listTableStyles.td}>{r.customer_name || r.invoices?.customer_name || "-"}</td>
+                    <td style={{ ...listTableStyles.tdCenter, verticalAlign: "middle" }}>
                       <span
                         style={{
                           padding: "4px 10px",
                           borderRadius: 999,
                           fontSize: 12,
                           fontWeight: 800,
+                          letterSpacing: "0.04em",
                           background: badge.bg,
                           border: `1px solid ${badge.border}`,
                           color: badge.color,
@@ -152,7 +157,7 @@ export default async function DeliveryNotesListPage({
                         {badge.label}
                       </span>
                     </td>
-                    <td className="app-td-actions" style={td()}>
+                    <td className="app-td-actions" style={listTableStyles.td}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <Link href={`/delivery-notes/${r.id}`} style={tableActionSecondary()}>
                           View
@@ -169,11 +174,7 @@ export default async function DeliveryNotesListPage({
                 );
               })}
               {(rows || []).length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ ...td(), textAlign: "center", color: "#94a3b8", padding: 28, fontWeight: 600 }}>
-                    Belum ada Surat Jalan.
-                  </td>
-                </tr>
+                <TableEmptyState colSpan={6} message="Belum ada surat jalan." />
               ) : null}
             </tbody>
           </table>
@@ -211,26 +212,6 @@ function btnOutline(): React.CSSProperties {
     fontWeight: 700,
     fontSize: 14,
   };
-}
-
-function th(): React.CSSProperties {
-  return {
-    textAlign: "left",
-    padding: "12px 10px",
-    fontSize: 12,
-    fontWeight: 800,
-    color: "#64748b",
-    borderBottom: `1px solid ${APP_BORDER}`,
-    whiteSpace: "nowrap",
-  };
-}
-
-function td(): React.CSSProperties {
-  return { padding: "14px 10px", verticalAlign: "middle", color: "#334155" };
-}
-
-function tdStrong(): React.CSSProperties {
-  return { ...td(), fontWeight: 800, color: "#111" };
 }
 
 function errBox(): React.CSSProperties {

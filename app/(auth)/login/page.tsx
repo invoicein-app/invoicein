@@ -12,7 +12,7 @@ const BORDER = "#E2E8F0";
 const TEXT = "#1e293b";
 const MUTED = "#64748b";
 
-const HERO_BG = `linear-gradient(105deg, rgba(20, 70, 62, 0.92) 0%, rgba(20, 70, 62, 0.55) 50%, rgba(20, 70, 62, 0.4) 100%), url(https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80)`;
+const HERO_BG = `linear-gradient(105deg, rgba(20, 70, 62, 0.92) 0%, rgba(20, 70, 62, 0.55) 50%, rgba(20, 70, 62, 0.4) 100%), url(https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1000&q=60)`;
 
 export default function OwnerAdminLoginPage() {
   const supabase = supabaseBrowser();
@@ -42,7 +42,17 @@ export default function OwnerAdminLoginPage() {
         });
         if (error) throw error;
 
-        setMsg("Daftar berhasil. Silakan login.");
+        const { error: loginErr } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (!loginErr) {
+          await fetch("/api/init-org", { method: "POST" });
+          window.location.href = "/dashboard";
+          return;
+        }
+
+        setMsg("Daftar berhasil. Silakan login untuk mengaktifkan organisasi dan trial.");
         setMode("login");
         return;
       }

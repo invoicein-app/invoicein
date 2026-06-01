@@ -6,6 +6,7 @@ import { createServerClient } from "@supabase/ssr";
 import InvoiceFiltersClient from "./filters-client";
 import InvoiceActionsClient from "./invoice-actions-client";
 import InvoicePaginationClient from "./invoice-pagination-client";
+import TableEmptyState from "../components/table-empty-state";
 
 type SearchParams = {
   inv?: string;
@@ -401,11 +402,7 @@ export default async function InvoiceListPage({
               })}
 
               {!invoices?.length && (
-                <tr>
-                  <td colSpan={7} style={{ padding: 28, textAlign: "center", color: "#999" }}>
-                    Tidak ada invoice yang cocok dengan filter.
-                  </td>
-                </tr>
+                <TableEmptyState colSpan={7} message="Belum ada invoice." />
               )}
             </tbody>
           </table>

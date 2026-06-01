@@ -14,7 +14,7 @@ const BORDER = "#E2E8F0";
 const TEXT = "#1e293b";
 const MUTED = "#64748b";
 
-const HERO_BG = `linear-gradient(105deg, rgba(20, 70, 62, 0.92) 0%, rgba(20, 70, 62, 0.55) 50%, rgba(20, 70, 62, 0.4) 100%), url(https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80)`;
+const HERO_BG = `linear-gradient(105deg, rgba(20, 70, 62, 0.92) 0%, rgba(20, 70, 62, 0.55) 50%, rgba(20, 70, 62, 0.4) 100%), url(https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1000&q=60)`;
 
 export default function StaffLoginPage() {
   const supabase = supabaseBrowser();

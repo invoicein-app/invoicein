@@ -238,14 +238,23 @@ function pagerActive(): React.CSSProperties {
 export const APP_DATA_TABLE_CLASS = "app-data-table";
 
 export const listTableStyles = {
-  table: { width: "100%" as const, borderCollapse: "collapse" as const, fontSize: 14, minWidth: 640 },
-  thead: { background: "#f9fafb" } as React.CSSProperties,
+  table: {
+    width: "100%" as const,
+    borderCollapse: "collapse" as const,
+    fontSize: 14,
+    lineHeight: 1.45,
+    color: "#0f172a",
+    minWidth: 640,
+  },
+  thead: { background: "#f0f2f5" } as React.CSSProperties,
   th: {
     textAlign: "left" as const,
     padding: "12px 10px",
     fontSize: 12,
     fontWeight: 800,
-    color: "#64748b",
+    letterSpacing: "0.04em",
+    color: "#334155",
+    textTransform: "uppercase" as const,
     borderBottom: `1px solid ${APP_BORDER}`,
     whiteSpace: "nowrap" as const,
   },
@@ -254,18 +263,21 @@ export const listTableStyles = {
     borderBottom: "1px solid #f1f5f9",
     verticalAlign: "top" as const,
     color: "#334155",
+    fontWeight: 700,
   },
   tdCenter: {
     padding: "14px 10px",
     textAlign: "center" as const,
     borderBottom: "1px solid #f1f5f9",
     verticalAlign: "middle" as const,
+    fontWeight: 700,
   },
   tdRight: {
     padding: "14px 10px",
     textAlign: "right" as const,
     borderBottom: "1px solid #f1f5f9",
     verticalAlign: "middle" as const,
+    fontWeight: 700,
   },
   empty: { padding: 28, textAlign: "center" as const, color: "#94a3b8", fontWeight: 600 },
 };

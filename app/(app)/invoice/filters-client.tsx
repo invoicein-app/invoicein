@@ -80,7 +80,8 @@ export default function InvoiceFiltersClient({
     outline: "none",
     boxSizing: "border-box",
     fontSize: 14,
-    color: "#333",
+    color: "#0f172a",
+    fontWeight: 700,
     background: "#fff",
   };
 
@@ -90,7 +91,8 @@ export default function InvoiceFiltersClient({
     border: `1px solid ${BORDER}`,
     outline: "none",
     fontSize: 14,
-    color: "#333",
+    color: "#0f172a",
+    fontWeight: 700,
     background: "#fff",
     minWidth: 160,
     cursor: "pointer",

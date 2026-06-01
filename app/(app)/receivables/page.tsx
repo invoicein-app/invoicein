@@ -6,6 +6,7 @@ import ListFiltersClient from "../components/list-filters-client";
 import ListPageLayout, { listTableStyles } from "../components/list-page-layout";
 import { formPrimaryButton, tableActionPrimary } from "../components/app-action-buttons";
 import { rupiah } from "@/lib/money";
+import TableEmptyState from "../components/table-empty-state";
 
 type SummaryRow = {
   customer_id: string | null;
@@ -133,11 +134,7 @@ export default function ReceivablesPage() {
             </td>
           </tr>
         ) : paginated.length === 0 ? (
-          <tr>
-            <td colSpan={7} style={listTableStyles.empty}>
-              Tidak ada customer dengan piutang aktif.
-            </td>
-          </tr>
+          <TableEmptyState colSpan={7} message="Belum ada customer." />
         ) : (
           paginated.map((r) => (
             <tr key={`${r.customer_id || "name"}-${r.customer_name}`}>

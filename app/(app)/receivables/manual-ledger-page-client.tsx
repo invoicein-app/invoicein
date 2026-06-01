@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ListFiltersClient from "../components/list-filters-client";
 import ListPageLayout, { listTableStyles } from "../components/list-page-layout";
+import TableEmptyState from "../components/table-empty-state";
 import { formPrimaryButton, tableActionDanger, tableActionSecondary } from "../components/app-action-buttons";
 import { formatRibuanInput, parseRibuanInput, rupiah } from "@/lib/money";
 
@@ -307,11 +308,7 @@ export default function ManualLedgerPageClient({
             </td>
           </tr>
         ) : paginated.length === 0 ? (
-          <tr>
-            <td colSpan={9} style={listTableStyles.empty}>
-              Belum ada data manual.
-            </td>
-          </tr>
+          <TableEmptyState colSpan={9} message="Belum ada data." />
         ) : (
           paginated.map((r) => (
             <tr key={r.id}>

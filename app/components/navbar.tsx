@@ -75,7 +75,8 @@ export default async function Navbar() {
   const now = new Date();
   const periodEndRaw = expiresAt || trialEndsAt;
   const endDate = periodEndRaw ? new Date(periodEndRaw) : null;
-  const expired = endDate ? endDate <= now : false;
+  const expired = endDate ? endDate <= now : subStatus === "expired" || subStatus === "cancelled";
+  const missingDates = !periodEndRaw;
   const daysLeft =
     endDate === null
       ? null
@@ -139,11 +140,16 @@ export default async function Navbar() {
               {orgCode ? (
                 <>
                   <span style={{ fontWeight: 600 }}>Code: {orgCode}</span>
-                  {daysLeft !== null ? (
+                  {missingDates ? (
+                    <>
+                      <span style={{ color: "#94a3b8" }}>•</span>
+                      <span style={{ color: "#c2410c", fontWeight: 600 }}>Langganan belum diatur</span>
+                    </>
+                  ) : daysLeft !== null ? (
                     <>
                       <span style={{ color: "#94a3b8" }}>•</span>
                       <span style={expired ? { color: "#b91c1c", fontWeight: 600 } : {}}>
-                        Sisa {daysLeft} hari
+                        {expired ? "Kadaluarsa" : `Sisa ${daysLeft} hari`}
                       </span>
                     </>
                   ) : null}

@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
 import { listTableStyles } from "../components/list-page-layout";
+import TableEmptyState from "../components/table-empty-state";
 import {
   tableActionPrimary,
   tableActionSecondary,
@@ -172,7 +173,7 @@ export default function PurchaseOrdersListPage() {
         {loading ? (
           <tr><td colSpan={6} style={listTableStyles.td}>Loading...</td></tr>
         ) : paginated.length === 0 ? (
-          <tr><td colSpan={6} style={listTableStyles.empty}>Tidak ada data.</td></tr>
+          <TableEmptyState colSpan={6} message="Belum ada purchase order." />
         ) : (
           paginated.map((r) => {
             const st = String(r.status || "draft");
@@ -254,7 +255,7 @@ function card(): React.CSSProperties {
   return { border: "1px solid #e5e7eb", background: "white", borderRadius: 14, padding: 14, boxShadow: "0 8px 24px rgba(0,0,0,0.05)" };
 }
 function errBox(): React.CSSProperties {
-  return { marginBottom: 12, padding: 12, borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 900 };
+  return { marginBottom: 12, padding: 12, borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 800 };
 }
 function baseInput(): React.CSSProperties {
   return { padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb", outline: "none", fontWeight: 800, background: "white", lineHeight: "20px", height: 42, boxSizing: "border-box" };
@@ -269,7 +270,7 @@ function table(): React.CSSProperties {
   return { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: 820 };
 }
 function th(): React.CSSProperties {
-  return { textAlign: "left", fontSize: 12, color: "#6b7280", fontWeight: 950, padding: "10px 12px", borderBottom: "1px solid #e5e7eb", background: "#f9fafb", position: "sticky", top: 0, zIndex: 1 };
+  return { textAlign: "left", fontSize: 12, color: "#6b7280", fontWeight: 800, padding: "10px 12px", borderBottom: "1px solid #e5e7eb", background: "#f9fafb", position: "sticky", top: 0, zIndex: 1, letterSpacing: "0.04em" };
 }
 function thRight(): React.CSSProperties {
   return { ...th(), textAlign: "right" };
@@ -284,8 +285,8 @@ function tdMono(): React.CSSProperties {
   return { ...td(), fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" };
 }
 function badge(): React.CSSProperties {
-  return { display: "inline-flex", alignItems: "center", padding: "5px 10px", borderRadius: 999, fontSize: 12, fontWeight: 1000, letterSpacing: 0.2 };
+  return { display: "inline-flex", alignItems: "center", padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 800, letterSpacing: "0.04em" };
 }
 function linkClick(): React.CSSProperties {
-  return { color: "#111827", textDecoration: "underline", fontWeight: 1000, cursor: "pointer", pointerEvents: "auto" };
+  return { color: "#0f172a", textDecoration: "underline", fontWeight: 800, cursor: "pointer", pointerEvents: "auto" };
 }

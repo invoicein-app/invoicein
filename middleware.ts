@@ -3,8 +3,26 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
+  const path = req.nextUrl.pathname;
 
+  const isRoot = path === "/";
+  const isLoginOwner = path === "/login" || path.startsWith("/login/");
+  const isLoginStaff = path === "/staff/login" || path.startsWith("/staff/login/");
+  const isRegister = path === "/register" || path.startsWith("/register/");
+  const isAuthApi = path.startsWith("/api/auth"); // callback, logout, dll (kalau ada)
+  const isApi = path.startsWith("/api");
+  const isPublicAsset = path.startsWith("/_next") || path === "/favicon.ico";
+  const isStaticFile = /\.[a-zA-Z0-9]+$/.test(path);
+
+  // ✅ public routes: landing, login, register, staff login, api
+  const isPublicRoute = isRoot || isLoginOwner || isLoginStaff || isRegister || isApi || isAuthApi;
+
+  // Fast path: jangan trigger network auth check untuk asset/public route
+  if (isPublicAsset || isStaticFile || isRoot || isRegister || isApi || isAuthApi) {
+    return NextResponse.next();
+  }
+
+  const res = NextResponse.next();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -21,24 +39,8 @@ export async function middleware(req: NextRequest) {
       },
     }
   );
-
   const { data } = await supabase.auth.getUser();
   const isAuthed = !!data.user;
-
-  const path = req.nextUrl.pathname;
-
-  const isRoot = path === "/";
-  const isLoginOwner = path === "/login" || path.startsWith("/login/");
-  const isLoginStaff = path === "/staff/login" || path.startsWith("/staff/login/");
-  const isRegister = path === "/register" || path.startsWith("/register/");
-  const isAuthApi = path.startsWith("/api/auth"); // callback, logout, dll (kalau ada)
-  const isApi = path.startsWith("/api");
-  const isPublicAsset = path.startsWith("/_next") || path === "/favicon.ico";
-
-  // ✅ public routes: landing, login, register, staff login, api
-  const isPublicRoute = isRoot || isLoginOwner || isLoginStaff || isRegister || isApi || isAuthApi;
-
-  if (isPublicAsset) return res;
 
   // ✅ kalau belum login, boleh akses /login dan /staff/login (dan /api)
   if (!isAuthed && !isPublicRoute) {

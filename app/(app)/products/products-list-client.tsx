@@ -1,124 +1,69 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import VendorCreateForm from "./vendor-create-form";
-import { tableActionSecondary } from "../components/app-action-buttons";
+import { rupiah } from "@/lib/money";
+import ProductForm, { type ProductRow } from "./product-form";
+import { tableActionDanger, tableActionSecondary } from "../components/app-action-buttons";
 import TableEmptyState from "../components/table-empty-state";
 
 const TEAL = "#2D7D71";
 const BG = "#F8F9FA";
 const BORDER = "#e5e7eb";
 
-type VendorRow = {
-  id: string;
-  vendor_code: string | null;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  is_active: boolean | null;
-  created_at: string | null;
-  created_by: string | null;
-};
-
-function fmtDateLong(iso: string | null | undefined) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
-}
-
-export default function VendorsListPage() {
+export default function ProductsListClient({
+  orgId,
+  initialRows,
+}: {
+  orgId: string;
+  initialRows: ProductRow[];
+}) {
   const router = useRouter();
   const supabase = supabaseBrowser();
 
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<ProductRow[]>(initialRows);
+  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState("");
-  const [rows, setRows] = useState<VendorRow[]>([]);
-  const [creatorLabels, setCreatorLabels] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
+
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function refreshList() {
+    setRefreshing(true);
     setErr("");
     try {
-      const { data: userRes } = await supabase.auth.getUser();
-      const user = userRes.user;
-      if (!user) {
-        setRows([]);
-        setErr("Unauthorized");
-        return;
-      }
-
-      const { data: membership, error: memErr } = await supabase
-        .from("memberships")
-        .select("org_id")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
-
-      if (memErr) throw memErr;
-
-      const orgId = String((membership as { org_id?: string } | null)?.org_id || "");
-      if (!orgId) {
-        setRows([]);
-        setErr("Org tidak ditemukan. Pastikan membership aktif.");
-        return;
-      }
-
+      router.refresh();
       const { data, error } = await supabase
-        .from("vendors")
-        .select("id,vendor_code,name,phone,email,is_active,created_at,created_by")
+        .from("products")
+        .select("id,name,sku,unit,price,is_active,created_at")
         .eq("org_id", orgId)
         .order("created_at", { ascending: false })
-        .limit(800);
+        .limit(300);
 
       if (error) throw error;
-
-      const list = (data as VendorRow[]) || [];
-      setRows(list);
-
-      const ids = [...new Set(list.map((r) => r.created_by).filter(Boolean) as string[])];
-      if (ids.length > 0) {
-        const res = await fetch("/api/vendors/resolve-users", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (res.ok && json?.labels && typeof json.labels === "object") {
-          setCreatorLabels(json.labels as Record<string, string>);
-        } else {
-          setCreatorLabels({});
-        }
-      } else {
-        setCreatorLabels({});
-      }
+      setRows((data as ProductRow[]) || []);
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Gagal load vendors.");
+      setErr(e instanceof Error ? e.message : "Gagal memuat barang.");
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
-  }, [supabase]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  }
 
   const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return rows;
+    const qq = q.trim().toLowerCase();
+    if (!qq) return rows;
     return rows.filter((r) => {
-      const blob = `${r.vendor_code || ""} ${r.name} ${r.phone || ""} ${r.email || ""}`.toLowerCase();
-      return blob.includes(s);
+      const hay = `${r.name || ""} ${r.sku || ""} ${r.unit || ""}`.toLowerCase();
+      return hay.includes(qq);
     });
   }, [rows, q]);
 
@@ -131,29 +76,63 @@ export default function VendorsListPage() {
     setPage((p) => Math.min(p, totalPages));
   }, [totalPages]);
 
+  function openCreate() {
+    setModalMode("create");
+    setEditProduct(null);
+    setModalOpen(true);
+  }
+
+  function openEdit(p: ProductRow) {
+    setModalMode("edit");
+    setEditProduct(p);
+    setModalOpen(true);
+  }
+
   async function toggleActive(id: string, next: boolean) {
     setTogglingId(id);
     try {
-      const res = await fetch(`/api/vendors/${encodeURIComponent(id)}`, {
+      const res = await fetch("/api/products", {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: next }),
+        body: JSON.stringify({ id, is_active: next }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(String(json?.error || "Gagal ubah status"));
         return;
       }
-      await load();
+      await refreshList();
     } finally {
       setTogglingId(null);
     }
   }
 
+  async function remove(id: string) {
+    if (!confirm("Hapus barang ini? Tindakan ini tidak dapat dibatalkan.")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/products?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(String(json?.error || "Gagal hapus"));
+        return;
+      }
+      await refreshList();
+      if (modalOpen && editProduct?.id === id) {
+        setModalOpen(false);
+        setEditProduct(null);
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div style={{ width: "100%", boxSizing: "border-box", background: BG, minHeight: "100%", padding: "16px 20px 40px" }}>
-      {/* Page header */}
       <div
         style={{
           display: "flex",
@@ -164,7 +143,7 @@ export default function VendorsListPage() {
           flexWrap: "wrap",
         }}
       >
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#333" }}>Vendor</h1>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#333" }}>Barang</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Link href="/settings/activity" title="Notifikasi / aktivitas" style={iconCircle()}>
             <BellIcon />
@@ -191,7 +170,6 @@ export default function VendorsListPage() {
         </div>
       ) : null}
 
-      {/* Card */}
       <div
         style={{
           background: "#fff",
@@ -202,7 +180,7 @@ export default function VendorsListPage() {
           boxSizing: "border-box",
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#333", marginBottom: 16 }}>Master Data Vendor</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#333", marginBottom: 16 }}>Master Data Barang</div>
 
         <div
           style={{
@@ -221,7 +199,7 @@ export default function VendorsListPage() {
                 setQ(e.target.value);
                 setPage(1);
               }}
-              placeholder="Cari kode/nama/nomor telepon vendor"
+              placeholder="Cari nama/sku/satuan"
               style={{
                 width: "100%",
                 boxSizing: "border-box",
@@ -239,7 +217,7 @@ export default function VendorsListPage() {
 
           <button
             type="button"
-            onClick={() => setModalOpen(true)}
+            onClick={openCreate}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -256,19 +234,19 @@ export default function VendorsListPage() {
             }}
           >
             <PlusIcon />
-            Tambah Vendor
+            Tambah Barang
           </button>
         </div>
 
         <div style={{ width: "100%", overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 880 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 920 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                {["Vendor Code", "Nama", "Phone", "Dibuat", "Status", "Aksi"].map((h) => (
+                {["Nama", "SKU", "Satuan", "Harga", "Status", "Aksi"].map((h) => (
                   <th
                     key={h}
                     style={{
-                      textAlign: "left",
+                      textAlign: h === "Harga" ? "right" : "left",
                       padding: "12px 10px",
                       fontSize: 12,
                       fontWeight: 800,
@@ -282,41 +260,52 @@ export default function VendorsListPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {refreshing ? (
                 <tr>
                   <td colSpan={6} style={{ padding: 28, color: "#94a3b8", fontWeight: 600 }}>
-                    Memuat…
+                    Memperbarui…
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
-                <TableEmptyState colSpan={6} message="Belum ada vendor." />
+                <TableEmptyState colSpan={6} message="Belum ada data barang." />
               ) : (
-                paginated.map((r) => {
-                  const active = r.is_active !== false;
-                  const creatorName = r.created_by ? creatorLabels[r.created_by] || "—" : "—";
+                paginated.map((p) => {
+                  const active = p.is_active !== false;
                   return (
-                    <tr key={r.id} style={{ borderBottom: `1px solid #f1f5f9` }}>
-                      <td style={{ padding: "14px 10px", fontFamily: "ui-monospace, monospace", fontWeight: 700, color: "#111" }}>
-                        {r.vendor_code || "—"}
-                      </td>
-                      <td style={{ padding: "14px 10px", fontWeight: 700, color: "#111" }}>{r.name}</td>
-                      <td style={{ padding: "14px 10px", color: "#334155" }}>{r.phone || "—"}</td>
-                      <td style={{ padding: "14px 10px", verticalAlign: "top" }}>
-                        <div style={{ fontWeight: 800, color: "#111" }}>{creatorName}</div>
-                        <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>{fmtDateLong(r.created_at)}</div>
+                    <tr key={p.id} style={{ borderBottom: `1px solid #f1f5f9` }}>
+                      <td style={{ padding: "14px 10px", fontWeight: 700, color: "#111" }}>{p.name}</td>
+                      <td style={{ padding: "14px 10px", fontFamily: "ui-monospace, monospace", color: "#334155" }}>{p.sku || "—"}</td>
+                      <td style={{ padding: "14px 10px", color: "#334155" }}>{p.unit || "—"}</td>
+                      <td style={{ padding: "14px 10px", textAlign: "right", fontWeight: 700, color: "#111" }}>
+                        {rupiah(Number(p.price || 0))}
                       </td>
                       <td style={{ padding: "14px 10px" }}>
-                        <StatusToggle
+                        <TableStatusToggle
                           active={active}
-                          disabled={togglingId === r.id}
-                          onChange={(next) => toggleActive(r.id, next)}
+                          disabled={togglingId === p.id}
+                          onChange={(next) => toggleActive(p.id, next)}
                         />
                       </td>
                       <td style={{ padding: "14px 10px" }}>
-                        <button type="button" onClick={() => router.push(`/vendors/${r.id}/edit`)} style={tableActionSecondary()}>
-                          <EditIcon />
-                          Ubah
-                        </button>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button type="button" onClick={() => openEdit(p)} style={tableActionSecondary()}>
+                            <EditIcon />
+                            Ubah
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => remove(p.id)}
+                            disabled={deletingId === p.id}
+                            style={{
+                              ...tableActionDanger(),
+                              cursor: deletingId === p.id ? "not-allowed" : "pointer",
+                              opacity: deletingId === p.id ? 0.6 : 1,
+                            }}
+                          >
+                            <TrashIcon />
+                            Hapus
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -326,7 +315,6 @@ export default function VendorsListPage() {
           </table>
         </div>
 
-        {/* Pagination */}
         <div
           style={{
             display: "flex",
@@ -392,7 +380,6 @@ export default function VendorsListPage() {
         </div>
       </div>
 
-      {/* Modal */}
       {modalOpen ? (
         <div
           role="dialog"
@@ -408,12 +395,15 @@ export default function VendorsListPage() {
             boxSizing: "border-box",
           }}
           onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setModalOpen(false);
+            if (e.target === e.currentTarget) {
+              setModalOpen(false);
+              setEditProduct(null);
+            }
           }}
         >
           <div
             style={{
-              width: "min(560px, 100%)",
+              width: "min(520px, 100%)",
               maxHeight: "min(92vh, 900px)",
               overflow: "auto",
               background: "#fff",
@@ -426,7 +416,10 @@ export default function VendorsListPage() {
           >
             <button
               type="button"
-              onClick={() => setModalOpen(false)}
+              onClick={() => {
+                setModalOpen(false);
+                setEditProduct(null);
+              }}
               aria-label="Tutup"
               style={{
                 position: "absolute",
@@ -446,15 +439,23 @@ export default function VendorsListPage() {
               <CloseIcon />
             </button>
 
-            <h2 style={{ margin: "8px 0 0 44px", fontSize: 20, fontWeight: 800, color: "#333" }}>Buat Vendor Baru</h2>
+            <h2 style={{ margin: "8px 0 0 44px", fontSize: 20, fontWeight: 800, color: "#333" }}>
+              {modalMode === "edit" ? "Ubah Barang" : "Tambah Barang"}
+            </h2>
 
             <div style={{ marginTop: 20 }}>
-              <VendorCreateForm
+              <ProductForm
                 variant="modal"
-                onCancel={() => setModalOpen(false)}
-                onSaved={() => {
+                mode={modalMode}
+                initial={editProduct}
+                onCancel={() => {
                   setModalOpen(false);
-                  load();
+                  setEditProduct(null);
+                }}
+                onSuccess={() => {
+                  setModalOpen(false);
+                  setEditProduct(null);
+                  refreshList();
                 }}
               />
             </div>
@@ -465,7 +466,7 @@ export default function VendorsListPage() {
   );
 }
 
-function StatusToggle({
+function TableStatusToggle({
   active,
   disabled,
   onChange,
@@ -529,7 +530,7 @@ function iconCircle(): React.CSSProperties {
     display: "grid",
     placeItems: "center",
     textDecoration: "none",
-    border: `1px solid rgba(45, 125, 113, 0.22)`,
+    border: "1px solid rgba(45, 125, 113, 0.22)",
   };
 }
 
@@ -576,6 +577,19 @@ function EditIcon() {
         stroke={TEAL}
         strokeWidth="1.8"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 7h16M10 11v6M14 11v6M6 7l1-3h10l1 3M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+        stroke="#c62828"
+        strokeWidth="1.6"
+        strokeLinecap="round"
       />
     </svg>
   );

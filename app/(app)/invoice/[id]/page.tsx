@@ -12,6 +12,7 @@ import CancelInvoiceButtonClient from "../cancel-invoice-button-client";
 import SentInvoiceButtonClient from "../sent-invoice-button-client";
 import { formPageHeaderActions } from "../../components/app-action-buttons";
 import { APP_TEAL } from "../../components/app-ui-tokens";
+import TableEmptyState from "../../components/table-empty-state";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -300,9 +301,7 @@ export default async function InvoiceViewPage({ params }: PageProps) {
                     );
                   })}
                   {!items?.length && (
-                    <tr>
-                      <td colSpan={6} style={{ ...td(), color: "#64748b" }}>Belum ada item.</td>
-                    </tr>
+                    <TableEmptyState colSpan={6} message="Belum ada item." />
                   )}
                 </tbody>
               </table>

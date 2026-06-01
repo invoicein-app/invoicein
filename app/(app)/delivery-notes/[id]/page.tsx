@@ -14,6 +14,7 @@ import {
   formPageSoftLink,
 } from "../../components/app-action-buttons";
 import { APP_TEAL } from "../../components/app-ui-tokens";
+import TableEmptyState from "../../components/table-empty-state";
 
 export default function DeliveryNoteViewPage() {
   const supabase = supabaseBrowser();
@@ -261,9 +262,7 @@ export default function DeliveryNoteViewPage() {
                 </tr>
               ))}
               {items.length === 0 ? (
-                <tr>
-                  <td style={td()} colSpan={5}>Tidak ada item.</td>
-                </tr>
+                <TableEmptyState colSpan={5} message="Belum ada item." />
               ) : null}
             </tbody>
           </table>

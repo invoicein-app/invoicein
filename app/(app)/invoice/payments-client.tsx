@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import TableEmptyState from "../components/table-empty-state";
 
 type Payment = {
   id: string;
@@ -236,11 +237,7 @@ export default function PaymentsClient({
 
             <tbody>
               {!payments.length && (
-                <tr>
-                  <td colSpan={3} style={{ padding: 12, color: "#666" }}>
-                    Belum ada pembayaran.
-                  </td>
-                </tr>
+                <TableEmptyState colSpan={3} message="Belum ada pembayaran." />
               )}
 
               {payments.map((p) => (

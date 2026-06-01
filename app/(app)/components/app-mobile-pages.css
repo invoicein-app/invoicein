@@ -18,6 +18,23 @@
   flex-wrap: wrap;
 }
 
+/* Unified table empty state */
+.app-table-empty-state {
+  text-align: center !important;
+  color: #94a3b8 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  padding: 28px 10px !important;
+  vertical-align: middle !important;
+}
+
+.app-table-empty-state__text {
+  width: 100%;
+  text-align: center !important;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+}
+
 /* Desktop: tabel sub-halaman pengeluaran */
 .app-table--expenses-recurring {
   width: 100%;

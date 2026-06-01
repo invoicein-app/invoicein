@@ -8,6 +8,7 @@ import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
 import { listTableStyles } from "../components/list-page-layout";
 import { tableActionSecondary, toolbarButtonOutline } from "../components/app-action-buttons";
+import TableEmptyState from "../components/table-empty-state";
 
 type Row = {
   id: string;
@@ -149,7 +150,7 @@ export default function WarehousesPage() {
         {loading ? (
           <tr><td colSpan={6} style={listTableStyles.td}>Loading...</td></tr>
         ) : paginated.length === 0 ? (
-          <tr><td colSpan={6} style={listTableStyles.empty}>Tidak ada data.</td></tr>
+          <TableEmptyState colSpan={6} message="Belum ada data gudang." />
         ) : (
           paginated.map((r) => (
             <tr key={r.id} onClick={() => goEdit(r.id)} style={{ cursor: "pointer" }} title="Klik untuk edit">

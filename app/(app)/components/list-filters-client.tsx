@@ -27,6 +27,8 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
   fontSize: 14,
   background: "#fff",
+  color: "#0f172a",
+  fontWeight: 700,
 };
 
 const selectStyle: React.CSSProperties = {

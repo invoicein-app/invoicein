@@ -10,6 +10,11 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import BankInfoCard from "./bank-info-card";
 import PaymentConfirmationForm from "./payment-confirmation-form";
+import {
+  getTrialDays,
+  isSubscriptionExpired,
+  resolvePeriodEnd,
+} from "@/lib/subscription";
 
 export default async function SubscriptionPage() {
   const csAny: any = cookies() as any;
@@ -37,7 +42,9 @@ export default async function SubscriptionPage() {
 
   const { data: mem } = await supabase
     .from("memberships")
-    .select("org_id, organizations:organizations(id, name, org_code, subscription_status, subscription_plan, trial_ends_at, expires_at)")
+    .select(
+      "org_id, organizations:organizations(id, name, org_code, subscription_status, subscription_plan, subscription_started_at, trial_ends_at, expires_at)"
+    )
     .eq("user_id", userRes.user.id)
     .eq("is_active", true)
     .limit(1)
@@ -58,10 +65,18 @@ export default async function SubscriptionPage() {
     status === "grace_period" ? "Grace period" :
     status || "—";
 
+  const orgRow = {
+    subscription_status: org.subscription_status,
+    subscription_started_at: org.subscription_started_at,
+    trial_ends_at: org.trial_ends_at,
+    expires_at: org.expires_at,
+  };
+  const periodEndRaw = resolvePeriodEnd(orgRow);
   const expiresAt = org.expires_at ? new Date(org.expires_at) : null;
   const trialEndsAt = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
-  const now = new Date();
-  const isExpired = expiresAt ? expiresAt <= now : false;
+  const startedAt = org.subscription_started_at ? new Date(org.subscription_started_at) : null;
+  const isExpired = isSubscriptionExpired(orgRow);
+  const trialDays = getTrialDays();
 
   const sectionTitle: React.CSSProperties = { fontSize: 11, fontWeight: 800, color: "#64748b", letterSpacing: 1, marginBottom: 12 };
   const card: React.CSSProperties = {
@@ -127,17 +142,35 @@ export default async function SubscriptionPage() {
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Aktif sampai</div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Mulai langganan / trial</div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
-              {expiresAt
-                ? expiresAt.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+              {startedAt
+                ? startedAt.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
                 : "—"}
             </div>
-            {trialEndsAt && status === "trial" && (
+            {status === "trial" ? (
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
-                Trial berakhir: {trialEndsAt.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+                Masa trial: {trialDays} hari sejak tanggal mulai
               </div>
-            )}
+            ) : null}
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Berlaku sampai</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: isExpired ? "#b91c1c" : "#0f172a" }}>
+              {periodEndRaw
+                ? new Date(periodEndRaw).toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })
+                : "—"}
+            </div>
+            {trialEndsAt && status === "trial" && expiresAt && trialEndsAt.getTime() !== expiresAt.getTime() ? (
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                Trial berakhir:{" "}
+                {trialEndsAt.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

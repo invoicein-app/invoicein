@@ -5,6 +5,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { buildNewOrgSubscriptionFields } from "@/lib/subscription";
+import { ensureOrgSubscription } from "@/lib/org-subscription";
 
 function normalizeOrgCode(raw: string) {
   return String(raw || "")
@@ -14,32 +16,23 @@ function normalizeOrgCode(raw: string) {
     .replace(/[^A-Z0-9]/g, "");
 }
 
-// kode random yang pendek tapi lumayan unik
 function randomCode(len = 6) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // skip O/0/I/1 biar gak membingungkan
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "";
   for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
 }
 
-// bikin org code dari nama + random
 function makeOrgCodeFromName(name: string) {
-  const base = normalizeOrgCode(name).slice(0, 4); // contoh: SURY
-  const suffix = randomCode(3); // contoh: 7KQ
+  const base = normalizeOrgCode(name).slice(0, 4);
+  const suffix = randomCode(3);
   const merged = normalizeOrgCode(`${base}${suffix}`);
-  // jaga-jaga kalau name kosong
   return merged.length >= 4 ? merged : normalizeOrgCode(`ORG${randomCode(3)}`);
 }
 
-function trialEndsAt(): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1);
-  return d.toISOString();
-}
-
 async function createOrgWithUniqueCode(admin: any, orgName: string) {
-  const endsAt = trialEndsAt();
-  // retry beberapa kali kalau collision (karena UNIQUE)
+  const subFields = buildNewOrgSubscriptionFields();
+
   for (let attempt = 0; attempt < 8; attempt++) {
     const orgCode = makeOrgCodeFromName(orgName);
 
@@ -48,26 +41,20 @@ async function createOrgWithUniqueCode(admin: any, orgName: string) {
       .insert({
         name: orgName,
         org_code: orgCode,
-        subscription_status: "trial",
-        subscription_plan: "basic",
-        trial_ends_at: endsAt,
-        expires_at: endsAt,
+        ...subFields,
       })
       .select("id, org_code")
       .single();
 
     if (!orgErr && org) return org;
 
-    // kalau error karena unique violation, retry
     const msg = String((orgErr as any)?.message || "");
     const code = String((orgErr as any)?.code || "");
 
-    // Postgres unique violation = 23505
     if (code === "23505" || msg.toLowerCase().includes("duplicate key")) {
       continue;
     }
 
-    // error lain -> lempar
     throw orgErr;
   }
 
@@ -112,7 +99,6 @@ export async function POST() {
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
 
-  // kalau sudah punya membership, return
   const { data: mem } = await admin
     .from("memberships")
     .select("id, org_id, role, organizations(org_code)")
@@ -121,6 +107,12 @@ export async function POST() {
     .maybeSingle();
 
   if (mem?.org_id) {
+    try {
+      await ensureOrgSubscription(admin, mem.org_id);
+    } catch (e: any) {
+      console.error("[init-org] ensureOrgSubscription:", e?.message || e);
+    }
+
     const orgCode = (mem as any)?.organizations?.org_code || null;
     return NextResponse.json({ ok: true, org_id: mem.org_id, role: mem.role, org_code: orgCode });
   }
@@ -128,10 +120,8 @@ export async function POST() {
   const orgName = process.env.APP_COMPANY_NAME || "UMKM";
 
   try {
-    // ✅ create org + auto org_code
     const org = await createOrgWithUniqueCode(admin, orgName);
 
-    // ✅ create membership admin
     const { error: memErr } = await admin
       .from("memberships")
       .insert({ org_id: org.id, user_id: userId, role: "admin" });

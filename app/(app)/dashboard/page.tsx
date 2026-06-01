@@ -10,16 +10,10 @@
 // ✅ monthKeys6 unik (anchor ke tanggal 1) biar gak double (issue JS Date 29/30/31)
 // ✅ semua query di-filter by org_id
 // ✅ status bayar dihitung dari grandTotal vs amount_paid
-// ✅ discount_value & tax_value dianggap persen (0-100)
+// ✅ pakai total tersimpan di invoices (hindari payload invoice_items besar)
 
 import { supabaseServer } from "@/lib/supabase/server";
 import { rupiah } from "@/lib/money";
-
-function clampPercent(v: any) {
-  const n = Number(v ?? 0);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(100, n));
-}
 
 function monthKeyFromDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -117,7 +111,7 @@ export default async function DashboardPage() {
     );
   }
 
-  // Ambil invoices + items (1 query) — filter org_id
+  // Ambil invoices ringkas (tanpa join invoice_items) — filter org_id
   const { data: invRows, error: invErr } = await supabase
     .from("invoices")
     .select(
@@ -127,11 +121,9 @@ export default async function DashboardPage() {
       invoice_date,
       status,
       customer_name,
-      discount_value,
-      tax_value,
+      total,
       amount_paid,
-      org_id,
-      invoice_items(qty,price)
+      org_id
     `
     )
     .eq("org_id", orgId)
@@ -145,21 +137,9 @@ export default async function DashboardPage() {
 
   const invoices = (invRows || []) as any[];
 
-  // Helper: hitung total invoice
+  // Helper: hitung state bayar dari total tersimpan
   function calcTotals(inv: any) {
-    const items = (inv?.invoice_items || []) as any[];
-    const subtotal = items.reduce(
-      (a, it) => a + Number(it?.qty || 0) * Number(it?.price || 0),
-      0
-    );
-
-    const discPct = clampPercent(inv?.discount_value);
-    const taxPct = clampPercent(inv?.tax_value);
-
-    const discount = Math.max(0, subtotal * (discPct / 100));
-    const afterDisc = Math.max(0, subtotal - discount);
-    const tax = Math.max(0, afterDisc * (taxPct / 100));
-    const grandTotal = Math.max(0, afterDisc + tax);
+    const grandTotal = Math.max(0, Number(inv?.total || 0));
 
     const paid = Math.max(0, Number(inv?.amount_paid || 0));
     const remaining = Math.max(0, grandTotal - paid);
@@ -168,7 +148,7 @@ export default async function DashboardPage() {
     if (grandTotal > 0 && remaining <= 0) payState = "PAID";
     else if (paid > 0 && remaining > 0) payState = "PARTIAL";
 
-    return { subtotal, discount, tax, grandTotal, paid, remaining, payState };
+    return { grandTotal, paid, remaining, payState };
   }
 
   // KPI

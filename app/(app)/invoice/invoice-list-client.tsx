@@ -3,6 +3,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import TableEmptyState from "../components/table-empty-state";
 
 type InvoiceRow = {
   id: string;
@@ -219,11 +220,7 @@ export default function InvoiceListClient({ rows }: { rows: InvoiceRow[] }) {
 
           <tbody>
             {!rows.length && (
-              <tr>
-                <td colSpan={7} style={{ padding: 12, color: "#666" }}>
-                  Belum ada invoice.
-                </td>
-              </tr>
+              <TableEmptyState colSpan={7} message="Belum ada invoice." />
             )}
 
             {rows.map((r) => {

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import ListFiltersClient from "../../components/list-filters-client";
 import ListPageLayout, { listTableStyles } from "../../components/list-page-layout";
+import TableEmptyState from "../../components/table-empty-state";
 import { formPrimaryButton, tableActionSecondary } from "../../components/app-action-buttons";
 import { rupiah } from "@/lib/money";
 
@@ -188,11 +189,7 @@ function ReceivableCustomerDetailInner() {
             </td>
           </tr>
         ) : paginated.length === 0 ? (
-          <tr>
-            <td colSpan={8} style={listTableStyles.empty}>
-              Tidak ada invoice sesuai filter.
-            </td>
-          </tr>
+          <TableEmptyState colSpan={8} message="Belum ada invoice." />
         ) : (
           paginated.map((r) => (
             <tr key={r.id}>
