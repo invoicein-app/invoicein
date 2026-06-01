@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import VendorCreateForm from "./vendor-create-form";
 import { tableActionSecondary } from "../components/app-action-buttons";
 import TableEmptyState from "../components/table-empty-state";
+import { formatTanggalIndo, ul } from "../components/unified-list-table";
 
 const TEAL = "#2D7D71";
 const BG = "#F8F9FA";
@@ -260,63 +261,58 @@ export default function VendorsListPage() {
           </button>
         </div>
 
-        <div style={{ width: "100%", overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 880 }}>
+        <div className={ul.scroll}>
+          <table className={`${ul.table} app-table--vendors`} style={{ minWidth: 720 }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                {["Vendor Code", "Nama", "Phone", "Dibuat", "Status", "Aksi"].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      textAlign: "left",
-                      padding: "12px 10px",
-                      fontSize: 12,
-                      fontWeight: 800,
-                      color: "#64748b",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
+              <tr>
+                <th className={ul.th}>Vendor</th>
+                <th className={ul.th}>Telepon</th>
+                <th className={ul.thCenter}>Status</th>
+                <th className={ul.th}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: 28, color: "#94a3b8", fontWeight: 600 }}>
+                  <td colSpan={4} className={ul.loading}>
                     Memuat…
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
-                <TableEmptyState colSpan={6} message="Belum ada vendor." />
+                <TableEmptyState colSpan={4} message="Belum ada vendor." />
               ) : (
                 paginated.map((r) => {
                   const active = r.is_active !== false;
                   const creatorName = r.created_by ? creatorLabels[r.created_by] || "—" : "—";
                   return (
-                    <tr key={r.id} style={{ borderBottom: `1px solid #f1f5f9` }}>
-                      <td style={{ padding: "14px 10px", fontFamily: "ui-monospace, monospace", fontWeight: 700, color: "#111" }}>
-                        {r.vendor_code || "—"}
+                    <tr key={r.id}>
+                      <td className={ul.tdTop}>
+                        <span className={ul.primaryText}>{r.name}</span>
+                        {r.vendor_code ? <div className={ul.primaryMeta}>Kode: {r.vendor_code}</div> : null}
+                        <div className={ul.primaryMeta}>
+                          Dibuat: {formatTanggalIndo(r.created_at)}
+                          {creatorName !== "—" ? ` · ${creatorName}` : ""}
+                        </div>
                       </td>
-                      <td style={{ padding: "14px 10px", fontWeight: 700, color: "#111" }}>{r.name}</td>
-                      <td style={{ padding: "14px 10px", color: "#334155" }}>{r.phone || "—"}</td>
-                      <td style={{ padding: "14px 10px", verticalAlign: "top" }}>
-                        <div style={{ fontWeight: 800, color: "#111" }}>{creatorName}</div>
-                        <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>{fmtDateLong(r.created_at)}</div>
-                      </td>
-                      <td style={{ padding: "14px 10px" }}>
+                      <td className={ul.td}>{r.phone || "—"}</td>
+                      <td className={ul.tdCenter}>
                         <StatusToggle
                           active={active}
                           disabled={togglingId === r.id}
                           onChange={(next) => toggleActive(r.id, next)}
                         />
                       </td>
-                      <td style={{ padding: "14px 10px" }}>
-                        <button type="button" onClick={() => router.push(`/vendors/${r.id}/edit`)} style={tableActionSecondary()}>
-                          <EditIcon />
-                          Ubah
-                        </button>
+                      <td className={`${ul.td} app-td-actions`}>
+                        <div className={ul.actions}>
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/vendors/${r.id}/edit`)}
+                            style={tableActionSecondary()}
+                          >
+                            <EditIcon />
+                            Ubah
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

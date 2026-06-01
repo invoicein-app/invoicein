@@ -8,6 +8,7 @@ import { rupiah } from "@/lib/money";
 import ProductForm, { type ProductRow } from "./product-form";
 import { tableActionDanger, tableActionSecondary } from "../components/app-action-buttons";
 import TableEmptyState from "../components/table-empty-state";
+import { ul } from "../components/unified-list-table";
 
 const TEAL = "#2D7D71";
 const BG = "#F8F9FA";
@@ -238,56 +239,48 @@ export default function ProductsListClient({
           </button>
         </div>
 
-        <div style={{ width: "100%", overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 920 }}>
+        <div className={ul.scroll}>
+          <table className={`${ul.table} app-table--products`} style={{ minWidth: 720 }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                {["Nama", "SKU", "Satuan", "Harga", "Status", "Aksi"].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      textAlign: h === "Harga" ? "right" : "left",
-                      padding: "12px 10px",
-                      fontSize: 12,
-                      fontWeight: 800,
-                      color: "#64748b",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
+              <tr>
+                <th className={ul.th}>Nama Barang</th>
+                <th className={ul.th}>Satuan</th>
+                <th className={ul.thRight}>Harga</th>
+                <th className={ul.thCenter}>Status</th>
+                <th className={ul.th}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {refreshing ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: 28, color: "#94a3b8", fontWeight: 600 }}>
+                  <td colSpan={5} className={ul.loading}>
                     Memperbarui…
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
-                <TableEmptyState colSpan={6} message="Belum ada data barang." />
+                <TableEmptyState colSpan={5} message="Belum ada data barang." />
               ) : (
                 paginated.map((p) => {
                   const active = p.is_active !== false;
                   return (
-                    <tr key={p.id} style={{ borderBottom: `1px solid #f1f5f9` }}>
-                      <td style={{ padding: "14px 10px", fontWeight: 700, color: "#111" }}>{p.name}</td>
-                      <td style={{ padding: "14px 10px", fontFamily: "ui-monospace, monospace", color: "#334155" }}>{p.sku || "—"}</td>
-                      <td style={{ padding: "14px 10px", color: "#334155" }}>{p.unit || "—"}</td>
-                      <td style={{ padding: "14px 10px", textAlign: "right", fontWeight: 700, color: "#111" }}>
-                        {rupiah(Number(p.price || 0))}
+                    <tr key={p.id}>
+                      <td className={ul.tdTop}>
+                        <span className={ul.primaryText}>{p.name}</span>
+                        {p.sku ? <div className={ul.primaryMeta}>SKU: {p.sku}</div> : null}
                       </td>
-                      <td style={{ padding: "14px 10px" }}>
+                      <td className={ul.td}>{p.unit || "—"}</td>
+                      <td className={ul.tdRight}>
+                        <span className={ul.money}>{rupiah(Number(p.price || 0))}</span>
+                      </td>
+                      <td className={ul.tdCenter}>
                         <TableStatusToggle
                           active={active}
                           disabled={togglingId === p.id}
                           onChange={(next) => toggleActive(p.id, next)}
                         />
                       </td>
-                      <td style={{ padding: "14px 10px" }}>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <td className={`${ul.td} app-td-actions`}>
+                        <div className={ul.actions}>
                           <button type="button" onClick={() => openEdit(p)} style={tableActionSecondary()}>
                             <EditIcon />
                             Ubah

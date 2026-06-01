@@ -6,9 +6,9 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
-import { listTableStyles } from "../components/list-page-layout";
 import { tableActionSecondary, toolbarButtonOutline } from "../components/app-action-buttons";
 import TableEmptyState from "../components/table-empty-state";
+import { ul } from "../components/unified-list-table";
 
 type Row = {
   id: string;
@@ -135,43 +135,76 @@ export default function WarehousesPage() {
   );
 
   const tableContent = (
-    <table style={{ ...listTableStyles.table, minWidth: 980 }}>
-      <thead>
-        <tr style={listTableStyles.thead}>
-          <th style={listTableStyles.th}>Kode</th>
-          <th style={listTableStyles.th}>Nama</th>
-          <th style={listTableStyles.th}>Telp</th>
-          <th style={listTableStyles.th}>Alamat</th>
-          <th style={listTableStyles.th}>Status</th>
-          <th style={listTableStyles.th}>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {loading ? (
-          <tr><td colSpan={6} style={listTableStyles.td}>Loading...</td></tr>
-        ) : paginated.length === 0 ? (
-          <TableEmptyState colSpan={6} message="Belum ada data gudang." />
-        ) : (
-          paginated.map((r) => (
-            <tr key={r.id} onClick={() => goEdit(r.id)} style={{ cursor: "pointer" }} title="Klik untuk edit">
-              <td style={{ ...listTableStyles.td, fontFamily: "ui-monospace, monospace" }}>{r.code}</td>
-              <td style={listTableStyles.td}><div style={{ fontWeight: 700 }}>{r.name}</div></td>
-              <td style={listTableStyles.td}>{r.phone || "-"}</td>
-              <td style={listTableStyles.td}><div style={{ maxWidth: 320, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.address}</div></td>
-              <td style={listTableStyles.td}>
-                <span style={{ ...pill(), ...(r.is_active ? pillGreen() : pillRed()) }}>{r.is_active ? "active" : "inactive"}</span>
-              </td>
-              <td style={listTableStyles.td} onClick={(e) => e.stopPropagation()}>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button type="button" onClick={() => goEdit(r.id)} style={tableActionSecondary()}>Edit</button>
-                  <button type="button" onClick={() => router.push(`/warehouses/${r.id}/stock`)} style={tableActionSecondary()}>Stock</button>
-                </div>
+    <div className={ul.scroll}>
+      <table className={`${ul.table} app-table--warehouses`} style={{ minWidth: 760 }}>
+        <thead>
+          <tr>
+            <th className={ul.th}>Gudang</th>
+            <th className={ul.th}>Telp</th>
+            <th className={ul.th}>Alamat</th>
+            <th className={ul.thCenter}>Status</th>
+            <th className={ul.th}>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={5} className={ul.loading}>
+                Memuat…
               </td>
             </tr>
-          ))
-        )}
-      </tbody>
-    </table>
+          ) : paginated.length === 0 ? (
+            <TableEmptyState colSpan={5} message="Belum ada data gudang." />
+          ) : (
+            paginated.map((r) => (
+              <tr
+                key={r.id}
+                onClick={() => goEdit(r.id)}
+                style={{ cursor: "pointer" }}
+                title="Klik untuk edit"
+              >
+                <td className={ul.tdTop}>
+                  <span className={ul.primaryText}>{r.name}</span>
+                  {r.code ? <div className={ul.primaryMeta}>Kode: {r.code}</div> : null}
+                </td>
+                <td className={ul.td}>{r.phone || "-"}</td>
+                <td className={ul.td}>
+                  <div style={{ maxWidth: 320, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {r.address || "-"}
+                  </div>
+                </td>
+                <td className={ul.tdCenter}>
+                  <span
+                    className={ul.statusBadge}
+                    style={{
+                      background: r.is_active ? "#dcfce7" : "#fee2e2",
+                      borderColor: r.is_active ? "#86efac" : "#fca5a5",
+                      color: r.is_active ? "#14532d" : "#7f1d1d",
+                    }}
+                  >
+                    {r.is_active ? "ACTIVE" : "INACTIVE"}
+                  </span>
+                </td>
+                <td className={`${ul.td} app-td-actions`} onClick={(e) => e.stopPropagation()}>
+                  <div className={ul.actions}>
+                    <button type="button" onClick={() => goEdit(r.id)} style={tableActionSecondary()}>
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/warehouses/${r.id}/stock`)}
+                      style={tableActionSecondary()}
+                    >
+                      Stock
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 
   return (

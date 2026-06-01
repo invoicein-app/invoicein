@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import ListFiltersClient from "../components/list-filters-client";
-import ListPageLayout, { listTableStyles } from "../components/list-page-layout";
+import ListPageLayout from "../components/list-page-layout";
+import { formatTanggalIndo, ul } from "../components/unified-list-table";
 import { formPrimaryButton, tableActionPrimary } from "../components/app-action-buttons";
 import { rupiah } from "@/lib/money";
 import TableEmptyState from "../components/table-empty-state";
@@ -114,58 +115,68 @@ export default function ReceivablesPage() {
   );
 
   const tableContent = (
-    <table className="app-data-table app-table--receivables-summary" style={listTableStyles.table}>
-      <thead>
-        <tr style={listTableStyles.thead}>
-          <th style={listTableStyles.th}>Customer</th>
-          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Total Piutang</th>
-          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Jumlah Invoice</th>
-          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Invoice Overdue</th>
-          <th style={listTableStyles.th}>Jatuh Tempo Terdekat</th>
-          <th style={listTableStyles.th}>Progress Bayar</th>
-          <th style={listTableStyles.th}>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {loading ? (
+    <div className={ul.scroll}>
+      <table className={`${ul.table} app-table--receivables-summary`} style={{ minWidth: 800 }}>
+        <thead>
           <tr>
-            <td colSpan={7} style={listTableStyles.td}>
-              Memuat...
-            </td>
+            <th className={ul.th}>Customer</th>
+            <th className={ul.thRight}>Total Piutang</th>
+            <th className={ul.thRight}>Jumlah Invoice</th>
+            <th className={ul.thRight}>Overdue</th>
+            <th className={ul.th}>Jatuh Tempo Terdekat</th>
+            <th className={ul.th}>Progress</th>
+            <th className={ul.th}>Aksi</th>
           </tr>
-        ) : paginated.length === 0 ? (
-          <TableEmptyState colSpan={7} message="Belum ada customer." />
-        ) : (
-          paginated.map((r) => (
-            <tr key={`${r.customer_id || "name"}-${r.customer_name}`}>
-              <td style={{ ...listTableStyles.td, fontWeight: 700 }}>{r.customer_name}</td>
-              <td style={{ ...listTableStyles.tdRight, fontWeight: 800 }}>{rupiah(r.total_receivable)}</td>
-              <td style={listTableStyles.tdRight}>{r.invoice_count}</td>
-              <td style={listTableStyles.tdRight}>{r.overdue_count}</td>
-              <td style={listTableStyles.td}>{fmtDate(r.nearest_due_date)}</td>
-              <td style={listTableStyles.td}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={progressBarWrap()}>
-                    <div style={progressBarFill(r.progress_percent)} />
-                  </div>
-                  <span style={{ fontWeight: 700, fontSize: 12 }}>{r.progress_percent}%</span>
-                </div>
-              </td>
-              <td style={listTableStyles.td}>
-                <Link
-                  href={`/receivables/customer?${new URLSearchParams({
-                    ...(r.customer_id ? { customer_id: r.customer_id } : { customer_name: r.customer_name }),
-                  }).toString()}`}
-                  style={tableActionPrimary()}
-                >
-                  Lihat Detail
-                </Link>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={7} className={ul.loading}>
+                Memuat…
               </td>
             </tr>
-          ))
-        )}
-      </tbody>
-    </table>
+          ) : paginated.length === 0 ? (
+            <TableEmptyState colSpan={7} message="Belum ada customer." />
+          ) : (
+            paginated.map((r) => (
+              <tr key={`${r.customer_id || "name"}-${r.customer_name}`}>
+                <td className={ul.tdTop}>
+                  <span className={ul.primaryText}>{r.customer_name}</span>
+                  <div className={ul.primaryMeta}>
+                    {r.invoice_count} invoice{r.invoice_count !== 1 ? "" : ""}
+                    {r.overdue_count > 0 ? ` · ${r.overdue_count} overdue` : ""}
+                  </div>
+                </td>
+                <td className={ul.tdRight}>
+                  <span className={ul.money}>{rupiah(r.total_receivable)}</span>
+                </td>
+                <td className={ul.tdRight}>{r.invoice_count}</td>
+                <td className={ul.tdRight}>{r.overdue_count}</td>
+                <td className={ul.td}>{formatTanggalIndo(r.nearest_due_date)}</td>
+                <td className={ul.td}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={progressBarWrap()}>
+                      <div style={progressBarFill(r.progress_percent)} />
+                    </div>
+                    <span style={{ fontWeight: 700, fontSize: 12 }}>{r.progress_percent}%</span>
+                  </div>
+                </td>
+                <td className={`${ul.td} app-td-actions`}>
+                  <Link
+                    href={`/receivables/customer?${new URLSearchParams({
+                      ...(r.customer_id ? { customer_id: r.customer_id } : { customer_name: r.customer_name }),
+                    }).toString()}`}
+                    style={tableActionPrimary()}
+                  >
+                    Lihat Detail
+                  </Link>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 
   return (

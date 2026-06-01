@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ListFiltersClient from "../components/list-filters-client";
-import ListPageLayout, { listTableStyles } from "../components/list-page-layout";
+import ListPageLayout from "../components/list-page-layout";
+import { formatTanggalIndo, ul } from "../components/unified-list-table";
 import TableEmptyState from "../components/table-empty-state";
 import { formPrimaryButton, tableActionDanger, tableActionSecondary } from "../components/app-action-buttons";
 import { formatRibuanInput, parseRibuanInput, rupiah } from "@/lib/money";
@@ -286,60 +287,80 @@ export default function ManualLedgerPageClient({
   );
 
   const tableContent = (
-    <table className="app-data-table" style={listTableStyles.table}>
-      <thead>
-        <tr style={listTableStyles.thead}>
-          <th style={listTableStyles.th}>Tanggal</th>
-          <th style={listTableStyles.th}>Pihak</th>
-          <th style={listTableStyles.th}>Deskripsi</th>
-          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Total</th>
-          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Dibayar</th>
-          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Sisa</th>
-          <th style={listTableStyles.th}>Jatuh Tempo</th>
-          <th style={listTableStyles.th}>Status</th>
-          <th style={listTableStyles.th}>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {loading ? (
+    <div className={ul.scroll}>
+      <table className={`${ul.table} app-table--receivables-ledger`} style={{ minWidth: 880 }}>
+        <thead>
           <tr>
-            <td colSpan={9} style={listTableStyles.td}>
-              Memuat...
-            </td>
+            <th className={ul.th}>Pihak / Deskripsi</th>
+            <th className={ul.thCenter}>Status</th>
+            <th className={ul.thRight}>Total</th>
+            <th className={ul.thRight}>Dibayar</th>
+            <th className={ul.thRight}>Sisa</th>
+            <th className={ul.th}>Aksi</th>
           </tr>
-        ) : paginated.length === 0 ? (
-          <TableEmptyState colSpan={9} message="Belum ada data." />
-        ) : (
-          paginated.map((r) => (
-            <tr key={r.id}>
-              <td style={listTableStyles.td}>{fmtDate(r.entry_date)}</td>
-              <td style={listTableStyles.td}>
-                <div style={{ fontWeight: 700 }}>{r.party_name}</div>
-                <div style={{ fontSize: 12, color: "#94a3b8" }}>{labelPartySource(r.party_source_type)}</div>
-              </td>
-              <td style={listTableStyles.td}>{r.description}</td>
-              <td style={{ ...listTableStyles.tdRight, fontWeight: 700 }}>{rupiah(r.total_amount)}</td>
-              <td style={{ ...listTableStyles.tdRight, fontWeight: 700 }}>{rupiah(r.paid_amount)}</td>
-              <td style={{ ...listTableStyles.tdRight, fontWeight: 800 }}>{rupiah(r.remaining_amount)}</td>
-              <td style={listTableStyles.td}>{fmtDate(r.due_date)}</td>
-              <td style={listTableStyles.td}>
-                <span style={badgeStyle(r.ledger_status)}>{r.ledger_status_label}</span>
-              </td>
-              <td style={listTableStyles.td}>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button type="button" onClick={() => openEdit(r)} style={tableActionSecondary()}>
-                    Ubah
-                  </button>
-                  <button type="button" onClick={() => remove(r.id)} style={tableActionDanger()}>
-                    Hapus
-                  </button>
-                </div>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={6} className={ul.loading}>
+                Memuat…
               </td>
             </tr>
-          ))
-        )}
-      </tbody>
-    </table>
+          ) : paginated.length === 0 ? (
+            <TableEmptyState colSpan={6} message="Belum ada data." />
+          ) : (
+            paginated.map((r) => {
+              const badge = badgeStyle(r.ledger_status);
+              return (
+                <tr key={r.id}>
+                  <td className={ul.tdTop}>
+                    <span className={ul.primaryText}>{r.party_name}</span>
+                    <div className={ul.primaryMeta}>
+                      {formatTanggalIndo(r.entry_date)} · Jatuh tempo: {formatTanggalIndo(r.due_date)}
+                    </div>
+                    <div className={ul.primaryMeta}>{labelPartySource(r.party_source_type)}</div>
+                    {r.description ? (
+                      <div style={{ marginTop: 6, fontSize: 13, color: "#334155" }}>{r.description}</div>
+                    ) : null}
+                  </td>
+                  <td className={ul.tdCenter}>
+                    <span
+                      className={ul.statusBadge}
+                      style={{
+                        background: badge.background,
+                        color: badge.color,
+                        border: badge.border,
+                      }}
+                    >
+                      {r.ledger_status_label}
+                    </span>
+                  </td>
+                  <td className={ul.tdRight}>
+                    <span className={ul.money}>{rupiah(r.total_amount)}</span>
+                  </td>
+                  <td className={ul.tdRight}>
+                    <span className={ul.money}>{rupiah(r.paid_amount)}</span>
+                  </td>
+                  <td className={ul.tdRight}>
+                    <span className={ul.money}>{rupiah(r.remaining_amount)}</span>
+                  </td>
+                  <td className={`${ul.td} app-td-actions`}>
+                    <div className={ul.actions}>
+                      <button type="button" onClick={() => openEdit(r)} style={tableActionSecondary()}>
+                        Ubah
+                      </button>
+                      <button type="button" onClick={() => remove(r.id)} style={tableActionDanger()}>
+                        Hapus
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 
   return (

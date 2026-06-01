@@ -334,9 +334,641 @@ body {
   .invoice-table-scroll {
     width: 100%;
     max-width: 100%;
+    margin-top: 16px !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
   }
+
+  .invoice-list-table {
+    min-width: 600px;
+  }
+
+  .delivery-notes-table-scroll {
+    margin-top: 16px !important;
+  }
+
+  .delivery-notes-list-table {
+    min-width: 560px;
+  }
+
+  .purchase-orders-table-scroll {
+    margin-top: 16px !important;
+  }
+
+  .purchase-orders-list-table {
+    min-width: 580px;
+  }
+
+  .quotations-table-scroll {
+    margin-top: 16px !important;
+  }
+
+  .quotations-list-table {
+    min-width: 600px;
+  }
+}
+
+/* —— Invoice list (selaras Surat Jalan / PO / Quotation) —— */
+.invoice-table-scroll {
+  width: 100%;
+  margin-top: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.invoice-list-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #333;
+}
+
+.invoice-list-table .inv-th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #333;
+  background: #f0f2f5;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.invoice-list-table .inv-th--status {
+  text-align: center;
+  width: 120px;
+}
+
+.invoice-list-table .inv-th--amount {
+  text-align: right;
+}
+
+.invoice-list-table .inv-th--number {
+  min-width: 200px;
+}
+
+.invoice-list-table .inv-th--actions {
+  min-width: 200px;
+}
+
+.invoice-list-table tbody tr {
+  border-bottom: 1px solid #eee;
+  transition: background 0.12s ease;
+}
+
+.invoice-list-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.invoice-list-table .inv-td {
+  padding: 14px;
+  vertical-align: middle;
+  font-weight: 500;
+  color: #333;
+}
+
+.invoice-list-table .inv-td--number {
+  vertical-align: top;
+}
+
+.invoice-list-table .inv-td--status {
+  text-align: center;
+}
+
+.invoice-list-table .inv-td--amount {
+  text-align: right;
+}
+
+.invoice-list-table .inv-number-link {
+  display: block;
+  font-weight: 800;
+  font-size: 15px;
+  color: #111;
+  text-decoration: none;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.invoice-list-table .inv-number-link:hover {
+  color: #2d7d71;
+  text-decoration: underline;
+}
+
+.invoice-list-table .inv-number-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #999;
+  line-height: 1.4;
+}
+
+.invoice-list-table .inv-status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.invoice-list-table .inv-money {
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.invoice-list-table .app-table-empty-state {
+  padding: 28px 14px !important;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 600;
+  border-bottom: none !important;
+}
+
+/* —— Surat Jalan list (selaras invoice list) —— */
+.delivery-notes-table-scroll {
+  width: 100%;
+  margin-top: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.delivery-notes-list-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #333;
+}
+
+.delivery-notes-list-table .dn-th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #333;
+  background: #f0f2f5;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.delivery-notes-list-table .dn-th--status {
+  text-align: center;
+  width: 120px;
+}
+
+.delivery-notes-list-table .dn-th--invoice {
+  min-width: 160px;
+}
+
+.delivery-notes-list-table .dn-th--customer {
+  min-width: 140px;
+}
+
+.delivery-notes-list-table .dn-th--actions {
+  min-width: 220px;
+}
+
+.delivery-notes-list-table .dn-th--sj {
+  min-width: 200px;
+}
+
+.delivery-notes-list-table tbody tr {
+  border-bottom: 1px solid #eee;
+  transition: background 0.12s ease;
+}
+
+.delivery-notes-list-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.delivery-notes-list-table .dn-td {
+  padding: 14px;
+  vertical-align: middle;
+  font-weight: 500;
+  color: #333;
+}
+
+.delivery-notes-list-table .dn-td--sj {
+  vertical-align: top;
+}
+
+.delivery-notes-list-table .dn-td--status {
+  text-align: center;
+}
+
+.delivery-notes-list-table .dn-sj-link {
+  display: block;
+  font-weight: 800;
+  font-size: 15px;
+  color: #111;
+  text-decoration: none;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.delivery-notes-list-table .dn-sj-link:hover {
+  color: #2d7d71;
+  text-decoration: underline;
+}
+
+.delivery-notes-list-table .dn-sj-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #999;
+  line-height: 1.4;
+}
+
+.delivery-notes-list-table .dn-status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.delivery-notes-list-table .dn-invoice-ref {
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.delivery-notes-list-table .dn-tag-manual {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.delivery-notes-list-table .dn-muted {
+  color: #94a3b8;
+}
+
+.delivery-notes-list-table .dn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.delivery-notes-list-table .app-table-empty-state {
+  padding: 28px 14px !important;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 600;
+  border-bottom: none !important;
+}
+
+/* —— Purchase Order list (selaras Surat Jalan / Invoice) —— */
+.purchase-orders-table-scroll {
+  width: 100%;
+  margin-top: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.purchase-orders-list-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #333;
+}
+
+.purchase-orders-list-table .po-th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #333;
+  background: #f0f2f5;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.purchase-orders-list-table .po-th--status {
+  text-align: center;
+  width: 130px;
+}
+
+.purchase-orders-list-table .po-th--total {
+  text-align: right;
+  width: 140px;
+}
+
+.purchase-orders-list-table .po-th--number {
+  min-width: 200px;
+}
+
+.purchase-orders-list-table .po-th--vendor {
+  min-width: 160px;
+}
+
+.purchase-orders-list-table .po-th--actions {
+  min-width: 260px;
+}
+
+.purchase-orders-list-table tbody tr {
+  border-bottom: 1px solid #eee;
+  transition: background 0.12s ease;
+}
+
+.purchase-orders-list-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.purchase-orders-list-table .po-td {
+  padding: 14px;
+  vertical-align: middle;
+  font-weight: 500;
+  color: #333;
+}
+
+.purchase-orders-list-table .po-td--number {
+  vertical-align: top;
+}
+
+.purchase-orders-list-table .po-td--status {
+  text-align: center;
+}
+
+.purchase-orders-list-table .po-td--total {
+  text-align: right;
+}
+
+.purchase-orders-list-table .po-td--loading {
+  text-align: center;
+  color: #64748b;
+  font-weight: 600;
+  padding: 28px 14px;
+}
+
+.purchase-orders-list-table .po-number-link {
+  display: block;
+  font-weight: 800;
+  font-size: 15px;
+  color: #111;
+  text-decoration: none;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.purchase-orders-list-table .po-number-link:hover {
+  color: #2d7d71;
+  text-decoration: underline;
+}
+
+.purchase-orders-list-table .po-number-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #999;
+  line-height: 1.4;
+}
+
+.purchase-orders-list-table .po-status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.purchase-orders-list-table .po-total {
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.purchase-orders-list-table .po-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.purchase-orders-list-table .app-table-empty-state {
+  padding: 28px 14px !important;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 600;
+  border-bottom: none !important;
+}
+
+/* —— Quotation list (selaras PO / Surat Jalan) —— */
+.quotations-table-scroll {
+  width: 100%;
+  margin-top: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.quotations-list-table {
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #333;
+}
+
+.quotations-list-table .qt-th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #333;
+  background: #f0f2f5;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.quotations-list-table .qt-th--status {
+  text-align: center;
+  width: 150px;
+}
+
+.quotations-list-table .qt-th--total {
+  text-align: right;
+  width: 140px;
+}
+
+.quotations-list-table .qt-th--number {
+  min-width: 200px;
+}
+
+.quotations-list-table .qt-th--customer {
+  min-width: 180px;
+}
+
+.quotations-list-table .qt-th--actions {
+  min-width: 300px;
+}
+
+.quotations-list-table tbody tr {
+  border-bottom: 1px solid #eee;
+  transition: background 0.12s ease;
+}
+
+.quotations-list-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.quotations-list-table .qt-td {
+  padding: 14px;
+  vertical-align: middle;
+  font-weight: 500;
+  color: #333;
+}
+
+.quotations-list-table .qt-td--number {
+  vertical-align: top;
+}
+
+.quotations-list-table .qt-td--status {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.quotations-list-table .qt-td--total {
+  text-align: right;
+}
+
+.quotations-list-table .qt-td--loading {
+  text-align: center;
+  color: #64748b;
+  font-weight: 600;
+  padding: 28px 14px;
+}
+
+.quotations-list-table .qt-number-link {
+  display: block;
+  font-weight: 800;
+  font-size: 15px;
+  color: #111;
+  text-decoration: none;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.quotations-list-table .qt-number-link:hover {
+  color: #2d7d71;
+  text-decoration: underline;
+}
+
+.quotations-list-table .qt-number-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #999;
+  line-height: 1.4;
+}
+
+.quotations-list-table .qt-status-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.quotations-list-table .qt-status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.quotations-list-table .qt-locked-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: lowercase;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.quotations-list-table .qt-customer-name {
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.quotations-list-table .qt-invoice-ref {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.quotations-list-table .qt-invoice-link {
+  color: #2d7d71;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.quotations-list-table .qt-invoice-link:hover {
+  text-decoration: underline;
+}
+
+.quotations-list-table .qt-total {
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.quotations-list-table .qt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.quotations-list-table .app-table-empty-state {
+  padding: 28px 14px !important;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 600;
+  border-bottom: none !important;
 }
 
 @keyframes invoicekuShimmer {

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
-import { listTableStyles } from "../components/list-page-layout";
 import TableEmptyState from "../components/table-empty-state";
+import { ul } from "../components/unified-list-table";
 import {
   formPrimaryButton,
   tableActionDanger,
@@ -167,45 +167,50 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
   );
 
   const tableContent = (
-    <table style={listTableStyles.table}>
-      <thead>
-        <tr style={listTableStyles.thead}>
-          <th style={listTableStyles.th}>Nama</th>
-          <th style={listTableStyles.th}>No HP</th>
-          <th style={listTableStyles.th}>Alamat</th>
-          <th style={listTableStyles.th}>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {refreshing ? (
+    <div className={ul.scroll}>
+      <table className={`${ul.table} app-table--customers`} style={{ minWidth: 640 }}>
+        <thead>
           <tr>
-            <td colSpan={4} style={{ ...listTableStyles.td, color: "#64748b" }}>
-              Memperbarui...
-            </td>
+            <th className={ul.th}>Nama</th>
+            <th className={ul.th}>Alamat</th>
+            <th className={ul.th}>Aksi</th>
           </tr>
-        ) : paginated.length === 0 ? (
-          <TableEmptyState colSpan={4} message="Belum ada customer." />
-        ) : (
-          paginated.map((c) => (
-            <tr key={c.id}>
-              <td style={{ ...listTableStyles.td, fontWeight: 700 }}>{c.name}</td>
-              <td style={listTableStyles.td}>{c.phone || "-"}</td>
-              <td style={{ ...listTableStyles.td, whiteSpace: "pre-wrap" }}>{c.address || "-"}</td>
-              <td style={listTableStyles.td}>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button type="button" onClick={() => openEdit(c)} style={tableActionSecondary()}>
-                    Edit
-                  </button>
-                  <button type="button" onClick={() => deleteCustomer(c.id)} style={tableActionDanger()}>
-                    Hapus
-                  </button>
-                </div>
+        </thead>
+        <tbody>
+          {refreshing ? (
+            <tr>
+              <td colSpan={3} className={ul.loading}>
+                Memperbarui…
               </td>
             </tr>
-          ))
-        )}
-      </tbody>
-    </table>
+          ) : paginated.length === 0 ? (
+            <TableEmptyState colSpan={3} message="Belum ada customer." />
+          ) : (
+            paginated.map((c) => (
+              <tr key={c.id}>
+                <td className={ul.tdTop}>
+                  <span className={ul.primaryText}>{c.name}</span>
+                  {c.phone ? <div className={ul.primaryMeta}>HP: {c.phone}</div> : null}
+                </td>
+                <td className={ul.td}>
+                  <span style={{ whiteSpace: "pre-wrap" }}>{c.address || "-"}</span>
+                </td>
+                <td className={`${ul.td} app-td-actions`}>
+                  <div className={ul.actions}>
+                    <button type="button" onClick={() => openEdit(c)} style={tableActionSecondary()}>
+                      Edit
+                    </button>
+                    <button type="button" onClick={() => deleteCustomer(c.id)} style={tableActionDanger()}>
+                      Hapus
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 
   return (

@@ -309,31 +309,17 @@ export default async function InvoiceListPage({
       >
         <InvoiceFiltersClient customers={(customers || []) as any} />
 
-        <div className="invoice-table-scroll" style={{ marginTop: 20, overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 680 }}>
+        <div className="invoice-table-scroll">
+          <table className="invoice-list-table app-table--invoice-list">
             <thead>
-              <tr style={{ background: "#f0f2f5", color: "#333" }}>
-                <th style={{ padding: "12px 14px", textAlign: "left", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Nomor Invoice
-                </th>
-                <th style={{ padding: "12px 14px", textAlign: "center", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Status
-                </th>
-                <th style={{ padding: "12px 14px", textAlign: "left", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Pelanggan
-                </th>
-                <th style={{ padding: "12px 14px", textAlign: "right", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Jumlah
-                </th>
-                <th style={{ padding: "12px 14px", textAlign: "right", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Terbayar
-                </th>
-                <th style={{ padding: "12px 14px", textAlign: "right", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Terhutang
-                </th>
-                <th style={{ padding: "12px 14px", textAlign: "left", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em", minWidth: 200 }}>
-                  Aksi
-                </th>
+              <tr>
+                <th className="inv-th inv-th--number">Nomor Invoice</th>
+                <th className="inv-th inv-th--status">Status</th>
+                <th className="inv-th inv-th--customer">Pelanggan</th>
+                <th className="inv-th inv-th--amount">Jumlah</th>
+                <th className="inv-th inv-th--amount">Terbayar</th>
+                <th className="inv-th inv-th--amount">Terhutang</th>
+                <th className="inv-th inv-th--actions">Aksi</th>
               </tr>
             </thead>
 
@@ -341,54 +327,45 @@ export default async function InvoiceListPage({
               {(invoices || []).map((inv: any) => {
                 const badge = badgeStyle(inv.payStatus);
                 const customerName = inv?.customers?.name || inv.customer_name || "-";
-                const invLabel = inv.invoice_number ? `Invoice ${inv.invoice_number}` : "(Tanpa nomor)";
+                const invLabel = inv.invoice_number || "(Tanpa nomor)";
 
                 return (
-                  <tr key={inv.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "14px", verticalAlign: "top" }}>
-                      <Link
-                        href={`/invoice/${inv.id}`}
-                        style={{ fontWeight: 800, textDecoration: "none", color: "#111", fontSize: 14, display: "block" }}
-                      >
+                  <tr key={inv.id}>
+                    <td className="inv-td inv-td--number">
+                      <Link href={`/invoice/${inv.id}`} className="inv-number-link">
                         {invLabel}
                       </Link>
-                      <div style={{ color: "#999", fontSize: 12, marginTop: 4 }}>
+                      <div className="inv-number-meta">
                         Tanggal: {formatTanggalIndo(inv.invoice_date)}
                       </div>
                     </td>
 
-                    <td style={{ padding: "14px", textAlign: "center", verticalAlign: "middle" }}>
+                    <td className="inv-td inv-td--status">
                       <span
+                        className="inv-status-badge"
                         style={{
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          fontSize: 11,
-                          fontWeight: 800,
-                          letterSpacing: "0.03em",
                           background: badge.bg,
-                          border: `1px solid ${badge.border}`,
+                          borderColor: badge.border,
                           color: badge.color,
-                          whiteSpace: "nowrap",
-                          display: "inline-block",
                         }}
                       >
                         {inv.payStatus}
                       </span>
                     </td>
 
-                    <td style={{ padding: "14px", color: "#333", verticalAlign: "middle" }}>{customerName}</td>
+                    <td className="inv-td inv-td--customer">{customerName}</td>
 
-                    <td style={{ padding: "14px", textAlign: "right", fontWeight: 700, color: "#333", verticalAlign: "middle" }}>
-                      {rupiah(inv.grandTotal)}
+                    <td className="inv-td inv-td--amount">
+                      <span className="inv-money">{rupiah(inv.grandTotal)}</span>
                     </td>
-                    <td style={{ padding: "14px", textAlign: "right", fontWeight: 700, color: "#333", verticalAlign: "middle" }}>
-                      {rupiah(inv.paid)}
+                    <td className="inv-td inv-td--amount">
+                      <span className="inv-money">{rupiah(inv.paid)}</span>
                     </td>
-                    <td style={{ padding: "14px", textAlign: "right", fontWeight: 700, color: "#333", verticalAlign: "middle" }}>
-                      {rupiah(inv.remaining)}
+                    <td className="inv-td inv-td--amount">
+                      <span className="inv-money">{rupiah(inv.remaining)}</span>
                     </td>
 
-                    <td style={{ padding: "12px 14px", verticalAlign: "middle" }}>
+                    <td className="inv-td inv-td--actions app-td-actions">
                       <InvoiceActionsClient
                         id={inv.id}
                         invoiceNumber={inv.invoice_number}

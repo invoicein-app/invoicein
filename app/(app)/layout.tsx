@@ -2,6 +2,7 @@
 export const runtime = "nodejs";
 
 import "./components/app-mobile-pages.css";
+import "./components/unified-list-table.css";
 import Navbar from "@/app/components/navbar";
 import SubscriptionBanner from "@/app/components/subscription-banner";
 import AppShell from "@/app/components/app-shell";

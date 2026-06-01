@@ -4,9 +4,8 @@ import DeliveryNotesFiltersClient from "./delivery-notes-filters-client";
 import DeliveryNotesListFooterClient from "./delivery-notes-list-footer-client";
 import AppHeaderNav from "../components/app-header-nav";
 import { APP_BORDER, APP_TEAL } from "../components/app-ui-tokens";
-import { formPrimaryButton, tableActionSecondary } from "../components/app-action-buttons";
-import { listTableStyles } from "../components/list-page-layout";
-import TableEmptyState from "../components/table-empty-state";
+import { formPrimaryButton } from "../components/app-action-buttons";
+import DeliveryNotesListTable from "./delivery-notes-list-table";
 import {
   listPageContentCard,
   listPageHeaderActions,
@@ -16,13 +15,6 @@ import {
   listPageSubtitle,
   listPageTitle,
 } from "../components/list-page-shell-styles";
-
-function badgeStyle(status: string) {
-  const s = String(status || "").toLowerCase();
-  if (s === "posted") return { bg: "#ecfdf5", border: "#6ee7b7", color: "#065f46", label: "POSTED" };
-  if (s === "cancelled") return { bg: "#fef2f2", border: "#fca5a5", color: "#991b1b", label: "CANCELLED" };
-  return { bg: "#f3f4f6", border: "#d1d5db", color: "#374151", label: "DRAFT" };
-}
 
 function parseIntSafe(v: string | undefined, fallback: number) {
   const n = Number(v);
@@ -116,69 +108,7 @@ export default async function DeliveryNotesListPage({
           <div style={{ marginBottom: 14, ...errBox() }}>{countErr.message}</div>
         ) : null}
 
-        <div className="app-table-scroll">
-          <table className="app-data-table app-table--delivery-notes" style={listTableStyles.table}>
-            <thead>
-              <tr style={listTableStyles.thead}>
-                <th style={{ ...listTableStyles.th, minWidth: 180 }}>Nomor SJ</th>
-                <th style={listTableStyles.th}>Tanggal</th>
-                <th style={{ ...listTableStyles.th, minWidth: 180 }}>Invoice</th>
-                <th style={{ ...listTableStyles.th, minWidth: 180 }}>Customer</th>
-                <th style={{ ...listTableStyles.th, textAlign: "center" }}>Status</th>
-                <th style={{ ...listTableStyles.th, minWidth: 230 }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(rows || []).map((r: any) => {
-                const badge = badgeStyle(r.status);
-                return (
-                  <tr key={r.id}>
-                    <td style={{ ...listTableStyles.td, fontWeight: 800, color: "#0f172a" }}>
-                      {r.sj_number || "-"}
-                    </td>
-                    <td style={listTableStyles.td}>{r.sj_date || "-"}</td>
-                    <td style={listTableStyles.td}>
-                      {r.invoices?.invoice_number || (r.invoice_id ? "-" : "Manual")}
-                    </td>
-                    <td style={listTableStyles.td}>{r.customer_name || r.invoices?.customer_name || "-"}</td>
-                    <td style={{ ...listTableStyles.tdCenter, verticalAlign: "middle" }}>
-                      <span
-                        style={{
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          fontSize: 12,
-                          fontWeight: 800,
-                          letterSpacing: "0.04em",
-                          background: badge.bg,
-                          border: `1px solid ${badge.border}`,
-                          color: badge.color,
-                        }}
-                      >
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td className="app-td-actions" style={listTableStyles.td}>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <Link href={`/delivery-notes/${r.id}`} style={tableActionSecondary()}>
-                          View
-                        </Link>
-                        <a href={`/api/delivery-notes/pdf/${r.id}`} style={tableActionSecondary()} target="_blank" rel="noreferrer">
-                          PDF
-                        </a>
-                        <a href={`/api/delivery-notes/pdf-dotmatrix/${r.id}`} style={tableActionSecondary()} target="_blank" rel="noreferrer">
-                          Dotmatrix
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {(rows || []).length === 0 ? (
-                <TableEmptyState colSpan={6} message="Belum ada surat jalan." />
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+        <DeliveryNotesListTable rows={(rows || []) as any} />
 
         <DeliveryNotesListFooterClient
           pageSize={pageSize}

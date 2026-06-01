@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import ListFiltersClient from "../../components/list-filters-client";
-import ListPageLayout, { listTableStyles } from "../../components/list-page-layout";
+import ListPageLayout from "../../components/list-page-layout";
+import { formatTanggalIndo, ul } from "../../components/unified-list-table";
 import TableEmptyState from "../../components/table-empty-state";
 import { formPrimaryButton, tableActionSecondary } from "../../components/app-action-buttons";
 import { rupiah } from "@/lib/money";
@@ -168,50 +169,66 @@ function ReceivableCustomerDetailInner() {
   );
 
   const tableContent = (
-    <table className="app-data-table app-table--receivables-detail" style={listTableStyles.table}>
-      <thead>
-        <tr style={listTableStyles.thead}>
-          <th style={listTableStyles.th}>Nomor Invoice</th>
-          <th style={listTableStyles.th}>Tanggal Invoice</th>
-          <th style={listTableStyles.th}>Jatuh Tempo</th>
-          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Total Invoice</th>
-          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Sudah Dibayar</th>
-          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Sisa Piutang</th>
-          <th style={listTableStyles.th}>Status</th>
-          <th style={listTableStyles.th}>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {loading ? (
+    <div className={ul.scroll}>
+      <table className={`${ul.table} app-table--receivables-detail`} style={{ minWidth: 760 }}>
+        <thead>
           <tr>
-            <td colSpan={8} style={listTableStyles.td}>
-              Memuat...
-            </td>
+            <th className={ul.th}>Nomor Invoice</th>
+            <th className={ul.thCenter}>Status</th>
+            <th className={ul.thRight}>Total</th>
+            <th className={ul.thRight}>Terbayar</th>
+            <th className={ul.thRight}>Sisa</th>
+            <th className={ul.th}>Aksi</th>
           </tr>
-        ) : paginated.length === 0 ? (
-          <TableEmptyState colSpan={8} message="Belum ada invoice." />
-        ) : (
-          paginated.map((r) => (
-            <tr key={r.id}>
-              <td style={{ ...listTableStyles.td, fontWeight: 700 }}>{r.invoice_number || "(Tanpa nomor)"}</td>
-              <td style={listTableStyles.td}>{fmtDate(r.invoice_date)}</td>
-              <td style={listTableStyles.td}>{fmtDate(r.due_date)}</td>
-              <td style={{ ...listTableStyles.tdRight, fontWeight: 700 }}>{rupiah(r.grand_total)}</td>
-              <td style={{ ...listTableStyles.tdRight, fontWeight: 700 }}>{rupiah(r.paid_amount)}</td>
-              <td style={{ ...listTableStyles.tdRight, fontWeight: 800 }}>{rupiah(r.remaining_amount)}</td>
-              <td style={listTableStyles.td}>
-                <span style={badgeStyle(r.receivable_status)}>{r.receivable_status_label}</span>
-              </td>
-              <td style={listTableStyles.td}>
-                <Link href={`/invoice/${r.id}`} style={tableActionSecondary()}>
-                  Buka Invoice
-                </Link>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={6} className={ul.loading}>
+                Memuat…
               </td>
             </tr>
-          ))
-        )}
-      </tbody>
-    </table>
+          ) : paginated.length === 0 ? (
+            <TableEmptyState colSpan={6} message="Belum ada invoice." />
+          ) : (
+            paginated.map((r) => {
+              const badge = badgeStyle(r.receivable_status);
+              return (
+                <tr key={r.id}>
+                  <td className={ul.tdTop}>
+                    <Link href={`/invoice/${r.id}`} className={ul.primaryLink}>
+                      {r.invoice_number || "(Tanpa nomor)"}
+                    </Link>
+                    <div className={ul.primaryMeta}>
+                      Tanggal: {formatTanggalIndo(r.invoice_date)} · Jatuh tempo: {formatTanggalIndo(r.due_date)}
+                    </div>
+                  </td>
+                  <td className={ul.tdCenter}>
+                    <span className={ul.statusBadge} style={badge}>
+                      {r.receivable_status_label}
+                    </span>
+                  </td>
+                  <td className={ul.tdRight}>
+                    <span className={ul.money}>{rupiah(r.grand_total)}</span>
+                  </td>
+                  <td className={ul.tdRight}>
+                    <span className={ul.money}>{rupiah(r.paid_amount)}</span>
+                  </td>
+                  <td className={ul.tdRight}>
+                    <span className={ul.money}>{rupiah(r.remaining_amount)}</span>
+                  </td>
+                  <td className={`${ul.td} app-td-actions`}>
+                    <Link href={`/invoice/${r.id}`} style={tableActionSecondary()}>
+                      Buka Invoice
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 
   return (

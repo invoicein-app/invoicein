@@ -1,68 +1,18 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
-import { listTableStyles } from "../components/list-page-layout";
-import TableEmptyState from "../components/table-empty-state";
-import {
-  tableActionPrimary,
-  tableActionSecondary,
-  toolbarButtonOutline,
-} from "../components/app-action-buttons";
-
-type PORow = {
-  id: string;
-  po_number: string | null;
-  po_date: string | null;
-  vendor_name: string | null;
-  total: number | null;
-  status: string | null;
-};
-
-function fmtMoney(n: any) {
-  const v = Number(n);
-  const safe = Number.isFinite(v) ? v : 0;
-  return safe.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-function fmtDate(iso: any) {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("id-ID", { year: "numeric", month: "2-digit", day: "2-digit" });
-}
-function statusLabel(status: any) {
-  const s = String(status || "draft").toLowerCase();
-  if (s === "draft") return "Draft";
-  if (s === "sent") return "Sent";
-  if (s === "partially_received") return "Partially received";
-  if (s === "cancelled") return "Cancelled";
-  if (s === "received") return "Received";
-  return s ? s[0].toUpperCase() + s.slice(1) : "Draft";
-}
-function canReceive(status: string) {
-  const s = String(status || "").toLowerCase();
-  return s === "sent" || s === "partially_received";
-}
-function badgeStyle(status: any) {
-  const s = String(status || "draft").toLowerCase();
-  if (s === "sent") return { border: "1px solid #0284c7", background: "#e0f2fe", color: "#0c4a6e" };
-  if (s === "partially_received") return { border: "1px solid #d97706", background: "#fffbeb", color: "#92400e" };
-  if (s === "received") return { border: "1px solid #16a34a", background: "#dcfce7", color: "#14532d" };
-  if (s === "cancelled") return { border: "1px solid #dc2626", background: "#fee2e2", color: "#7f1d1d" };
-  return { border: "1px solid #9ca3af", background: "#f3f4f6", color: "#111827" };
-}
+import PurchaseOrdersListTable, { type PurchaseOrderRow } from "./purchase-orders-list-table";
+import { toolbarButtonOutline } from "../components/app-action-buttons";
 
 export default function PurchaseOrdersListPage() {
-  const router = useRouter();
   const supabase = supabaseBrowser();
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string>("");
-  const [rows, setRows] = useState<PORow[]>([]);
+  const [rows, setRows] = useState<PurchaseOrderRow[]>([]);
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -104,7 +54,7 @@ export default function PurchaseOrdersListPage() {
         .limit(200);
 
       if (error) throw error;
-      setRows((data as any) || []);
+      setRows((data as PurchaseOrderRow[]) || []);
     } catch (e: any) {
       setErr(e?.message || "Gagal load purchase orders.");
     } finally {
@@ -147,82 +97,32 @@ export default function PurchaseOrdersListPage() {
       searchPlaceholder="Cari PO number / vendor / status..."
       searchValue={q}
       onSearchChange={setQ}
-      onReset={() => { setQ(""); setPage(1); }}
+      onReset={() => {
+        setQ("");
+        setPage(1);
+      }}
       perPage={pageSize}
-      onPerPageChange={(v) => { setPageSize(v); setPage(1); }}
+      onPerPageChange={(v) => {
+        setPageSize(v);
+        setPage(1);
+      }}
       perPageOptions={[10, 20, 30, 50]}
       hidePerPage
     >
-      <button type="button" onClick={load} style={loading ? { ...toolbarButtonOutline(), opacity: 0.6, cursor: "wait" } : toolbarButtonOutline()} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
+      <button
+        type="button"
+        onClick={load}
+        style={loading ? { ...toolbarButtonOutline(), opacity: 0.6, cursor: "wait" } : toolbarButtonOutline()}
+        disabled={loading}
+      >
+        {loading ? "Loading..." : "Refresh"}
+      </button>
     </ListFiltersClient>
-  );
-
-  const tableContent = (
-    <table className="app-data-table app-table--purchase-orders" style={listTableStyles.table}>
-      <thead>
-        <tr style={listTableStyles.thead}>
-          <th style={listTableStyles.th}>No</th>
-          <th style={listTableStyles.th}>Tanggal</th>
-          <th style={listTableStyles.th}>Vendor</th>
-          <th style={{ ...listTableStyles.th, textAlign: "right" }}>Total</th>
-          <th style={listTableStyles.th}>Status</th>
-          <th style={listTableStyles.th}>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {loading ? (
-          <tr><td colSpan={6} style={listTableStyles.td}>Loading...</td></tr>
-        ) : paginated.length === 0 ? (
-          <TableEmptyState colSpan={6} message="Belum ada purchase order." />
-        ) : (
-          paginated.map((r) => {
-            const st = String(r.status || "draft");
-            return (
-              <tr key={r.id}>
-                <td style={{ ...listTableStyles.td, fontFamily: "ui-monospace, monospace" }}>
-                  <Link href={`/purchase-orders/${r.id}`} style={linkClick()}>{r.po_number || "-"}</Link>
-                </td>
-                <td style={listTableStyles.td}>{fmtDate(r.po_date)}</td>
-                <td style={listTableStyles.td}><div style={{ fontWeight: 700 }}>{r.vendor_name || "-"}</div></td>
-                <td style={{ ...listTableStyles.td, textAlign: "right" }}>Rp {fmtMoney(r.total)}</td>
-                <td style={listTableStyles.td}>
-                  <span style={{ ...badge(), ...badgeStyle(st) }}>{statusLabel(st)}</span>
-                </td>
-                <td className="app-td-actions" style={{ ...listTableStyles.td, verticalAlign: "middle" }}>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => router.push(`/purchase-orders/${r.id}`)} style={tableActionSecondary()}>
-                      Detail
-                    </button>
-                    {canReceive(st) ? (
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/purchase-orders/${r.id}/receive`)}
-                        style={tableActionPrimary()}
-                      >
-                        Terima Barang
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => window.open(`/api/purchase-orders/pdf/${r.id}`, "_blank")}
-                      style={tableActionSecondary()}
-                      title="Preview PDF"
-                    >
-                      PDF
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })
-        )}
-      </tbody>
-    </table>
   );
 
   return (
     <>
-      {err ? <div style={{ ...errBox(), margin: "24px 0" }}>{err}</div> : null}
+      {err ? <div style={errBox()}>{err}</div> : null}
       <ListPageLayout
         title="Purchase Order"
         subtitle="List PO yang sudah dibuat."
@@ -236,7 +136,7 @@ export default function PurchaseOrdersListPage() {
         fromIdx={fromIdx}
         toIdx={toIdx}
         clientPagination={clientPagination}
-        tableContent={tableContent}
+        tableContent={<PurchaseOrdersListTable rows={paginated} loading={loading} />}
         listCardTitle="Master Data Purchase Order"
         onPageSizeChange={(v) => {
           setPageSize(v);
@@ -247,46 +147,14 @@ export default function PurchaseOrdersListPage() {
   );
 }
 
-/** styles */
-function topbar(): React.CSSProperties {
-  return { display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 };
-}
-function card(): React.CSSProperties {
-  return { border: "1px solid #e5e7eb", background: "white", borderRadius: 14, padding: 14, boxShadow: "0 8px 24px rgba(0,0,0,0.05)" };
-}
 function errBox(): React.CSSProperties {
-  return { marginBottom: 12, padding: 12, borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 800 };
-}
-function baseInput(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb", outline: "none", fontWeight: 800, background: "white", lineHeight: "20px", height: 42, boxSizing: "border-box" };
-}
-function inpFull(): React.CSSProperties {
-  return { ...baseInput(), width: "100%" };
-}
-function tableWrap(): React.CSSProperties {
-  return { width: "100%", overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 12 };
-}
-function table(): React.CSSProperties {
-  return { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: 820 };
-}
-function th(): React.CSSProperties {
-  return { textAlign: "left", fontSize: 12, color: "#6b7280", fontWeight: 800, padding: "10px 12px", borderBottom: "1px solid #e5e7eb", background: "#f9fafb", position: "sticky", top: 0, zIndex: 1, letterSpacing: "0.04em" };
-}
-function thRight(): React.CSSProperties {
-  return { ...th(), textAlign: "right" };
-}
-function td(): React.CSSProperties {
-  return { padding: "10px 12px", borderBottom: "1px solid #f1f5f9", verticalAlign: "top", fontWeight: 800, color: "#111827", background: "white" };
-}
-function tdRight(): React.CSSProperties {
-  return { ...td(), textAlign: "right" };
-}
-function tdMono(): React.CSSProperties {
-  return { ...td(), fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" };
-}
-function badge(): React.CSSProperties {
-  return { display: "inline-flex", alignItems: "center", padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 800, letterSpacing: "0.04em" };
-}
-function linkClick(): React.CSSProperties {
-  return { color: "#0f172a", textDecoration: "underline", fontWeight: 800, cursor: "pointer", pointerEvents: "auto" };
+  return {
+    margin: "24px 20px 0",
+    padding: 12,
+    borderRadius: 8,
+    border: "1px solid #fecaca",
+    background: "#fef2f2",
+    color: "#991b1b",
+    fontWeight: 700,
+  };
 }

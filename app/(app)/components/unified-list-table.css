@@ -1,0 +1,185 @@
+/**
+ * Shared list table styling (Surat Jalan / Invoice / master data).
+ * Use with class names from unified-list-table.ts
+ */
+
+.app-unified-table-scroll {
+  width: 100%;
+  margin-top: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-unified-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #333;
+}
+
+.app-unified-list-table .ul-th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #333;
+  background: #f0f2f5;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.app-unified-list-table .ul-th--center {
+  text-align: center;
+}
+
+.app-unified-list-table .ul-th--right {
+  text-align: right;
+}
+
+.app-unified-list-table tbody tr {
+  border-bottom: 1px solid #eee;
+  transition: background 0.12s ease;
+}
+
+.app-unified-list-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.app-unified-list-table .ul-td {
+  padding: 14px;
+  vertical-align: middle;
+  font-weight: 500;
+  color: #333;
+}
+
+.app-unified-list-table .ul-td--top {
+  vertical-align: top;
+}
+
+.app-unified-list-table .ul-td--center {
+  text-align: center;
+}
+
+.app-unified-list-table .ul-td--right {
+  text-align: right;
+}
+
+.app-unified-list-table .ul-td--loading {
+  text-align: center;
+  color: #64748b;
+  font-weight: 600;
+  padding: 28px 14px;
+}
+
+.app-unified-list-table .ul-primary-link,
+.app-unified-list-table .ul-primary-text {
+  display: block;
+  font-weight: 800;
+  font-size: 15px;
+  color: #111;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.app-unified-list-table .ul-primary-link {
+  text-decoration: none;
+}
+
+.app-unified-list-table .ul-primary-link:hover {
+  color: #2d7d71;
+  text-decoration: underline;
+}
+
+.app-unified-list-table .ul-primary-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #999;
+  line-height: 1.4;
+}
+
+.app-unified-list-table .ul-cell-muted {
+  color: #64748b;
+}
+
+.app-unified-list-table .ul-money {
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.app-unified-list-table .ul-status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.app-unified-list-table .ul-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.app-unified-list-table .ul-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.app-unified-list-table .app-table-empty-state {
+  padding: 28px 14px !important;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 600;
+  border-bottom: none !important;
+}
+
+/* Alias: existing module tables inherit the same base */
+.delivery-notes-list-table,
+.purchase-orders-list-table,
+.quotations-list-table,
+.invoice-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #333;
+}
+
+@media (max-width: 768px) {
+  .app-unified-table-scroll,
+  .delivery-notes-table-scroll,
+  .purchase-orders-table-scroll,
+  .quotations-table-scroll,
+  .invoice-table-scroll {
+    margin-top: 16px !important;
+  }
+
+  .app-unified-list-table .ul-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .app-unified-list-table .ul-actions button,
+  .app-unified-list-table .ul-actions a {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}
