@@ -12,6 +12,7 @@ import {
   tableActionDanger,
   tableActionSecondary,
 } from "../components/app-action-buttons";
+import CustomersImportPanel from "./customers-import-panel";
 
 export type CustomerRow = {
   id: string;
@@ -43,6 +44,7 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
   const [pageSize, setPageSize] = useState(20);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [importOpen, setImportOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState("");
@@ -160,6 +162,9 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
       <a href="/customers/pricelist" style={tableActionSecondary()}>
         Daftar Harga Customer
       </a>
+      <button type="button" onClick={() => setImportOpen(true)} style={tableActionSecondary()}>
+        Import Paper.id
+      </button>
       <button type="button" onClick={openCreate} style={formPrimaryButton()}>
         + Tambah Customer
       </button>
@@ -242,6 +247,12 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
           </div>
         </div>
       ) : null}
+
+      <CustomersImportPanel
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={refreshList}
+      />
 
       {sheetOpen ? (
         <div style={backdrop()}>
