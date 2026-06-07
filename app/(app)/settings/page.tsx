@@ -97,6 +97,12 @@ export default function SettingsHome() {
 
   const cards: CardDef[] = [
     {
+      href: "/settings/workflow",
+      title: "Alur Kerja Pribadi",
+      desc: "Opsional: tandai invoice yang sudah dicatat di pembukuan luar sistem.",
+      icon: "clipboard",
+    },
+    {
       href: "/settings/subscription",
       title: "Langganan",
       desc: "Kode organisasi, status langganan, dan perpanjangan manual.",

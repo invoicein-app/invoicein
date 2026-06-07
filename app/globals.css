@@ -484,6 +484,50 @@ body {
   white-space: nowrap;
 }
 
+.invoice-list-table .inv-th--bookkeeping {
+  text-align: center;
+  width: 96px;
+}
+
+.invoice-list-table .inv-td--bookkeeping {
+  text-align: center;
+}
+
+.inv-bookkeeping-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.inv-bookkeeping-toggle--off {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.inv-bookkeeping-toggle--off:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.inv-bookkeeping-toggle--on {
+  background: #ecfdf5;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.inv-bookkeeping-toggle--on:hover:not(:disabled) {
+  background: #d1fae5;
+}
+
 .invoice-list-table .app-table-empty-state {
   padding: 28px 14px !important;
   text-align: center;

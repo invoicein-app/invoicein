@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import InvoiceFiltersClient from "./filters-client";
 import InvoiceActionsClient from "./invoice-actions-client";
+import InvoiceBookkeepingToggle from "./invoice-bookkeeping-toggle";
 import InvoicePaginationClient from "./invoice-pagination-client";
 import TableEmptyState from "../components/table-empty-state";
 
@@ -141,6 +142,16 @@ export default async function InvoiceListPage({
     );
   }
 
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("show_invoice_bookkeeping_status")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  const showBookkeepingStatus = Boolean(membership?.show_invoice_bookkeeping_status);
+
   const { data: customers, error: custErr } = await supabase
     .from("customers")
     .select("id, name")
@@ -198,6 +209,7 @@ export default async function InvoiceListPage({
       amount_paid,
       discount_value,
       tax_value,
+      bookkeeping_recorded,
       customers ( name ),
       invoice_items ( qty, price )
     `
@@ -234,6 +246,7 @@ export default async function InvoiceListPage({
 
   const TEAL = "#2D7D71";
   const baseQuery = currentParams.toString();
+  const tableColSpan = showBookkeepingStatus ? 8 : 7;
 
   return (
     <div
@@ -319,6 +332,9 @@ export default async function InvoiceListPage({
                 <th className="inv-th inv-th--amount">Jumlah</th>
                 <th className="inv-th inv-th--amount">Terbayar</th>
                 <th className="inv-th inv-th--amount">Terhutang</th>
+                {showBookkeepingStatus ? (
+                  <th className="inv-th inv-th--bookkeeping">Pencatatan</th>
+                ) : null}
                 <th className="inv-th inv-th--actions">Aksi</th>
               </tr>
             </thead>
@@ -365,6 +381,15 @@ export default async function InvoiceListPage({
                       <span className="inv-money">{rupiah(inv.remaining)}</span>
                     </td>
 
+                    {showBookkeepingStatus ? (
+                      <td className="inv-td inv-td--bookkeeping">
+                        <InvoiceBookkeepingToggle
+                          invoiceId={inv.id}
+                          initialRecorded={Boolean(inv.bookkeeping_recorded)}
+                        />
+                      </td>
+                    ) : null}
+
                     <td className="inv-td inv-td--actions app-td-actions">
                       <InvoiceActionsClient
                         id={inv.id}
@@ -379,7 +404,7 @@ export default async function InvoiceListPage({
               })}
 
               {!invoices?.length && (
-                <TableEmptyState colSpan={7} message="Belum ada invoice." />
+                <TableEmptyState colSpan={tableColSpan} message="Belum ada invoice." />
               )}
             </tbody>
           </table>
