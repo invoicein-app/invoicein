@@ -804,14 +804,6 @@ function InvoiceNewInner() {
           <a href="/invoice" style={formPageBackLink()}>
             Kembali
           </a>
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving || prefilling}
-            style={saving || prefilling ? formPageSaveButtonDisabled() : formPageSaveButton()}
-          >
-            {saving ? "Menyimpan..." : "Simpan Invoice"}
-          </button>
         </div>
       </div>
 
@@ -993,8 +985,6 @@ function InvoiceNewInner() {
               <Row k="Pajak" v={rupiah(calc.tax)} />
               <Row k="Total" v={<b>{rupiah(calc.total)}</b>} />
             </div>
-
-            {msg ? <p style={{ color: "#b00", margin: 0 }}>{msg}</p> : null}
           </div>
         </div>
       </div>
@@ -1180,6 +1170,20 @@ function InvoiceNewInner() {
               : "Kalau gudang tidak dipilih, semua barang aktif tetap bisa dipakai untuk invoice only."}
           </p>
         </div>
+      </div>
+
+      <div className="app-form-page__submit-row" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+        {msg ? (
+          <p style={{ color: "#b00", margin: "0 auto 0 0", alignSelf: "center", fontSize: 14 }}>{msg}</p>
+        ) : null}
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving || prefilling}
+          style={saving || prefilling ? formPageSaveButtonDisabled() : formPageSaveButton()}
+        >
+          {saving ? "Menyimpan..." : "Simpan Invoice"}
+        </button>
       </div>
     </div>
   );

@@ -1,6 +1,12 @@
 "use client";
 
 import { formPageClasses as fpc } from "../../../components/form-page-classes";
+import {
+  formPageBackLink,
+  formPageHeaderActions,
+  formPageSaveButton,
+  formPageSaveButtonDisabled,
+} from "../../../components/app-action-buttons";
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -183,13 +189,10 @@ export default function InvoiceEditPage() {
             {inv.invoice_number} • status: {inv.status || "-"}
           </p>
         </div>
-        <div className={fpc.headerActions} style={{ display: "flex", gap: 8 }}>
-          <a href={`/invoice/${id}`} style={btn()}>
+        <div className={fpc.headerActions} style={formPageHeaderActions()}>
+          <a href={`/invoice/${id}`} style={formPageBackLink()}>
             Kembali
           </a>
-          <button onClick={save} disabled={saving || !isEditable} style={saving || !isEditable ? btnDisabled() : btnPrimary()}>
-            {saving ? "Menyimpan..." : "Simpan"}
-          </button>
         </div>
       </div>
 
@@ -227,8 +230,6 @@ export default function InvoiceEditPage() {
           )}
         </div>
       ) : null}
-
-      {msg ? <div style={{ color: "#b00", marginTop: 12 }}>{msg}</div> : null}
 
       <div className={fpc.grid2} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
         <div style={card()}>
@@ -399,6 +400,20 @@ export default function InvoiceEditPage() {
           </table>
         </div>
       </div>
+
+      <div className="app-form-page__submit-row" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+        {msg ? (
+          <p style={{ color: "#b00", margin: "0 auto 0 0", alignSelf: "center", fontSize: 14 }}>{msg}</p>
+        ) : null}
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving || !isEditable}
+          style={saving || !isEditable ? formPageSaveButtonDisabled() : formPageSaveButton()}
+        >
+          {saving ? "Menyimpan..." : "Simpan"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -423,12 +438,6 @@ function input(): React.CSSProperties {
 }
 function btn(): React.CSSProperties {
   return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", textDecoration: "none", color: "#111" };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer" };
-}
-function btnDisabled(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #d1d5db", background: "#f3f4f6", color: "#9ca3af", cursor: "not-allowed" };
 }
 function warnBox(): React.CSSProperties {
   return { marginTop: 12, padding: 12, borderRadius: 12, border: "1px solid #fed7aa", background: "#fff7ed", color: "#9a3412", fontWeight: 900 };

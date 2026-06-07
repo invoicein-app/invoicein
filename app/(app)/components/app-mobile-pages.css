@@ -730,6 +730,23 @@
     width: 100% !important;
   }
 
+  .app-form-page__submit-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .app-form-page__submit-row > button {
+    width: 100% !important;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .app-form-page__submit-row > p {
+    margin: 0 !important;
+    text-align: center;
+  }
+
   .app-form-embedded input,
   .app-form-embedded select,
   .app-form-embedded textarea,
