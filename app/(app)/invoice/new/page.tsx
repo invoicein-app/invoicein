@@ -1030,8 +1030,12 @@ function InvoiceNewInner() {
                 const total = num(it.qty) * num(it.price);
 
                 return (
-                  <tr key={i}>
-                    <td style={{ ...td(), position: "relative", minWidth: 360 }}>
+                  <tr key={i} className="inv-form-item-row">
+                    <td
+                      className="inv-form-item-product"
+                      data-label="Barang"
+                      style={{ ...td(), position: "relative" }}
+                    >
                       <input
                         value={it.name}
                         onChange={(e) => {
@@ -1114,13 +1118,13 @@ function InvoiceNewInner() {
                       </div>
                     </td>
 
-                    <td style={td()}>
+                    <td className="inv-form-item-key" data-label="Key" style={td()}>
                       <div style={{ fontFamily: "monospace", fontWeight: 800 }}>
                         {it.item_key || "-"}
                       </div>
                     </td>
 
-                    <td style={td()}>
+                    <td className="inv-form-item-qty" data-label="Qty" style={td()}>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -1133,7 +1137,7 @@ function InvoiceNewInner() {
                       />
                     </td>
 
-                    <td style={td()}>
+                    <td className="inv-form-item-price" data-label="Harga" style={td()}>
                       <div style={{ display: "grid", gap: 6 }}>
                         <input
                           type="text"
@@ -1156,9 +1160,11 @@ function InvoiceNewInner() {
                       </div>
                     </td>
 
-                    <td style={td()}>{rupiah(total)}</td>
+                    <td className="inv-form-item-total" data-label="Total" style={td()}>
+                      {rupiah(total)}
+                    </td>
 
-                    <td style={td()}>
+                    <td className="inv-form-item-actions" data-label="Aksi" style={td()}>
                       <button onClick={() => removeItem(i)} disabled={items.length === 1} style={miniBtnDanger()}>
                         Hapus
                       </button>

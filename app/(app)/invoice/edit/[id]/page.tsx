@@ -346,7 +346,7 @@ export default function InvoiceEditPage() {
         </div>
 
         <div className={fpc.tableScroll} style={{ marginTop: 10, overflowX: "auto" }}>
-          <table className="app-table--invoice-form" style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table className="app-table--invoice-form app-table--invoice-form-edit" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <th style={th()}>Nama</th>
@@ -358,8 +358,8 @@ export default function InvoiceEditPage() {
             </thead>
             <tbody>
               {items.map((it, i) => (
-                <tr key={it.id || i}>
-                  <td style={td()}>
+                <tr key={it.id || i} className="inv-form-item-row">
+                  <td className="inv-form-item-product" data-label="Nama" style={td()}>
                     <input
                       value={it.name}
                       onChange={(e) => patchItem(i, { name: e.target.value })}
@@ -367,7 +367,7 @@ export default function InvoiceEditPage() {
                       disabled={!isEditable}
                     />
                   </td>
-                  <td style={td()}>
+                  <td className="inv-form-item-qty" data-label="Qty" style={td()}>
                     <input
                       type="number"
                       value={it.qty}
@@ -376,7 +376,7 @@ export default function InvoiceEditPage() {
                       disabled={!isEditable}
                     />
                   </td>
-                  <td style={td()}>
+                  <td className="inv-form-item-price" data-label="Harga" style={td()}>
                     <input
                       type="number"
                       value={it.price}
@@ -385,8 +385,10 @@ export default function InvoiceEditPage() {
                       disabled={!isEditable}
                     />
                   </td>
-                  <td style={td()}>{rupiah(num(it.qty) * num(it.price))}</td>
-                  <td style={td()}>
+                  <td className="inv-form-item-total" data-label="Total" style={td()}>
+                    {rupiah(num(it.qty) * num(it.price))}
+                  </td>
+                  <td className="inv-form-item-actions" data-label="Aksi" style={td()}>
                     <button onClick={() => removeItem(i)} style={btn()} disabled={!isEditable}>
                       Hapus
                     </button>

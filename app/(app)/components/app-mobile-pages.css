@@ -89,6 +89,40 @@
   border-bottom: 1px solid #f1f5f9;
 }
 
+/* Invoice form items — desktop column sizing */
+.app-table--invoice-form {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.app-table--invoice-form .inv-form-item-product {
+  min-width: 280px;
+}
+
+.app-table--invoice-form .inv-form-item-key {
+  min-width: 88px;
+}
+
+.app-table--invoice-form .inv-form-item-qty,
+.app-table--invoice-form .inv-form-item-price {
+  min-width: 120px;
+}
+
+.app-table--invoice-form .inv-form-item-total {
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.app-table--invoice-form .inv-form-item-actions {
+  min-width: 96px;
+}
+
+.app-table--invoice-form .inv-form-item-qty input,
+.app-table--invoice-form .inv-form-item-price input,
+.app-table--invoice-form .inv-form-item-product input {
+  min-width: 0;
+}
+
 /* Sidebar tetap tampil + jendela hampir persegi: area konten sempit, tabel lebar */
 @media (max-width: 1100px) {
   .app-list-page__header {
@@ -141,6 +175,115 @@
     width: 100%;
     justify-content: center;
     text-align: center;
+  }
+
+  /* Invoice form items: grouped card layout on tablet / narrow content */
+  .app-form-table-scroll:has(.app-table--invoice-form) {
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0;
+  }
+
+  .app-table--invoice-form {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+
+  .app-table--invoice-form thead {
+    display: none !important;
+  }
+
+  .app-table--invoice-form tbody tr.inv-form-item-row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "product product"
+      "key key"
+      "qty price"
+      "total actions";
+    gap: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  }
+
+  .app-table--invoice-form-edit tbody tr.inv-form-item-row {
+    grid-template-areas:
+      "product product"
+      "qty price"
+      "total actions";
+  }
+
+  .app-table--invoice-form tbody tr.inv-form-item-row td {
+    display: block !important;
+    padding: 0 !important;
+    border: none !important;
+    min-width: 0 !important;
+    width: auto !important;
+    vertical-align: top;
+  }
+
+  .app-table--invoice-form .inv-form-item-product {
+    grid-area: product;
+    position: relative;
+  }
+
+  .app-table--invoice-form .inv-form-item-key {
+    grid-area: key;
+  }
+
+  .app-table--invoice-form .inv-form-item-qty {
+    grid-area: qty;
+  }
+
+  .app-table--invoice-form .inv-form-item-price {
+    grid-area: price;
+  }
+
+  .app-table--invoice-form .inv-form-item-total {
+    grid-area: total;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .app-table--invoice-form .inv-form-item-actions {
+    grid-area: actions;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+  }
+
+  .app-table--invoice-form tbody tr.inv-form-item-row td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 6px;
+    text-align: left;
+  }
+
+  .app-table--invoice-form .inv-form-item-qty input,
+  .app-table--invoice-form .inv-form-item-price input,
+  .app-table--invoice-form .inv-form-item-product input {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+    box-sizing: border-box;
+  }
+
+  .app-table--invoice-form .inv-form-item-actions button {
+    min-height: 44px;
+    width: 100%;
+    max-width: 160px;
+    justify-content: center;
   }
 }
 
@@ -598,9 +741,36 @@
     min-width: 480px;
   }
 
-  .app-table--invoice-form th:nth-child(2),
-  .app-table--invoice-form td:nth-child(2) {
-    display: none;
+  .app-table--invoice-form .inv-form-item-key {
+    display: none !important;
+  }
+
+  .app-table--invoice-form tbody tr.inv-form-item-row {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "product"
+      "qty"
+      "price"
+      "total"
+      "actions" !important;
+  }
+
+  .app-table--invoice-form-edit tbody tr.inv-form-item-row {
+    grid-template-areas:
+      "product"
+      "qty"
+      "price"
+      "total"
+      "actions" !important;
+  }
+
+  .app-table--invoice-form .inv-form-item-actions {
+    justify-content: stretch !important;
+  }
+
+  .app-table--invoice-form .inv-form-item-actions button {
+    max-width: none !important;
+    width: 100% !important;
   }
 
   .app-table--invoice-detail th:nth-child(2),
@@ -639,6 +809,17 @@
 
   .app-form-table-scroll table {
     min-width: 560px;
+  }
+
+  .app-form-table-scroll:has(.app-table--invoice-form) table {
+    min-width: 0 !important;
+  }
+
+  .app-form-table-scroll:has(.app-table--invoice-form) {
+    overflow-x: visible !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
   }
 
   .app-form-page input,
