@@ -44,17 +44,23 @@ export default function InvoiceBookkeepingToggle({ invoiceId, initialRecorded }:
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={recorded}
       onClick={toggle}
       disabled={loading}
-      title={recorded ? "Sudah dicatat di buku — klik untuk batalkan" : "Belum dicatat — klik jika sudah dicatat"}
-      aria-pressed={recorded}
-      className={`inv-bookkeeping-toggle${recorded ? " inv-bookkeeping-toggle--on" : " inv-bookkeeping-toggle--off"}`}
-      style={{
-        opacity: loading ? 0.65 : 1,
-        cursor: loading ? "wait" : "pointer",
-      }}
+      title={
+        recorded
+          ? "Sudah dicatat di buku — klik untuk matikan"
+          : "Belum dicatat — klik untuk nyalakan"
+      }
+      className={`inv-bookkeeping-switch${recorded ? " inv-bookkeeping-switch--on" : ""}${loading ? " inv-bookkeeping-switch--loading" : ""}`}
     >
-      {loading ? "…" : recorded ? "Sudah" : "Belum"}
+      <span className="inv-bookkeeping-switch__track" aria-hidden>
+        <span className="inv-bookkeeping-switch__thumb" />
+      </span>
+      <span className="inv-bookkeeping-switch__text">
+        {loading ? "Menyimpan…" : recorded ? "Sudah dicatat" : "Belum dicatat"}
+      </span>
     </button>
   );
 }
