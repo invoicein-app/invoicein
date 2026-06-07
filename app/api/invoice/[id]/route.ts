@@ -7,6 +7,11 @@ import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
 import { canEditInvoice, deriveInvoiceStatusAfterEdit, resyncInvoiceStockAfterEdit } from "@/lib/invoice-finalize";
 import { upsertCustomerLatestPrices } from "@/lib/customer-item-latest-price";
+import {
+  loadOrgInventoryEnabled,
+  normalizeInvoiceItemInput,
+  validateInvoiceItems,
+} from "@/lib/invoice-items";
 
 type UpdateInvoiceBody = {
   header?: Record<string, any>;
@@ -21,9 +26,9 @@ type UpdateInvoiceBody = {
 };
 
 type NormItem = {
-  product_id: string;
+  product_id: string | null;
   name: string;
-  item_key: string;
+  item_key: string | null;
   qty: number;
   price: number;
   unit: string | null;
@@ -38,15 +43,32 @@ function asText(v: any) {
   return String(v ?? "").trim();
 }
 
-function toKey(raw: string) {
-  const s = String(raw || "")
-    .trim()
-    .toLowerCase()
-    .replace(/['"]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  return s || "";
+async function loadProductsForItems(
+  supabase: ReturnType<typeof createServerClient>,
+  orgId: string,
+  items: NormItem[]
+) {
+  const productIds = [
+    ...new Set(items.map((it) => it.product_id).filter((id): id is string => Boolean(id))),
+  ];
+
+  if (productIds.length === 0) {
+    return new Map<string, any>();
+  }
+
+  const { data: dbProducts, error: prodErr } = await supabase
+    .from("products")
+    .select("id, org_id, name, sku, unit")
+    .eq("org_id", orgId)
+    .in("id", productIds);
+
+  if (prodErr) {
+    throw new Error(prodErr.message);
+  }
+
+  return new Map<string, any>(
+    (dbProducts || []).map((p: any) => [String(p.id), p] as [string, any])
+  );
 }
 
 function pickSafeHeader(raw: Record<string, any>) {
@@ -204,82 +226,30 @@ export async function PATCH(
     return NextResponse.json({ error: "Minimal 1 item." }, { status: 400 });
   }
 
-  const normItems: NormItem[] = itemsRaw.map((it: any) => ({
-    product_id: asText(it.product_id),
-    name: asText(it.name),
-    item_key: toKey(asText(it.item_key)),
-    qty: Math.max(0, num(it.qty)),
-    price: Math.max(0, num(it.price)),
-    unit: null,
-  }));
+  const inventoryEnabled = await loadOrgInventoryEnabled(supabase, orgId);
 
-  const badIndex = normItems.findIndex(
-    (it) =>
-      !it.product_id ||
-      !it.name ||
-      !it.item_key ||
-      !Number.isFinite(it.qty) ||
-      it.qty <= 0
-  );
+  const normItems: NormItem[] = itemsRaw.map((it) => normalizeInvoiceItemInput(it));
 
-  if (badIndex >= 0) {
-    return NextResponse.json(
-      { error: `Item baris ${badIndex + 1} wajib pilih dari master barang.` },
-      { status: 400 }
-    );
+  let productsById = new Map<string, any>();
+  try {
+    productsById = await loadProductsForItems(supabase, orgId, normItems);
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || "Gagal memuat product." }, { status: 400 });
   }
 
-  const productIds = [...new Set(normItems.map((it) => it.product_id))];
+  const validated = validateInvoiceItems({
+    items: normItems,
+    inventoryEnabled,
+    productsById,
+  });
 
-  const { data: dbProducts, error: prodErr } = await supabase
-    .from("products")
-    .select("id, org_id, name, sku, unit")
-    .eq("org_id", orgId)
-    .in("id", productIds);
-
-  if (prodErr) {
-    return NextResponse.json({ error: prodErr.message }, { status: 400 });
+  if (!validated.ok) {
+    return NextResponse.json({ error: validated.error }, { status: 400 });
   }
 
-  const productMap = new Map(
-    (dbProducts || []).map((p: any) => [String(p.id), p])
-  );
+  const safeItems = validated.items;
 
-  for (let i = 0; i < normItems.length; i++) {
-    const it = normItems[i];
-    const p: any = productMap.get(it.product_id);
-
-    if (!p) {
-      return NextResponse.json(
-        { error: `Item baris ${i + 1}: product tidak ditemukan.` },
-        { status: 400 }
-      );
-    }
-
-    const expectedKey = toKey(
-      String(p.sku || "").trim() || String(p.name || "").trim()
-    );
-
-    if (it.item_key !== expectedKey) {
-      return NextResponse.json(
-        { error: `Item baris ${i + 1}: item_key tidak cocok dengan product.` },
-        { status: 400 }
-      );
-    }
-
-    if (it.name !== String(p.name || "").trim()) {
-      return NextResponse.json(
-        {
-          error: `Item baris ${i + 1}: nama item harus sama dengan master barang.`,
-        },
-        { status: 400 }
-      );
-    }
-
-    it.unit = asText(p.unit) || null;
-  }
-
-  const subtotal = normItems.reduce(
+  const subtotal = safeItems.reduce(
     (a, it) => a + Math.max(0, num(it.qty)) * Math.max(0, num(it.price)),
     0
   );
@@ -306,6 +276,7 @@ export async function PATCH(
 
   const headerPatch = {
     ...safeHeader,
+    warehouse_id: inventoryEnabled ? safeHeader.warehouse_id ?? before.warehouse_id ?? null : null,
     subtotal,
     discount_amount: discountAmount,
     tax_amount: taxAmount,
@@ -334,7 +305,7 @@ export async function PATCH(
     return NextResponse.json({ error: delErr.message }, { status: 400 });
   }
 
-  const payloadItems = normItems.map((it, idx) => ({
+  const payloadItems = safeItems.map((it, idx) => ({
     invoice_id: id,
     product_id: it.product_id,
     item_key: it.item_key,

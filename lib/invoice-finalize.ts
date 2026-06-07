@@ -75,11 +75,13 @@ export async function finalizeInvoice(args: {
 
   const { data: settings, error: settingsErr } = await supabase
     .from("org_settings")
-    .select("allow_negative_stock, stock_issue_trigger")
+    .select("allow_negative_stock, stock_issue_trigger, inventory_enabled")
     .eq("org_id", orgId)
     .maybeSingle();
 
   if (settingsErr) return { ok: false, error: settingsErr.message };
+
+  const inventoryEnabled = Boolean(settings?.inventory_enabled);
 
   const allowNegativeStock =
     typeof settings?.allow_negative_stock === "boolean" ? !!settings.allow_negative_stock : true;
@@ -97,11 +99,16 @@ export async function finalizeInvoice(args: {
 
   for (let i = 0; i < items.length; i++) {
     const it = items[i] as InvoiceItemRow;
-    if (!String(it.product_id || "").trim()) {
-      return { ok: false, error: `Item baris ${i + 1} belum linked ke product.` };
+    if (!String(it.name || "").trim()) {
+      return { ok: false, error: `Item baris ${i + 1}: nama wajib diisi.` };
     }
-    if (!String(it.item_key || "").trim()) {
-      return { ok: false, error: `Item baris ${i + 1} belum punya item_key.` };
+    if (inventoryEnabled) {
+      if (!String(it.product_id || "").trim()) {
+        return { ok: false, error: `Item baris ${i + 1} belum linked ke product.` };
+      }
+      if (!String(it.item_key || "").trim()) {
+        return { ok: false, error: `Item baris ${i + 1} belum punya item_key.` };
+      }
     }
     if (Math.max(0, num(it.qty)) <= 0) {
       return { ok: false, error: `Qty item baris ${i + 1} harus > 0.` };
@@ -136,6 +143,17 @@ export async function finalizeInvoice(args: {
 
     return { ok: true as const };
   };
+
+  if (!inventoryEnabled) {
+    const r = await markSent({ stock_movement: "skipped", reason: "inventory disabled" });
+    if (!r.ok) return r;
+    return {
+      ok: true,
+      status: "sent",
+      stock_moved: false,
+      reason: "inventory disabled",
+    };
+  }
 
   if (stockIssueTrigger !== "invoice_sent") {
     const r = await markSent({ stock_movement: "skipped", reason: "trigger is not invoice_sent" });
@@ -309,8 +327,13 @@ export async function applyInvoiceStockOut(args: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const { supabase, orgId, invoiceId, warehouseId, items, allowNegativeStock } = args;
 
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i];
+  const stockItems = items.filter((it) => String(it.product_id || "").trim());
+  if (stockItems.length === 0) {
+    return { ok: true };
+  }
+
+  for (let i = 0; i < stockItems.length; i++) {
+    const it = stockItems[i];
     const qty = Math.max(0, num(it.qty));
     const productId = String(it.product_id || "").trim();
     const itemKey = String(it.item_key || "").trim();
@@ -338,7 +361,7 @@ export async function applyInvoiceStockOut(args: {
     }
   }
 
-  for (const it of items) {
+  for (const it of stockItems) {
     const itemId = String(it.id || "").trim();
     const productId = String(it.product_id || "").trim();
     const itemKey = String(it.item_key || "").trim();
@@ -405,9 +428,13 @@ export async function resyncInvoiceStockAfterEdit(args: {
 
   const { data: settings } = await supabase
     .from("org_settings")
-    .select("allow_negative_stock, stock_issue_trigger")
+    .select("allow_negative_stock, stock_issue_trigger, inventory_enabled")
     .eq("org_id", orgId)
     .maybeSingle();
+
+  if (!settings?.inventory_enabled) {
+    return { ok: true, stock_moved: false };
+  }
 
   const stockIssueTrigger = String(settings?.stock_issue_trigger || "invoice_sent");
   if (stockIssueTrigger !== "invoice_sent") {

@@ -150,6 +150,7 @@ function InvoiceNewInner() {
   const [customerAddress, setCustomerAddress] = useState("");
 
   const [warehouseId, setWarehouseId] = useState<string>("");
+  const [inventoryEnabled, setInventoryEnabled] = useState(false);
 
   const [note, setNote] = useState("");
 
@@ -178,6 +179,7 @@ function InvoiceNewInner() {
 
   const [sourceQuotationId, setSourceQuotationId] = useState<string>("");
   const [latestPriceMap, setLatestPriceMap] = useState<Record<string, number>>({});
+  const [latestManualPriceMap, setLatestManualPriceMap] = useState<Record<string, number>>({});
 
   function applyTerms(days: number) {
     const d = Math.max(0, Math.floor(num(days)));
@@ -268,6 +270,14 @@ function InvoiceNewInner() {
       return;
     }
 
+    const { data: setRow } = await supabase
+      .from("org_settings")
+      .select("inventory_enabled")
+      .eq("org_id", nextOrgId)
+      .maybeSingle();
+
+    setInventoryEnabled(Boolean(setRow?.inventory_enabled));
+
     const { data: wh, error: whErr } = await supabase
       .from("warehouses")
       .select("id,name")
@@ -347,6 +357,7 @@ function InvoiceNewInner() {
   useEffect(() => {
     if (!customerId) {
       setLatestPriceMap({});
+      setLatestManualPriceMap({});
       return;
     }
 
@@ -361,8 +372,18 @@ function InvoiceNewInner() {
         )
       );
 
+      const manualKeys = Array.from(
+        new Set(
+          items
+            .filter((it) => !String(it.product_id || "").trim())
+            .map((it) => toKey(String(it.name || it.item_key || "")))
+            .filter(Boolean)
+        )
+      );
+
       const qs = new URLSearchParams({ customer_id: customerId });
       if (productIds.length > 0) qs.set("product_ids", productIds.join(","));
+      if (manualKeys.length > 0) qs.set("item_keys", manualKeys.join(","));
 
       try {
         const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
@@ -372,17 +393,31 @@ function InvoiceNewInner() {
         if (cancelled || !res.ok) return;
 
         const prices = (json?.prices || {}) as Record<string, number>;
+        const manualPrices = (json?.manual_prices || {}) as Record<string, number>;
         setLatestPriceMap(prices);
-
-        if (productIds.length === 0) return;
+        setLatestManualPriceMap(manualPrices);
 
         setItems((prev) =>
           prev.map((it) => {
-            if (!it.product_id || it.priceManual) return it;
-            const latest = prices[String(it.product_id)];
+            if (it.priceManual) return it;
+
+            if (it.product_id) {
+              const latest = prices[String(it.product_id)];
+              if (!latest || latest <= 0) return it;
+              return {
+                ...it,
+                price: latest,
+                priceText: formatThousandsID(latest),
+                latestPriceHint: latest,
+              };
+            }
+
+            const key = toKey(String(it.name || it.item_key || ""));
+            const latest = key ? manualPrices[key] : undefined;
             if (!latest || latest <= 0) return it;
             return {
               ...it,
+              item_key: key,
               price: latest,
               priceText: formatThousandsID(latest),
               latestPriceHint: latest,
@@ -404,7 +439,13 @@ function InvoiceNewInner() {
   }, [warehouseId, orgId]);
 
   useEffect(() => {
-    if (!warehouseId) return;
+    if (!inventoryEnabled && warehouseId) {
+      setWarehouseId("");
+    }
+  }, [inventoryEnabled, warehouseId]);
+
+  useEffect(() => {
+    if (!inventoryEnabled || !warehouseId) return;
 
     setItems((prev) =>
       prev.map((it) => {
@@ -528,6 +569,52 @@ function InvoiceNewInner() {
     const key = String(itemKey || "").trim().toLowerCase();
     if (!key) return undefined;
     return balancesMap[key];
+  }
+
+  async function applyManualLatestPrice(rowIdx: number, name: string) {
+    if (!customerId) return;
+
+    const itemKey = toKey(name);
+    if (!itemKey) return;
+
+    const applyPrice = (latest: number) => {
+      setItems((prev) => {
+        const current = prev[rowIdx];
+        if (!current || current.product_id || current.priceManual) return prev;
+        return prev.map((it, idx) =>
+          idx === rowIdx
+            ? {
+                ...it,
+                item_key: itemKey,
+                price: latest,
+                priceText: formatThousandsID(latest),
+                latestPriceHint: latest,
+              }
+            : it
+        );
+      });
+    };
+
+    const cached = latestManualPriceMap[itemKey];
+    if (cached && cached > 0) {
+      applyPrice(cached);
+      return;
+    }
+
+    try {
+      const qs = new URLSearchParams({ customer_id: customerId, item_key: itemKey });
+      const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !(Number(json.latest_price) > 0)) return;
+
+      const latest = Math.floor(Number(json.latest_price));
+      setLatestManualPriceMap((prev) => ({ ...prev, [itemKey]: latest }));
+      applyPrice(latest);
+    } catch {
+      /* ignore */
+    }
   }
 
   async function pickSuggestion(rowIdx: number, p: Product) {
@@ -657,12 +744,18 @@ function InvoiceNewInner() {
 
       const normalized = mappedItems.map((it) => {
         if (!it.product_id) {
-          return { ...it, item_key: "" };
+          return {
+            ...it,
+            item_key: it.name ? toKey(it.name) : "",
+          };
         }
 
         const prod = products.find((p2) => p2.id === it.product_id);
         if (!prod) {
-          return { ...it, item_key: "" };
+          return {
+            ...it,
+            item_key: it.name ? toKey(it.name) : "",
+          };
         }
 
         return {
@@ -673,9 +766,7 @@ function InvoiceNewInner() {
       });
 
       setItems(normalized);
-      setMsg(
-        "Prefill dari quotation berhasil. Cek item yang belum linked ke product sebelum simpan."
-      );
+      setMsg("Prefill dari quotation berhasil.");
     } catch (e: any) {
       setMsg(e?.message || "Gagal prefill dari quotation.");
     } finally {
@@ -707,19 +798,24 @@ function InvoiceNewInner() {
       return;
     }
 
-    const badIdx = items.findIndex(
-      (it) =>
-        !String(it.product_id || "").trim() ||
-        !String(it.item_key || "").trim() ||
-        !String(it.name || "").trim()
-    );
+    const badIdx = items.findIndex((it) => {
+      if (!String(it.name || "").trim()) return true;
+      if (inventoryEnabled) {
+        return !String(it.product_id || "").trim() || !String(it.item_key || "").trim();
+      }
+      return false;
+    });
 
     if (badIdx >= 0) {
-      setMsg(`Item baris ${badIdx + 1} wajib pilih dari master barang.`);
+      setMsg(
+        inventoryEnabled
+          ? `Item baris ${badIdx + 1} wajib pilih barang dari master karena fitur inventory aktif.`
+          : `Item baris ${badIdx + 1}: nama item wajib diisi.`
+      );
       return;
     }
 
-    if (warehouseId) {
+    if (inventoryEnabled && warehouseId) {
       const wrongWarehouseIdx = items.findIndex(
         (it) => !warehouseProductIds.has(String(it.product_id || ""))
       );
@@ -743,7 +839,7 @@ function InvoiceNewInner() {
         customer_address: customerAddress || "",
         note: note || "",
 
-        warehouse_id: warehouseId || null,
+        warehouse_id: inventoryEnabled ? warehouseId || null : null,
 
         discount_type: discountType,
         discount_value:
@@ -753,9 +849,9 @@ function InvoiceNewInner() {
         tax_value: clampPercent(num(taxPercent)),
 
         items: items.map((it) => ({
-          product_id: it.product_id,
+          product_id: it.product_id || null,
           name: String(it.name || "").trim(),
-          item_key: String(it.item_key || "").trim(),
+          item_key: String(it.item_key || "").trim() || toKey(String(it.name || "").trim()),
           qty: Math.max(0, parseQtyInput(it.qtyText) || num(it.qty)),
           price: Math.max(0, Math.floor(num(it.price))),
         })),
@@ -796,7 +892,9 @@ function InvoiceNewInner() {
         <div>
           <h1 style={{ margin: 0 }}>Invoice Baru</h1>
           <p style={{ marginTop: 6, color: "#666" }}>
-            Pilih item dari master barang. Setelah disimpan, invoice langsung aktif — bisa bayar, edit, atau batalkan.
+            {inventoryEnabled
+              ? "Fitur inventory aktif — item wajib dari master barang jika stok perlu dilacak."
+              : "Ketik nama item manual atau pilih dari daftar barang (opsional)."}
           </p>
         </div>
 
@@ -888,28 +986,30 @@ function InvoiceNewInner() {
               />
             </label>
 
-            <label style={label()}>
-              Gudang (optional)
-              <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={input()}>
-                <option value="">- tanpa gudang / invoice only -</option>
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-              {loadingWh ? (
-                <small style={{ color: "#666" }}>Loading gudang...</small>
-              ) : warehouseId ? (
-                <small style={{ color: "#666" }}>
-                  Autocomplete item dibatasi ke barang yang ada di gudang ini.
-                </small>
-              ) : (
-                <small style={{ color: "#666" }}>
-                  Kalau kosong, semua barang aktif bisa dipilih dan invoice tidak dipakai untuk movement stok.
-                </small>
-              )}
-            </label>
+            {inventoryEnabled ? (
+              <label style={label()}>
+                Gudang (optional)
+                <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={input()}>
+                  <option value="">- tanpa gudang / invoice only -</option>
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+                {loadingWh ? (
+                  <small style={{ color: "#666" }}>Loading gudang...</small>
+                ) : warehouseId ? (
+                  <small style={{ color: "#666" }}>
+                    Autocomplete item dibatasi ke barang yang ada di gudang ini.
+                  </small>
+                ) : (
+                  <small style={{ color: "#666" }}>
+                    Kalau kosong, semua barang aktif bisa dipilih dan invoice tidak dipakai untuk movement stok.
+                  </small>
+                )}
+              </label>
+            ) : null}
 
             <label style={label()}>
               Catatan
@@ -1033,20 +1133,24 @@ function InvoiceNewInner() {
                           setItem(i, {
                             name: v,
                             product_id: "",
-                            item_key: "",
+                            item_key: inventoryEnabled ? "" : toKey(v),
                             openSug: true,
                           });
                         }}
                         onFocus={() => setItem(i, { openSug: true })}
-                        onBlur={() => {
+                        onBlur={(e) => {
+                          const nameValue = e.target.value;
                           setTimeout(() => {
                             setItem(i, { openSug: false });
+                            void applyManualLatestPrice(i, nameValue);
                           }, 140);
                         }}
                         placeholder={
-                          warehouseId
-                            ? "Pilih barang yang ada di gudang ini"
-                            : "Pilih barang dari autocomplete"
+                          inventoryEnabled
+                            ? warehouseId
+                              ? "Pilih barang yang ada di gudang ini"
+                              : "Wajib pilih barang dari master"
+                            : "Ketik nama item atau pilih dari daftar"
                         }
                         style={input()}
                       />
@@ -1055,9 +1159,13 @@ function InvoiceNewInner() {
                         <div style={{ fontSize: 12, color: "#166534", marginTop: 6 }}>
                           Barang sudah linked ke master product
                         </div>
-                      ) : (
+                      ) : inventoryEnabled ? (
                         <div style={{ fontSize: 12, color: "#b45309", marginTop: 6 }}>
-                          Wajib pilih dari daftar barang
+                          Wajib pilih barang dari master karena fitur inventory aktif
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+                          Item manual — pilih dari daftar jika ingin link ke master barang (opsional)
                         </div>
                       )}
 
@@ -1140,6 +1248,7 @@ function InvoiceNewInner() {
                         {it.latestPriceHint && it.latestPriceHint === it.price ? (
                           <small style={{ color: "#0c4a6e", fontWeight: 600 }}>
                             Harga terakhir untuk customer ini: {rupiah(it.latestPriceHint)}
+                            {!it.product_id ? " (item manual)" : ""}
                           </small>
                         ) : (
                           <small style={{ color: "#666" }}>
@@ -1165,9 +1274,11 @@ function InvoiceNewInner() {
           </table>
 
           <p style={{ marginTop: 10, color: "#666" }}>
-            {warehouseId
-              ? "Karena gudang dipilih, item dibatasi hanya ke barang yang ada di gudang tersebut."
-              : "Kalau gudang tidak dipilih, semua barang aktif tetap bisa dipakai untuk invoice only."}
+            {inventoryEnabled
+              ? warehouseId
+                ? "Karena gudang dipilih, item dibatasi hanya ke barang yang ada di gudang tersebut."
+                : "Fitur inventory aktif — setiap item wajib dipilih dari master barang."
+              : "Tanpa fitur inventory, item boleh diketik manual. Pilih dari daftar barang hanya jika ingin link ke master."}
           </p>
         </div>
       </div>

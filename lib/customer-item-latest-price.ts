@@ -138,7 +138,112 @@ export async function lookupCustomerLatestPrice(args: {
     });
   }
 
+  if (args.useHistoryFallback !== false && ref.item_reference_type === "manual" && ref.item_key) {
+    return lookupLatestPriceFromHistoryByItemKey({
+      supabase: args.supabase,
+      orgId: args.orgId,
+      customerId: args.customerId,
+      itemKey: ref.item_key,
+    });
+  }
+
   return null;
+}
+
+export async function lookupLatestPriceFromHistoryByItemKey(args: {
+  supabase: SupabaseClient;
+  orgId: string;
+  customerId: string;
+  itemKey: string;
+}): Promise<number | null> {
+  const { supabase, orgId, customerId, itemKey } = args;
+  const normalized = normalizeItemKey(itemKey);
+  if (!normalized) return null;
+
+  const { data: invoices, error: invErr } = await supabase
+    .from("invoices")
+    .select("id, invoice_date, created_at")
+    .eq("org_id", orgId)
+    .eq("customer_id", customerId)
+    .neq("status", "cancelled")
+    .order("invoice_date", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (invErr || !invoices?.length) return null;
+
+  const invoiceOrder = new Map(
+    invoices.map((inv, idx) => [String((inv as any).id), idx])
+  );
+  const invoiceIds = invoices.map((inv) => String((inv as any).id));
+
+  const { data: items, error: itemErr } = await supabase
+    .from("invoice_items")
+    .select("price, invoice_id, item_key, product_id")
+    .in("invoice_id", invoiceIds)
+    .eq("item_key", normalized);
+
+  if (itemErr || !items?.length) return null;
+
+  let best: { rank: number; price: number } | null = null;
+  for (const row of items) {
+    if (String((row as any).product_id || "").trim()) continue;
+    const invId = String((row as any).invoice_id || "");
+    const rank = invoiceOrder.get(invId);
+    if (rank == null) continue;
+    const price = floorPrice((row as any).price);
+    if (price <= 0) continue;
+    if (!best || rank < best.rank) best = { rank, price };
+  }
+
+  return best?.price ?? null;
+}
+
+export async function lookupCustomerLatestManualPriceMap(args: {
+  supabase: SupabaseClient;
+  orgId: string;
+  customerId: string;
+  itemKeys?: string[];
+  useHistoryFallback?: boolean;
+}): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  const customerId = String(args.customerId || "").trim();
+  if (!customerId) return out;
+
+  const keys = Array.from(
+    new Set((args.itemKeys || []).map((k) => normalizeItemKey(k)).filter(Boolean))
+  );
+  if (keys.length === 0) return out;
+
+  const { data: rows } = await args.supabase
+    .from("customer_item_latest_prices")
+    .select("item_key, latest_price, matching_key")
+    .eq("org_id", args.orgId)
+    .eq("customer_id", customerId)
+    .eq("item_reference_type", "manual")
+    .in("item_key", keys);
+
+  for (const row of rows || []) {
+    const key = normalizeItemKey(String((row as any).item_key || ""));
+    const price = floorPrice((row as any).latest_price);
+    if (key && price > 0) out[key] = price;
+  }
+
+  if (args.useHistoryFallback === false) return out;
+
+  await Promise.all(
+    keys.filter((k) => out[k] == null).map(async (itemKey) => {
+      const hist = await lookupLatestPriceFromHistoryByItemKey({
+        supabase: args.supabase,
+        orgId: args.orgId,
+        customerId,
+        itemKey,
+      });
+      if (hist != null) out[itemKey] = hist;
+    })
+  );
+
+  return out;
 }
 
 export async function lookupCustomerLatestPriceMap(args: {

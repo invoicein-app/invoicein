@@ -12,6 +12,7 @@ type Warehouse = {
 };
 
 type Settings = {
+  inventory_enabled: boolean;
   stock_issue_trigger: "invoice_sent" | "delivery_note_posted";
   default_warehouse_id: string | null;
   allow_negative_stock: boolean;
@@ -26,6 +27,7 @@ export default function InventorySettingsPage() {
   const [orgId, setOrgId] = useState<string | null>(null);
 
   const [settings, setSettings] = useState<Settings>({
+    inventory_enabled: false,
     stock_issue_trigger: "invoice_sent",
     default_warehouse_id: null,
     allow_negative_stock: true,
@@ -69,12 +71,13 @@ export default function InventorySettingsPage() {
         // load settings
         const { data: setRow } = await supabase
           .from("org_settings")
-          .select("stock_issue_trigger,default_warehouse_id,allow_negative_stock")
+          .select("inventory_enabled,stock_issue_trigger,default_warehouse_id,allow_negative_stock")
           .eq("org_id", org)
           .maybeSingle();
 
         if (alive && setRow) {
           setSettings({
+            inventory_enabled: Boolean(setRow.inventory_enabled),
             stock_issue_trigger: setRow.stock_issue_trigger,
             default_warehouse_id: setRow.default_warehouse_id,
             allow_negative_stock: setRow.allow_negative_stock,
@@ -102,6 +105,7 @@ export default function InventorySettingsPage() {
       const { error } = await supabase
         .from("org_settings")
         .update({
+          inventory_enabled: settings.inventory_enabled,
           stock_issue_trigger: settings.stock_issue_trigger,
           default_warehouse_id: settings.default_warehouse_id,
           allow_negative_stock: settings.allow_negative_stock,
@@ -162,6 +166,30 @@ export default function InventorySettingsPage() {
         <div>Loading...</div>
       ) : (
         <div style={card}>
+          <div style={{ marginBottom: 22, paddingBottom: 18, borderBottom: "1px solid #e5e7eb" }}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={settings.inventory_enabled}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    inventory_enabled: e.target.checked,
+                  }))
+                }
+                style={{ marginTop: 3, width: 18, height: 18 }}
+              />
+              <div>
+                <div style={{ ...label, marginBottom: 4 }}>Aktifkan fitur inventory / gudang</div>
+                <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+                  Jika aktif, item invoice wajib dipilih dari master barang dan stok bisa dikurangi
+                  otomatis. Jika nonaktif, invoice boleh pakai nama item manual tanpa link ke master
+                  barang.
+                </div>
+              </div>
+            </label>
+          </div>
+
           {/* STOCK TRIGGER */}
           <div style={{ marginBottom: 18 }}>
             <div style={label}>Stock Out Trigger</div>
