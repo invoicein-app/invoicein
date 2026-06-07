@@ -28,3 +28,40 @@ export function parseRibuanInput(raw: string): number {
   const n = Number(digits);
   return Number.isFinite(n) ? n : 0;
 }
+
+/** Sanitize qty while typing: digits + at most one dot (comma auto → dot). */
+export function sanitizeQtyInput(raw: string): string {
+  const normalized = String(raw ?? "").replace(/,/g, ".");
+  const s = normalized.replace(/[^\d.]/g, "");
+  if (!s) return "";
+
+  let seenDot = false;
+  let out = "";
+  for (const ch of s) {
+    if (ch === ".") {
+      if (seenDot) continue;
+      seenDot = true;
+      out += ch;
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+/** Parse qty text (e.g. 1.5) to number. */
+export function parseQtyInput(raw: string): number {
+  const t = sanitizeQtyInput(String(raw ?? "").trim());
+  if (t === "" || t === ".") return 0;
+  const n = Number(t);
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
+/** Format qty for input display (always dot as decimal separator). */
+export function formatQtyInput(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  if (Number.isInteger(n)) return String(n);
+  return String(n)
+    .replace(/(\.\d*?)0+$/, "$1")
+    .replace(/\.$/, "");
+}

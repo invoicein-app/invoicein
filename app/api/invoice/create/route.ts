@@ -184,7 +184,7 @@ export async function POST(req: Request) {
     product_id: String(it?.product_id || "").trim(),
     name: String(it?.name || "").trim(),
     item_key: toKey(String(it?.item_key || "").trim()),
-    qty: Math.max(0, Math.floor(num(it?.qty))),
+    qty: Math.max(0, num(it?.qty)),
     price: Math.max(0, Math.floor(num(it?.price))),
     unit: null,
   }));

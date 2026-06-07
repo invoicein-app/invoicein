@@ -103,7 +103,7 @@ export async function finalizeInvoice(args: {
     if (!String(it.item_key || "").trim()) {
       return { ok: false, error: `Item baris ${i + 1} belum punya item_key.` };
     }
-    if (Math.max(0, Math.floor(num(it.qty))) <= 0) {
+    if (Math.max(0, num(it.qty)) <= 0) {
       return { ok: false, error: `Qty item baris ${i + 1} harus > 0.` };
     }
   }
@@ -311,7 +311,7 @@ export async function applyInvoiceStockOut(args: {
 
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
-    const qty = Math.max(0, Math.floor(num(it.qty)));
+    const qty = Math.max(0, num(it.qty));
     const productId = String(it.product_id || "").trim();
     const itemKey = String(it.item_key || "").trim();
     const itemName = String(it.name || "").trim();
@@ -343,7 +343,7 @@ export async function applyInvoiceStockOut(args: {
     const productId = String(it.product_id || "").trim();
     const itemKey = String(it.item_key || "").trim();
     const itemName = String(it.name || "").trim();
-    const qty = Math.max(0, Math.floor(num(it.qty)));
+    const qty = Math.max(0, num(it.qty));
 
     const { data: bal, error: balErr } = await supabase
       .from("inventory_balances")

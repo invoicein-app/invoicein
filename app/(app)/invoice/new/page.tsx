@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { num, rupiah } from "@/lib/money";
+import { num, rupiah, sanitizeQtyInput, parseQtyInput, formatQtyInput } from "@/lib/money";
 import { formPageClasses as fpc } from "../../components/form-page-classes";
 import {
   formPageBackLink,
@@ -473,15 +473,15 @@ function InvoiceNewInner() {
   }
 
   function onChangeQty(rowIdx: number, raw: string) {
-    const digits = digitsOnlyString(raw);
-    const qtyNum = digits === "" ? 0 : Math.max(0, Math.floor(Number(digits)));
-    setItem(rowIdx, { qtyText: digits, qty: qtyNum });
+    const qtyText = sanitizeQtyInput(raw);
+    const qtyNum = parseQtyInput(qtyText);
+    setItem(rowIdx, { qtyText, qty: qtyNum });
   }
 
   function onBlurQty(rowIdx: number) {
     const it = items[rowIdx];
-    const q = Math.max(0, Math.floor(num(it.qty)));
-    const nextText = it.qtyText === "" ? "" : String(q);
+    const q = parseQtyInput(it.qtyText);
+    const nextText = it.qtyText.trim() === "" ? "" : formatQtyInput(q) || String(q);
     setItem(rowIdx, { qty: q, qtyText: nextText });
   }
 
@@ -636,8 +636,8 @@ function InvoiceNewInner() {
               product_id: x.product_id || "",
               name: String(x.name || ""),
               item_key: "",
-              qty: Math.max(0, Math.floor(num(x.qty || 0))),
-              qtyText: String(Math.max(0, Math.floor(num(x.qty || 0))) || ""),
+              qty: Math.max(0, num(x.qty || 0)),
+              qtyText: formatQtyInput(Math.max(0, num(x.qty || 0))) || String(Math.max(0, num(x.qty || 0)) || ""),
               price: Math.max(0, Math.floor(num(x.price || 0))),
               priceText: formatThousandsID(Math.max(0, Math.floor(num(x.price || 0)))),
               openSug: false,
@@ -756,7 +756,7 @@ function InvoiceNewInner() {
           product_id: it.product_id,
           name: String(it.name || "").trim(),
           item_key: String(it.item_key || "").trim(),
-          qty: Math.max(0, Math.floor(num(it.qty))),
+          qty: Math.max(0, parseQtyInput(it.qtyText) || num(it.qty)),
           price: Math.max(0, Math.floor(num(it.price))),
         })),
       };
@@ -1127,12 +1127,11 @@ function InvoiceNewInner() {
                     <td className="inv-form-item-qty" data-label="Qty" style={td()}>
                       <input
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
+                        inputMode="decimal"
                         value={it.qtyText}
                         onChange={(e) => onChangeQty(i, e.target.value)}
                         onBlur={() => onBlurQty(i)}
-                        placeholder="Qty"
+                        placeholder="Qty (contoh: 1.5)"
                         style={input()}
                       />
                     </td>
