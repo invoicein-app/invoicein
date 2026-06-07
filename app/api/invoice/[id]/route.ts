@@ -87,13 +87,11 @@ function pickSafeHeader(raw: Record<string, any>) {
     warehouse_id: h.warehouse_id,
   };
 
-  for (const k of [
-    "customer_phone",
-    "customer_address",
-    "note",
-    "due_date",
-    "warehouse_id",
-  ] as const) {
+  for (const k of ["customer_phone", "customer_address", "note"] as const) {
+    if (safe[k] == null || String(safe[k]).trim() === "") safe[k] = "";
+  }
+
+  for (const k of ["due_date", "warehouse_id"] as const) {
     if (safe[k] != null && String(safe[k]).trim() === "") safe[k] = null;
   }
 
