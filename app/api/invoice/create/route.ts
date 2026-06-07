@@ -9,6 +9,7 @@ import { requireCanWrite } from "@/lib/subscription";
 import { coerceDateOrToday, generateDocumentNumber } from "@/lib/document-numbering";
 import { finalizeInvoice } from "@/lib/invoice-finalize";
 import { upsertCustomerLatestPrices } from "@/lib/customer-item-latest-price";
+import { upsertOrgManualItemsFromLines } from "@/lib/org-manual-items";
 import {
   loadOrgInventoryEnabled,
   normalizeInvoiceItemInput,
@@ -392,6 +393,16 @@ export async function POST(req: Request) {
       })),
     });
   }
+
+  await upsertOrgManualItemsFromLines({
+    supabase,
+    orgId,
+    lines: safeItems.map((it) => ({
+      product_id: it.product_id,
+      name: it.name,
+      item_key: it.item_key,
+    })),
+  });
 
   return NextResponse.json(
     {

@@ -2,7 +2,10 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAppOrg } from "@/lib/auth/get-app-org";
-import { supabaseServer } from "@/lib/supabase/server";
+import {
+  loadBookkeepingPreference,
+  saveBookkeepingPreference,
+} from "@/lib/member-preferences";
 
 export async function GET() {
   const org = await getAppOrg();
@@ -13,22 +16,13 @@ export async function GET() {
     );
   }
 
-  const supabase = await supabaseServer();
-  const { data, error } = await supabase
-    .from("memberships")
-    .select("show_invoice_bookkeeping_status")
-    .eq("user_id", org.userId)
-    .eq("org_id", org.orgId)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  const result = await loadBookkeepingPreference(org.userId, org.orgId);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
   return NextResponse.json({
-    show_invoice_bookkeeping_status: Boolean(data?.show_invoice_bookkeeping_status),
+    show_invoice_bookkeeping_status: result.show_invoice_bookkeeping_status,
   });
 }
 
@@ -52,20 +46,18 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  const supabase = await supabaseServer();
-  const { error } = await supabase
-    .from("memberships")
-    .update({ show_invoice_bookkeeping_status: body.show_invoice_bookkeeping_status })
-    .eq("user_id", org.userId)
-    .eq("org_id", org.orgId)
-    .eq("is_active", true);
+  const result = await saveBookkeepingPreference(
+    org.userId,
+    org.orgId,
+    body.show_invoice_bookkeeping_status
+  );
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
   return NextResponse.json({
     ok: true,
-    show_invoice_bookkeeping_status: body.show_invoice_bookkeeping_status,
+    show_invoice_bookkeeping_status: result.show_invoice_bookkeeping_status,
   });
 }

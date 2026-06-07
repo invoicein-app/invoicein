@@ -12,6 +12,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { num, rupiah } from "@/lib/money";
+import {
+  buildItemSuggestions,
+  type ItemSuggestion,
+  type ManualSuggestionSource,
+} from "@/lib/invoice-item-suggestions";
+
+type Product = {
+  id: string;
+  name: string;
+  sku: string | null;
+  unit: string | null;
+  price: number | null;
+};
+
+type ManualItem = ManualSuggestionSource & {
+  last_used_at?: string | null;
+};
 
 type Item = {
   id: string;
@@ -21,7 +38,25 @@ type Item = {
   sort_order: number;
   product_id?: string;
   item_key?: string;
+  openSug?: boolean;
 };
+
+function toKey(raw: string) {
+  const s = String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return s || "";
+}
+
+function productToItemKey(p: Pick<Product, "sku" | "name">) {
+  const sku = String(p.sku || "").trim();
+  if (sku) return toKey(sku);
+  return toKey(String(p.name || ""));
+}
 
 function digitsOnly(raw: string) {
   const clean = String(raw ?? "").replace(/\D/g, "").replace(/^0+/, "");
@@ -35,9 +70,15 @@ export default function InvoiceEditPage() {
 
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<Item[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [manualItems, setManualItems] = useState<ManualItem[]>([]);
+  const [inventoryEnabled, setInventoryEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingProd, setLoadingProd] = useState(true);
+  const [loadingManualItems, setLoadingManualItems] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [latestManualPriceMap, setLatestManualPriceMap] = useState<Record<string, number>>({});
 
   const currentStatus = String(inv?.status || "").toLowerCase();
   const amountPaid = Math.max(0, Number(inv?.amount_paid || 0));
@@ -75,14 +116,183 @@ export default function InvoiceEditPage() {
     invData.tax_value = Number(invData.tax_value ?? 0);
 
     setInv(invData);
-    setItems((itemData || []) as any);
+    setItems(
+      ((itemData || []) as any[]).map((row) => ({
+        ...row,
+        openSug: false,
+      }))
+    );
     setLoading(false);
+  }
+
+  async function loadProducts() {
+    setLoadingProd(true);
+    const { data, error } = await supabase
+      .from("products")
+      .select("id,name,sku,unit,price,is_active")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setProducts([]);
+    } else {
+      setProducts((data || []) as Product[]);
+    }
+    setLoadingProd(false);
+  }
+
+  async function loadManualItems() {
+    setLoadingManualItems(true);
+    try {
+      const res = await fetch("/api/manual-items?limit=200", { credentials: "include" });
+      const json = await res.json().catch(() => ({}));
+      setManualItems(res.ok ? ((json?.items || []) as ManualItem[]) : []);
+    } catch {
+      setManualItems([]);
+    } finally {
+      setLoadingManualItems(false);
+    }
+  }
+
+  async function loadInventorySetting() {
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = userRes.user;
+    if (!user) return;
+
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("org_id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    const orgId = String(membership?.org_id || "").trim();
+    if (!orgId) return;
+
+    const { data } = await supabase
+      .from("org_settings")
+      .select("inventory_enabled")
+      .eq("org_id", orgId)
+      .maybeSingle();
+
+    setInventoryEnabled(Boolean(data?.inventory_enabled));
   }
 
   useEffect(() => {
     if (!id) return;
     load();
+    loadProducts();
+    loadManualItems();
+    loadInventorySetting();
   }, [id]);
+
+  function getSuggestionsFor(raw: string): ItemSuggestion[] {
+    return buildItemSuggestions({
+      query: raw,
+      products,
+      manualItems,
+      inventoryEnabled,
+      limit: 10,
+    });
+  }
+
+  async function applyManualLatestPrice(rowIdx: number, name: string) {
+    const customerId = String(inv?.customer_id || "").trim();
+    if (!customerId) return;
+
+    const itemKey = toKey(name);
+    if (!itemKey) return;
+
+    const current = items[rowIdx];
+    if (!current || current.product_id) return;
+
+    const cached = latestManualPriceMap[itemKey];
+    if (cached != null && cached > 0) {
+      patchItem(rowIdx, { price: cached, item_key: itemKey });
+      return;
+    }
+
+    try {
+      const qs = new URLSearchParams({ customer_id: customerId, item_key: itemKey });
+      const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !(Number(json.latest_price) > 0)) return;
+
+      const latest = Math.floor(Number(json.latest_price));
+      setLatestManualPriceMap((prev) => ({ ...prev, [itemKey]: latest }));
+      patchItem(rowIdx, { price: latest, item_key: itemKey });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function pickProductSuggestion(rowIdx: number, p: Product) {
+    const itemKey = productToItemKey(p);
+    let priceN = Math.max(0, Math.floor(Number(p.price || 0)));
+    const customerId = String(inv?.customer_id || "").trim();
+
+    if (customerId) {
+      try {
+        const qs = new URLSearchParams({ customer_id: customerId, product_id: p.id });
+        const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
+          credentials: "include",
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && Number(json?.latest_price) > 0) {
+          priceN = Math.floor(Number(json.latest_price));
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    patchItem(rowIdx, {
+      product_id: p.id,
+      name: String(p.name || ""),
+      item_key: itemKey,
+      price: priceN,
+      openSug: false,
+    });
+  }
+
+  async function pickManualSuggestion(rowIdx: number, m: ManualItem) {
+    const displayName = String(m.display_name || "").trim();
+    const itemKey = String(m.item_key || "").trim() || toKey(displayName);
+    let priceN = 0;
+    const customerId = String(inv?.customer_id || "").trim();
+
+    if (customerId && itemKey) {
+      const cached = latestManualPriceMap[itemKey];
+      if (cached != null && cached > 0) {
+        priceN = cached;
+      } else {
+        try {
+          const qs = new URLSearchParams({ customer_id: customerId, item_key: itemKey });
+          const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
+            credentials: "include",
+          });
+          const json = await res.json().catch(() => ({}));
+          if (res.ok && Number(json?.latest_price) > 0) {
+            priceN = Math.floor(Number(json.latest_price));
+            setLatestManualPriceMap((prev) => ({ ...prev, [itemKey]: priceN }));
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    patchItem(rowIdx, {
+      product_id: "",
+      name: displayName,
+      item_key: itemKey,
+      price: priceN,
+      openSug: false,
+    });
+  }
 
   const calc = useMemo(() => {
     if (!inv) return { sub: 0, disc: 0, tax: 0, total: 0 };
@@ -117,7 +327,14 @@ export default function InvoiceEditPage() {
     if (!isEditable) return;
     setItems((prev) => [
       ...prev,
-      { id: `new-${Date.now()}`, name: "", qty: 1, price: 0, sort_order: prev.length } as any,
+      {
+        id: `new-${Date.now()}`,
+        name: "",
+        qty: 1,
+        price: 0,
+        sort_order: prev.length,
+        openSug: false,
+      } as any,
     ]);
   }
 
@@ -341,9 +558,6 @@ export default function InvoiceEditPage() {
       <div style={{ marginTop: 12, ...card() }}>
         <div className={fpc.sectionHead} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ margin: 0 }}>Items</h3>
-          <button onClick={addItem} style={btn()} disabled={!isEditable}>
-            + Tambah Item
-          </button>
         </div>
 
         <div className={fpc.tableScroll} style={{ marginTop: 10, overflowX: "auto" }}>
@@ -358,15 +572,100 @@ export default function InvoiceEditPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((it, i) => (
+              {items.map((it, i) => {
+                const sug = it.openSug ? getSuggestionsFor(it.name) : [];
+                return (
                 <tr key={it.id || i} className="inv-form-item-row">
-                  <td className="inv-form-item-product" data-label="Nama" style={td()}>
+                  <td className="inv-form-item-product" data-label="Nama" style={{ ...td(), position: "relative" }}>
                     <input
                       value={it.name}
-                      onChange={(e) => patchItem(i, { name: e.target.value })}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        patchItem(i, {
+                          name: v,
+                          product_id: "",
+                          item_key: inventoryEnabled ? "" : toKey(v),
+                          openSug: true,
+                        });
+                      }}
+                      onFocus={() => patchItem(i, { openSug: true })}
+                      onBlur={(e) => {
+                        const nameValue = e.target.value;
+                        setTimeout(() => {
+                          patchItem(i, { openSug: false });
+                          void applyManualLatestPrice(i, nameValue);
+                        }, 140);
+                      }}
+                      placeholder={
+                        inventoryEnabled
+                          ? "Pilih barang dari master"
+                          : "Ketik nama item atau pilih dari daftar"
+                      }
                       style={input()}
                       disabled={!isEditable}
                     />
+
+                    {it.openSug && sug.length > 0 ? (
+                      <div style={sugBox()}>
+                        {sug.map((entry) => {
+                          if (entry.kind === "product") {
+                            const p = entry;
+                            const priceN = Math.max(0, Math.floor(Number(p.price || 0)));
+                            return (
+                              <button
+                                key={`p-${p.id}`}
+                                type="button"
+                                onMouseDown={(ev) => ev.preventDefault()}
+                                onClick={() => pickProductSuggestion(i, p as Product)}
+                                style={sugBtn()}
+                              >
+                                <div style={{ fontWeight: 900 }}>
+                                  {p.name}
+                                  <span style={{ marginLeft: 8, fontSize: 11, color: "#166534", fontWeight: 700 }}>
+                                    Master Barang
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                  {p.sku ? `${p.sku} • ` : ""}
+                                  {priceN ? `Rp ${priceN.toLocaleString("id-ID")}` : ""}
+                                </div>
+                              </button>
+                            );
+                          }
+
+                          const m = entry;
+                          const cachedPrice = latestManualPriceMap[m.item_key];
+                          return (
+                            <button
+                              key={`m-${m.item_key}`}
+                              type="button"
+                              onMouseDown={(ev) => ev.preventDefault()}
+                              onClick={() => pickManualSuggestion(i, m)}
+                              style={sugBtn()}
+                            >
+                              <div style={{ fontWeight: 900 }}>
+                                {m.display_name}
+                                <span style={{ marginLeft: 8, fontSize: 11, color: "#7c3aed", fontWeight: 700 }}>
+                                  Riwayat Item
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                key: {m.item_key}
+                                {cachedPrice && cachedPrice > 0
+                                  ? ` • Rp ${cachedPrice.toLocaleString("id-ID")}`
+                                  : ""}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+                      {loadingProd || loadingManualItems
+                        ? "Loading barang..."
+                        : `Master: ${products.length} • riwayat manual: ${manualItems.length}`}
+                    </div>
                   </td>
                   <td className="inv-form-item-qty" data-label="Qty" style={td()}>
                     <input
@@ -395,9 +694,16 @@ export default function InvoiceEditPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+            <button onClick={addItem} style={btn()} disabled={!isEditable}>
+              + Tambah Item
+            </button>
+          </div>
         </div>
       </div>
 
@@ -447,4 +753,32 @@ function th(): React.CSSProperties {
 }
 function td(): React.CSSProperties {
   return { borderBottom: "1px solid #f2f2f2", padding: "8px 6px", verticalAlign: "top" };
+}
+function sugBox(): React.CSSProperties {
+  return {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    marginTop: 4,
+    background: "white",
+    border: "1px solid #e5e7eb",
+    borderRadius: 10,
+    boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+    maxHeight: 260,
+    overflowY: "auto",
+  };
+}
+function sugBtn(): React.CSSProperties {
+  return {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    padding: "10px 12px",
+    border: "none",
+    borderBottom: "1px solid #f3f4f6",
+    background: "white",
+    cursor: "pointer",
+  };
 }

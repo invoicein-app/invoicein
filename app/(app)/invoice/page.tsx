@@ -8,6 +8,7 @@ import InvoiceActionsClient from "./invoice-actions-client";
 import InvoiceBookkeepingToggle from "./invoice-bookkeeping-toggle";
 import InvoicePaginationClient from "./invoice-pagination-client";
 import TableEmptyState from "../components/table-empty-state";
+import { getShowInvoiceBookkeepingStatus } from "@/lib/member-preferences";
 
 type SearchParams = {
   inv?: string;
@@ -142,15 +143,7 @@ export default async function InvoiceListPage({
     );
   }
 
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("show_invoice_bookkeeping_status")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  const showBookkeepingStatus = Boolean(membership?.show_invoice_bookkeeping_status);
+  const showBookkeepingStatus = await getShowInvoiceBookkeepingStatus();
 
   const { data: customers, error: custErr } = await supabase
     .from("customers")

@@ -11,12 +11,21 @@ import {
   formPageSaveButtonDisabled,
 } from "../../components/app-action-buttons";
 import { useSearchParams } from "next/navigation";
+import {
+  buildItemSuggestions,
+  type ItemSuggestion,
+  type ManualSuggestionSource,
+} from "@/lib/invoice-item-suggestions";
 
 type Customer = {
   id: string;
   name: string;
   phone: string;
   address: string;
+};
+
+type ManualItem = ManualSuggestionSource & {
+  last_used_at?: string | null;
 };
 
 type Product = {
@@ -122,6 +131,7 @@ function InvoiceNewInner() {
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [manualItems, setManualItems] = useState<ManualItem[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
   const [balancesMap, setBalancesMap] = useState<Record<string, number>>({});
@@ -129,6 +139,7 @@ function InvoiceNewInner() {
 
   const [loadingCust, setLoadingCust] = useState(true);
   const [loadingProd, setLoadingProd] = useState(true);
+  const [loadingManualItems, setLoadingManualItems] = useState(true);
   const [loadingWh, setLoadingWh] = useState(true);
   const [loadingBalances, setLoadingBalances] = useState(false);
 
@@ -238,6 +249,23 @@ function InvoiceNewInner() {
     setLoadingProd(false);
   }
 
+  async function loadManualItems() {
+    setLoadingManualItems(true);
+    try {
+      const res = await fetch("/api/manual-items?limit=200", { credentials: "include" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setManualItems([]);
+        return;
+      }
+      setManualItems((json?.items || []) as ManualItem[]);
+    } catch {
+      setManualItems([]);
+    } finally {
+      setLoadingManualItems(false);
+    }
+  }
+
   async function loadWarehouses() {
     setLoadingWh(true);
 
@@ -342,6 +370,7 @@ function InvoiceNewInner() {
   useEffect(() => {
     loadCustomers();
     loadProducts();
+    loadManualItems();
     loadWarehouses();
   }, []);
 
@@ -552,17 +581,14 @@ function InvoiceNewInner() {
     return products.filter((p) => warehouseProductIds.has(String(p.id || "")));
   }, [products, warehouseId, warehouseProductIds]);
 
-  function getSuggestionsFor(raw: string) {
-    const s = String(raw || "").trim().toLowerCase();
-    const list = availableProducts || [];
-
-    if (!s) return list.slice(0, 10);
-
-    return list
-      .filter((p) =>
-        `${p.name} ${p.sku || ""} ${p.unit || ""}`.toLowerCase().includes(s)
-      )
-      .slice(0, 10);
+  function getSuggestionsFor(raw: string): ItemSuggestion[] {
+    return buildItemSuggestions({
+      query: raw,
+      products: availableProducts,
+      manualItems,
+      inventoryEnabled,
+      limit: 10,
+    });
   }
 
   function getStockHint(itemKey: string) {
@@ -657,6 +683,58 @@ function InvoiceNewInner() {
               ...it,
               product_id: p.id,
               name: String(p.name || ""),
+              item_key: itemKey,
+              price: priceN,
+              priceText: priceN ? formatThousandsID(priceN) : "",
+              priceManual: false,
+              latestPriceHint: hint,
+              openSug: false,
+            }
+          : it
+      )
+    );
+  }
+
+  async function pickManualSuggestion(rowIdx: number, m: ManualItem) {
+    const displayName = String(m.display_name || "").trim();
+    const itemKey = String(m.item_key || "").trim() || toKey(displayName);
+
+    let priceN = 0;
+    let hint: number | null = null;
+
+    if (customerId && itemKey) {
+      const cached = latestManualPriceMap[itemKey];
+      if (cached != null && cached > 0) {
+        priceN = cached;
+        hint = cached;
+      } else {
+        try {
+          const qs = new URLSearchParams({
+            customer_id: customerId,
+            item_key: itemKey,
+          });
+          const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
+            credentials: "include",
+          });
+          const json = await res.json().catch(() => ({}));
+          if (res.ok && Number(json?.latest_price) > 0) {
+            priceN = Math.floor(Number(json.latest_price));
+            hint = priceN;
+            setLatestManualPriceMap((prev) => ({ ...prev, [itemKey]: priceN }));
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    setItems((prev) =>
+      prev.map((it, idx) =>
+        idx === rowIdx
+          ? {
+              ...it,
+              product_id: "",
+              name: displayName,
               item_key: itemKey,
               price: priceN,
               priceText: priceN ? formatThousandsID(priceN) : "",
@@ -1096,9 +1174,6 @@ function InvoiceNewInner() {
             <a href="/products" style={btn()}>
               + Kelola Barang
             </a>
-            <button onClick={addItem} style={btn()}>
-              + Tambah Item
-            </button>
           </div>
         </div>
 
@@ -1171,32 +1246,83 @@ function InvoiceNewInner() {
 
                       {it.openSug && sug.length > 0 ? (
                         <div style={sugBox()}>
-                          {sug.map((p) => {
-                            const itemKey = productToItemKey(p);
-                            const onHand = warehouseId ? getStockHint(itemKey) : undefined;
-                            const priceN = Math.max(0, Math.floor(Number(p.price || 0)));
+                          {sug.map((entry) => {
+                            if (entry.kind === "product") {
+                              const p = entry;
+                              const itemKey = productToItemKey(p);
+                              const onHand = warehouseId ? getStockHint(itemKey) : undefined;
+                              const priceN = Math.max(0, Math.floor(Number(p.price || 0)));
+
+                              return (
+                                <button
+                                  key={`p-${p.id}`}
+                                  type="button"
+                                  onMouseDown={(ev) => ev.preventDefault()}
+                                  onClick={() => {
+                                    const prod =
+                                      products.find((x) => x.id === p.id) ||
+                                      availableProducts.find((x) => x.id === p.id);
+                                    if (prod) pickSuggestion(i, prod);
+                                  }}
+                                  style={sugBtn()}
+                                >
+                                  <div style={{ fontWeight: 900 }}>
+                                    {p.name}
+                                    <span style={{ color: "#6b7280", fontWeight: 700 }}>
+                                      {p.sku ? ` • ${p.sku}` : ""}
+                                      {p.unit ? ` (${p.unit})` : ""}
+                                    </span>
+                                    <span
+                                      style={{
+                                        marginLeft: 8,
+                                        fontSize: 11,
+                                        color: "#166534",
+                                        fontWeight: 700,
+                                      }}
+                                    >
+                                      Master Barang
+                                    </span>
+                                  </div>
+
+                                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                    key: <span style={{ fontFamily: "monospace" }}>{itemKey}</span>
+                                    {priceN ? ` • harga: Rp ${priceN.toLocaleString("id-ID")}` : ""}
+                                    {warehouseId && typeof onHand === "number"
+                                      ? ` • stok gudang ini: ${onHand}`
+                                      : ""}
+                                  </div>
+                                </button>
+                              );
+                            }
+
+                            const m = entry;
+                            const cachedPrice = latestManualPriceMap[m.item_key];
 
                             return (
                               <button
-                                key={p.id}
+                                key={`m-${m.item_key}`}
                                 type="button"
                                 onMouseDown={(ev) => ev.preventDefault()}
-                                onClick={() => pickSuggestion(i, p)}
+                                onClick={() => pickManualSuggestion(i, m)}
                                 style={sugBtn()}
                               >
                                 <div style={{ fontWeight: 900 }}>
-                                  {p.name}
-                                  <span style={{ color: "#6b7280", fontWeight: 700 }}>
-                                    {p.sku ? ` • ${p.sku}` : ""}
-                                    {p.unit ? ` (${p.unit})` : ""}
+                                  {m.display_name}
+                                  <span
+                                    style={{
+                                      marginLeft: 8,
+                                      fontSize: 11,
+                                      color: "#7c3aed",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    Riwayat Item
                                   </span>
                                 </div>
-
                                 <div style={{ fontSize: 12, color: "#6b7280" }}>
-                                  key: <span style={{ fontFamily: "monospace" }}>{itemKey}</span>
-                                  {priceN ? ` • harga: Rp ${priceN.toLocaleString("id-ID")}` : ""}
-                                  {warehouseId && typeof onHand === "number"
-                                    ? ` • stok gudang ini: ${onHand}`
+                                  key: <span style={{ fontFamily: "monospace" }}>{m.item_key}</span>
+                                  {cachedPrice && cachedPrice > 0
+                                    ? ` • harga terakhir: Rp ${cachedPrice.toLocaleString("id-ID")}`
                                     : ""}
                                 </div>
                               </button>
@@ -1206,13 +1332,13 @@ function InvoiceNewInner() {
                       ) : null}
 
                       <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
-                        {loadingProd
+                        {loadingProd || loadingManualItems
                           ? "Loading barang..."
                           : warehouseId
                           ? loadingBalances
                             ? "Loading stok gudang..."
-                            : `Barang tersedia di gudang ini: ${availableProducts.length}`
-                          : `Semua barang aktif: ${products.length}`}
+                            : `Master: ${availableProducts.length} • riwayat manual: ${manualItems.length}`
+                          : `Master: ${products.length} • riwayat manual: ${manualItems.length}`}
                       </div>
                     </td>
 
@@ -1272,6 +1398,12 @@ function InvoiceNewInner() {
               })}
             </tbody>
           </table>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+            <button onClick={addItem} style={btn()}>
+              + Tambah Item
+            </button>
+          </div>
 
           <p style={{ marginTop: 10, color: "#666" }}>
             {inventoryEnabled

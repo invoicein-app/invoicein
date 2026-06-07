@@ -7,6 +7,7 @@ import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
 import { canEditInvoice, deriveInvoiceStatusAfterEdit, resyncInvoiceStockAfterEdit } from "@/lib/invoice-finalize";
 import { upsertCustomerLatestPrices } from "@/lib/customer-item-latest-price";
+import { upsertOrgManualItemsFromLines } from "@/lib/org-manual-items";
 import {
   loadOrgInventoryEnabled,
   normalizeInvoiceItemInput,
@@ -356,6 +357,16 @@ export async function PATCH(
       })),
     });
   }
+
+  await upsertOrgManualItemsFromLines({
+    supabase,
+    orgId,
+    lines: safeItems.map((it) => ({
+      product_id: it.product_id,
+      name: it.name,
+      item_key: it.item_key,
+    })),
+  });
 
   await logActivity({
     org_id: orgId,

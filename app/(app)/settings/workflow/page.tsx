@@ -52,6 +52,7 @@ export default function WorkflowSettingsPage() {
         setMsg(json.error || "Gagal menyimpan");
         return;
       }
+      setEnabled(Boolean(json.show_invoice_bookkeeping_status));
       setMsg("Preferensi disimpan.");
     } catch {
       setEnabled(!next);

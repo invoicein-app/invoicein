@@ -1,8 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { getAppOrg } from "@/lib/auth/get-app-org";
-import { supabaseServer } from "@/lib/supabase/server";
 
 export async function PATCH(
   req: NextRequest,
@@ -33,9 +33,13 @@ export async function PATCH(
     );
   }
 
-  const supabase = await supabaseServer();
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
 
-  const { data: inv, error: findErr } = await supabase
+  const { data: inv, error: findErr } = await admin
     .from("invoices")
     .select("id, org_id")
     .eq("id", invoiceId)
@@ -51,16 +55,29 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data: updated, error: upErr } = await supabase
+  const { data: updated, error: upErr } = await admin
     .from("invoices")
     .update({ bookkeeping_recorded: body.bookkeeping_recorded })
     .eq("id", invoiceId)
     .eq("org_id", org.orgId)
     .select("id, bookkeeping_recorded")
-    .single();
+    .maybeSingle();
 
   if (upErr) {
+    if (/bookkeeping_recorded/i.test(upErr.message)) {
+      return NextResponse.json(
+        {
+          error:
+            "Kolom pencatatan belum ada di database. Jalankan migration 20260605120000_add_invoice_bookkeeping_status.sql di Supabase.",
+        },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ error: upErr.message }, { status: 400 });
+  }
+
+  if (!updated) {
+    return NextResponse.json({ error: "Invoice tidak ditemukan" }, { status: 404 });
   }
 
   return NextResponse.json({
