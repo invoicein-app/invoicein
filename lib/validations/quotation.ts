@@ -33,3 +33,7 @@ export type CreateQuotationBody = z.infer<typeof createQuotationBodySchema>;
 /** Update quotation — same shape as create. */
 export const updateQuotationBodySchema = createQuotationBodySchema;
 export type UpdateQuotationBody = CreateQuotationBody;
+
+export const peekQuotationNumberBodySchema = z.object({
+  quotation_date: isoDateOptionalSchema.optional(),
+});

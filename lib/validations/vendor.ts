@@ -35,3 +35,13 @@ export const updateVendorBodySchema = z
   );
 
 export type UpdateVendorBody = z.infer<typeof updateVendorBodySchema>;
+
+export const resolveUsersBodySchema = z.object({
+  ids: z
+    .array(z.string())
+    .optional()
+    .default([])
+    .transform((arr) =>
+      [...new Set(arr.filter((s) => z.string().uuid().safeParse(s).success))].slice(0, 80)
+    ),
+});

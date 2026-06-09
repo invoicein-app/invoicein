@@ -10,16 +10,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
-
-type UpdateInvoiceBody = {
-  header?: Record<string, any>;
-  items?: Array<{
-    name: string;
-    qty: number;
-    price: number;
-    sort_order?: number;
-  }>;
-};
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { legacyAuthInvoicePatchBodySchema } from "@/lib/validations/auth";
 
 function num(v: any) {
   const n = Number(v);
@@ -106,25 +98,11 @@ export async function PATCH(
   }
   const user = userRes.user;
 
-  // Body
-  const body = (await req.json().catch(() => null)) as UpdateInvoiceBody | null;
-  if (!body) {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsedBody = await parseJsonBody(req, legacyAuthInvoicePatchBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  const rawHeader = (body.header || {}) as Record<string, any>;
-  const items = Array.isArray(body.items) ? body.items : [];
-
-  // Minimal validate items (kalau edit selalu kirim items penuh)
-  if (!Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ error: "items wajib (minimal 1)" }, { status: 400 });
-  }
-
-  for (const it of items) {
-    if (!asText(it?.name)) return NextResponse.json({ error: "Item name wajib" }, { status: 400 });
-    if (!Number.isFinite(num(it.qty))) return NextResponse.json({ error: "Item qty invalid" }, { status: 400 });
-    if (!Number.isFinite(num(it.price))) return NextResponse.json({ error: "Item price invalid" }, { status: 400 });
-  }
+  const rawHeader = (parsedBody.data.header ?? parsedBody.data.invoice ?? {}) as Record<string, unknown>;
+  const items = parsedBody.data.items;
 
   // Membership (org + role) untuk log + RLS
   const { data: membership, error: memErr } = await supabase

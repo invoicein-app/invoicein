@@ -5,10 +5,8 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient as createSSRClient } from "@supabase/ssr";
-
-function isUuid(v: string): v is string {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
-}
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { resolveUsersBodySchema } from "@/lib/validations/vendor";
 
 export async function POST(req: Request) {
   const cookieStore = await cookies();
@@ -30,11 +28,9 @@ export async function POST(req: Request) {
   const { data: userRes } = await supabaseUser.auth.getUser();
   if (!userRes?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json().catch(() => null);
-  const rawIds: unknown[] = Array.isArray(body?.ids) ? body.ids : [];
-  const ids: string[] = [
-    ...new Set(rawIds.map((x) => String(x)).filter((s) => isUuid(s))),
-  ].slice(0, 80);
+  const parsedBody = await parseJsonBody(req, resolveUsersBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const ids = [...new Set(parsedBody.data.ids)];
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const labels: Record<string, string> = {};

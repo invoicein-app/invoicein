@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { getBillingAdminAuth } from "@/lib/billing-admin";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { updateBillingBodySchema } from "@/lib/validations/admin";
 
 export async function GET(req: NextRequest) {
   const csAny: any = cookies() as any;
@@ -46,26 +48,17 @@ export async function PATCH(req: NextRequest) {
   const auth = await getBillingAdminAuth(cookieStore);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const body = await req.json().catch(() => ({}));
-  const orgId = body?.org_id ?? "";
-  if (!orgId) return NextResponse.json({ error: "org_id wajib diisi." }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, updateBillingBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
+  const orgId = body.org_id;
 
   const updates: Record<string, unknown> = {};
-  if (body.subscription_plan !== undefined) {
-    const v = String(body.subscription_plan).toLowerCase();
-    if (v === "basic" || v === "standard") updates.subscription_plan = v;
-  }
-  if (body.subscription_status !== undefined) {
-    const v = String(body.subscription_status).toLowerCase();
-    if (["trial", "active", "grace_period", "expired", "cancelled"].includes(v)) updates.subscription_status = v;
-  }
+  if (body.subscription_plan !== undefined) updates.subscription_plan = body.subscription_plan;
+  if (body.subscription_status !== undefined) updates.subscription_status = body.subscription_status;
   if (body.expires_at !== undefined) {
-    const v = body.expires_at === null || body.expires_at === "" ? null : String(body.expires_at);
-    updates.expires_at = v;
-  }
-
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "Tidak ada field yang di-update." }, { status: 400 });
+    updates.expires_at =
+      body.expires_at === null || body.expires_at === "" ? null : String(body.expires_at);
   }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {

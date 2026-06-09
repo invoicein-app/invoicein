@@ -9,17 +9,17 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { getBillingAdminAuth } from "@/lib/billing-admin";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { extendSubscriptionBodySchema } from "@/lib/validations/admin";
 
 export async function POST(req: Request) {
   const cookieStore = await cookies();
   const auth = await getBillingAdminAuth(cookieStore);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const body = await req.json().catch(() => ({}));
-  const orgCode = String(body?.org_code || "").trim().toUpperCase().replace(/\s+/g, "");
-  if (!orgCode) {
-    return NextResponse.json({ error: "org_code wajib diisi." }, { status: 400 });
-  }
+  const parsedBody = await parseJsonBody(req, extendSubscriptionBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const orgCode = parsedBody.data.org_code.trim().toUpperCase().replace(/\s+/g, "");
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY belum di-set" }, { status: 500 });

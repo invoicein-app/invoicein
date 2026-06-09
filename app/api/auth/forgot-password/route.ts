@@ -6,13 +6,13 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { forgotPasswordBodySchema } from "@/lib/validations/auth";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({}));
-  const email = String(body?.email ?? "").trim();
-
-  // Keep validation lightweight; Supabase will return a proper error if invalid.
-  if (!email) return NextResponse.json({ error: "Email wajib diisi." }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, forgotPasswordBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const email = parsedBody.data.email;
 
   const url = new URL(req.url);
   const proto = req.headers.get("x-forwarded-proto") || url.protocol.replace(":", "");

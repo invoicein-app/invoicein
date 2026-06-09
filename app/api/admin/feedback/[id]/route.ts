@@ -7,6 +7,8 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { updateFeedbackStatusBodySchema } from "@/lib/validations/feedback";
 
 export async function PATCH(
   req: NextRequest,
@@ -15,16 +17,14 @@ export async function PATCH(
   const csAny: any = cookies() as any;
   const cookieStore = csAny?.then ? await csAny : csAny;
 
-  const body = await req.json().catch(() => ({}));
   const id = (await params).id?.trim();
   if (!id) return NextResponse.json({ error: "ID wajib." }, { status: 400 });
 
-  const nextStatus = String(body?.status ?? "").toLowerCase();
-  if (!["new", "read", "processed", "done"].includes(nextStatus)) {
-    return NextResponse.json({ error: "status tidak valid." }, { status: 400 });
-  }
-
-  const adminNote = body?.admin_note != null ? String(body.admin_note).trim() : null;
+  const parsedBody = await parseJsonBody(req, updateFeedbackStatusBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const nextStatus = parsedBody.data.status;
+  const adminNote =
+    parsedBody.data.admin_note != null ? String(parsedBody.data.admin_note).trim() : null;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

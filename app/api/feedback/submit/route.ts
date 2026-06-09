@@ -9,23 +9,17 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { submitFeedbackBodySchema } from "@/lib/validations/feedback";
 
 export async function POST(req: Request) {
   const csAny: any = cookies() as any;
   const cookieStore = csAny?.then ? await csAny : csAny;
 
-  const body = await req.json().catch(() => ({}));
-  const orgCodeRaw = String(body?.org_code ?? "").trim();
-  const category = String(body?.category ?? "").trim().toLowerCase();
-  const message = String(body?.message ?? "").trim();
-  const currentRoute = String(body?.current_route ?? "").trim();
-
-  if (!orgCodeRaw) return NextResponse.json({ error: "org_code wajib diisi." }, { status: 400 });
-  if (!["bug", "saran", "pertanyaan", "keluhan"].includes(category)) {
-    return NextResponse.json({ error: "jenis feedback tidak valid." }, { status: 400 });
-  }
-  if (!message) return NextResponse.json({ error: "Pesan wajib diisi." }, { status: 400 });
-  if (!currentRoute) return NextResponse.json({ error: "current_route wajib diisi." }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, submitFeedbackBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { org_code: orgCodeRaw, category, message, current_route: currentRoute, name: bodyName } =
+    parsedBody.data;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -84,7 +78,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "org_code tidak sesuai dengan organisasi Anda." }, { status: 403 });
   }
 
-  const senderName = String(body?.name ?? membership.username ?? user.email ?? "").trim();
+  const senderName = String(bodyName ?? membership.username ?? user.email ?? "").trim();
   const senderEmail = String(user.email ?? "").trim();
 
   if (!senderName) return NextResponse.json({ error: "Nama wajib diisi." }, { status: 400 });

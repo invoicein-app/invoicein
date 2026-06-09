@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { loginOrgBodySchema } from "@/lib/validations/auth";
 
 function normalizeUsername(raw: string) {
   return String(raw || "")
@@ -28,19 +30,15 @@ export async function POST(req: NextRequest) {
   const csAny: any = cookies() as any;
   const cookieStore: any = csAny?.then ? await csAny : csAny;
 
-  const { org_code, username, password } = (await req.json().catch(() => ({}))) as {
-    org_code?: string;
-    username?: string;
-    password?: string;
-  };
+  const parsedBody = await parseJsonBody(req, loginOrgBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  const orgCode = normalizeOrgCode(org_code || "");
-  const uname = normalizeUsername(username || "");
-  const pass = String(password || "");
+  const orgCode = normalizeOrgCode(parsedBody.data.org_code);
+  const uname = normalizeUsername(parsedBody.data.username);
+  const pass = parsedBody.data.password;
 
   if (!orgCode) return NextResponse.json({ error: "org_code wajib" }, { status: 400 });
   if (!uname) return NextResponse.json({ error: "username wajib" }, { status: 400 });
-  if (!pass) return NextResponse.json({ error: "password wajib" }, { status: 400 });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

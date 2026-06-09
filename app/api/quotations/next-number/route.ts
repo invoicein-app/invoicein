@@ -5,6 +5,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireCanWrite } from "@/lib/subscription";
 import { coerceDateOrToday, peekDocumentNumber } from "@/lib/document-numbering";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { peekQuotationNumberBodySchema } from "@/lib/validations/quotation";
 
 export async function POST(req: Request) {
   try {
@@ -45,8 +47,9 @@ export async function POST(req: Request) {
     const subBlock = await requireCanWrite(supabase, orgId);
     if (subBlock) return subBlock;
 
-    const body = await req.json().catch(() => ({}));
-    const quotationDate = coerceDateOrToday((body as any)?.quotation_date);
+    const parsedBody = await parseJsonBody(req, peekQuotationNumberBodySchema);
+    if (!parsedBody.ok) return parsedBody.response;
+    const quotationDate = coerceDateOrToday(parsedBody.data.quotation_date);
     const quotation_number = await peekDocumentNumber({
       orgId,
       docType: "quotation",

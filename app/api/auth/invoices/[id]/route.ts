@@ -14,30 +14,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
-
-type UpdateInvoiceBody = {
-  // FE kamu kirim: { invoice: {...}, items: [...] }
-  invoice?: {
-    customer_name?: string;
-    customer_phone?: string;
-    customer_address?: string;
-    note?: string;
-    invoice_date?: string; // "YYYY-MM-DD"
-    invoice_number?: string; // admin only (kalau RPC izinkan)
-    discount_value?: number | string; // ✅ persen
-    tax_value?: number | string; // ✅ persen
-    status?: string; // optional kalau masih ada di DB (tapi JANGAN "unpaid")
-  };
-  // support juga kalau ada yang masih kirim "header"
-  header?: any;
-
-  items?: Array<{
-    name: string;
-    qty: number | string;
-    price: number | string;
-    sort_order?: number;
-  }>;
-};
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { legacyAuthInvoicePatchBodySchema } from "@/lib/validations/auth";
 
 function num(v: any) {
   const n = Number(v);
@@ -90,32 +68,11 @@ export async function PATCH(
   }
   const user = userRes.user;
 
-  // Body
-  const body = (await req.json().catch(() => null)) as UpdateInvoiceBody | null;
-  if (!body) {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsedBody = await parseJsonBody(req, legacyAuthInvoicePatchBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  // ✅ ambil header dari invoice (utama), fallback ke header (legacy)
-  const headerIn = (body.invoice ?? body.header ?? {}) as any;
-  const itemsIn = Array.isArray(body.items) ? body.items : [];
-
-  // validate items
-  if (!Array.isArray(itemsIn) || itemsIn.length === 0) {
-    return NextResponse.json({ error: "items wajib (minimal 1)" }, { status: 400 });
-  }
-
-  for (const it of itemsIn) {
-    if (!asText(it?.name)) {
-      return NextResponse.json({ error: "Item name wajib" }, { status: 400 });
-    }
-    if (!Number.isFinite(num(it?.qty))) {
-      return NextResponse.json({ error: "Item qty invalid" }, { status: 400 });
-    }
-    if (!Number.isFinite(num(it?.price))) {
-      return NextResponse.json({ error: "Item price invalid" }, { status: 400 });
-    }
-  }
+  const headerIn = (parsedBody.data.invoice ?? parsedBody.data.header ?? {}) as Record<string, unknown>;
+  const itemsIn = parsedBody.data.items;
 
   // Membership (org + role)
   const { data: membership, error: memErr } = await supabase

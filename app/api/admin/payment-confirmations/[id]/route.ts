@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { getBillingAdminAuth } from "@/lib/billing-admin";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { resolvePaymentConfirmationBodySchema } from "@/lib/validations/admin";
 
 export async function PATCH(
   req: NextRequest,
@@ -21,13 +23,10 @@ export async function PATCH(
   const id = (await params).id?.trim();
   if (!id) return NextResponse.json({ error: "ID wajib." }, { status: 400 });
 
-  const body = await req.json().catch(() => ({}));
-  const status = String(body?.status ?? "").toLowerCase();
-  if (status !== "confirmed" && status !== "rejected") {
-    return NextResponse.json({ error: "status harus confirmed atau rejected." }, { status: 400 });
-  }
-
-  const adminNote = body?.admin_note != null ? String(body.admin_note).trim() : null;
+  const parsedBody = await parseJsonBody(req, resolvePaymentConfirmationBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { status, admin_note: adminNoteRaw } = parsedBody.data;
+  const adminNote = adminNoteRaw != null ? String(adminNoteRaw).trim() : null;
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY belum di-set" }, { status: 500 });
