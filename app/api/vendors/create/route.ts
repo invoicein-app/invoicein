@@ -3,62 +3,16 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createVendorBodySchema } from "@/lib/validations/vendor";
 
 export async function POST(req: Request) {
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  // auth
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = userRes.user;
-
-  // membership
-  const { data: membership, error: memErr } = await supabase
-    .from("memberships")
-    .select("org_id, role, is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (memErr) return NextResponse.json({ error: memErr.message }, { status: 400 });
-  if (!membership?.org_id) {
-    return NextResponse.json({ error: "Kamu belum punya organisasi aktif." }, { status: 400 });
-  }
-
-  const orgId = String(membership.org_id);
-  const actorRole = String((membership as any).role || "staff");
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
-
-  // body
   const parsedBody = await parseJsonBody(req, createVendorBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
   const body = parsedBody.data;

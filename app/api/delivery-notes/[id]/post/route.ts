@@ -1,10 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext } from "@/lib/api-context";
 
 function isUuid(v: any) {
   const s = String(v || "").trim();
@@ -27,52 +25,9 @@ export async function POST(
     return NextResponse.json({ error: "Invalid delivery note id" }, { status: 400 });
   }
 
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = userRes.user;
-
-  const { data: mem, error: memErr } = await supabase
-    .from("memberships")
-    .select("org_id, role, is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (memErr) {
-    return NextResponse.json({ error: memErr.message }, { status: 400 });
-  }
-  if (!mem?.org_id) {
-    return NextResponse.json({ error: "Org tidak ditemukan" }, { status: 400 });
-  }
-
-  const orgId = String((mem as any).org_id);
-  const actorRole = String((mem as any).role || "staff");
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const { data: dn, error: dnErr } = await supabase
     .from("delivery_notes")

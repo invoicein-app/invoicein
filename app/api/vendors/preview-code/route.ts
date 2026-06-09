@@ -1,40 +1,13 @@
 // GET next vendor_code preview for current org (heuristic; matches common PREFIX-#### pattern)
 export const runtime = "nodejs";
 
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { requireApiContext } from "@/lib/api-context";
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabase.auth.getUser();
-  if (!userRes?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: mem } = await supabase
-    .from("memberships")
-    .select("org_id")
-    .eq("user_id", userRes.user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  const orgId = String((mem as { org_id?: string } | null)?.org_id || "");
-  if (!orgId) return NextResponse.json({ error: "No organization" }, { status: 400 });
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const { data: rows, error } = await supabase
     .from("vendors")
@@ -68,7 +41,8 @@ export async function GET() {
   }
 
   const next = maxNum + 1;
-  const preview_code = foundPattern || maxNum > 0 ? `${prefix}-${String(next).padStart(4, "0")}` : `${prefix}-0001`;
+  const preview_code =
+    foundPattern || maxNum > 0 ? `${prefix}-${String(next).padStart(4, "0")}` : `${prefix}-0001`;
 
   return NextResponse.json({ preview_code }, { status: 200 });
 }

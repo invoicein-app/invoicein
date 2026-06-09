@@ -2,130 +2,57 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext, asText } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createDeliveryNoteFromInvoiceBodySchema } from "@/lib/validations/delivery-note";
 
-type CookieToSet = { name: string; value: string; options: any };
-
-function asText(v: any) {
-  return String(v ?? "").trim();
-}
-
 export async function POST(req: NextRequest) {
-  const cookieJar: CookieToSet[] = [];
-
   try {
     const parsedBody = await parseJsonBody(req, createDeliveryNoteFromInvoiceBodySchema);
     if (!parsedBody.ok) return parsedBody.response;
     const { invoiceId } = parsedBody.data;
 
-    const supabaseUser = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return req.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieJar.push({ name, value, options })
-            );
-          },
-        },
-      }
-    );
+    const auth = await requireApiContext({ requireWrite: true });
+    if (!auth.ok) return auth.response;
 
-    const { data: userRes, error: userErr } = await supabaseUser.auth.getUser();
-    if (userErr) {
-      const response = NextResponse.json({ error: userErr.message }, { status: 401 });
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
-    }
+    const { supabase, user, orgId } = auth.ctx;
 
-    const user = userRes.user;
-    if (!user) {
-      const response = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
-    }
-
-    const { data: inv, error: invErr } = await supabaseUser
+    const { data: inv, error: invErr } = await supabase
       .from("invoices")
       .select(
         "id, org_id, customer_address, customer_name, customer_phone, warehouse_id, status, invoice_number"
       )
       .eq("id", invoiceId)
+      .eq("org_id", orgId)
       .maybeSingle();
 
     if (invErr) {
-      const response = NextResponse.json(
+      return NextResponse.json(
         { error: invErr.message, detail: invErr },
         { status: 403 }
       );
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
     }
 
     if (!inv) {
-      const response = NextResponse.json(
+      return NextResponse.json(
         { error: "Invoice tidak ditemukan / forbidden" },
         { status: 404 }
       );
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
-    }
-
-    if (!inv.org_id) {
-      const response = NextResponse.json(
-        { error: "Invoice org_id kosong" },
-        { status: 400 }
-      );
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
-    }
-
-    const subBlock = await requireCanWrite(supabaseUser, inv.org_id);
-    if (subBlock) {
-      cookieJar.forEach(({ name, value, options }) =>
-        subBlock.cookies.set(name, value, options)
-      );
-      return subBlock;
     }
 
     const invStatus = String(inv.status || "").toLowerCase();
     if (invStatus === "cancelled") {
-      const response = NextResponse.json(
+      return NextResponse.json(
         { error: "Invoice cancelled tidak bisa dibuatkan surat jalan." },
         { status: 400 }
       );
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
     }
 
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      const response = NextResponse.json(
+      return NextResponse.json(
         { error: "SUPABASE_SERVICE_ROLE_KEY belum di-set di .env.local" },
         { status: 500 }
       );
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
     }
 
     const admin = createClient(
@@ -139,30 +66,22 @@ export async function POST(req: NextRequest) {
     const { data: existingDn, error: existingErr } = await admin
       .from("delivery_notes")
       .select("id")
-      .eq("org_id", inv.org_id)
+      .eq("org_id", orgId)
       .eq("invoice_id", invoiceId)
       .maybeSingle();
 
     if (existingErr) {
-      const response = NextResponse.json(
+      return NextResponse.json(
         { error: existingErr.message, detail: existingErr },
         { status: 400 }
       );
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
     }
 
     if (existingDn?.id) {
-      const response = NextResponse.json(
+      return NextResponse.json(
         { id: existingDn.id, already_exists: true },
         { status: 200 }
       );
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
     }
 
     const { data: items, error: itemsErr } = await admin
@@ -172,14 +91,10 @@ export async function POST(req: NextRequest) {
       .order("sort_order", { ascending: true });
 
     if (itemsErr) {
-      const response = NextResponse.json(
+      return NextResponse.json(
         { error: itemsErr.message, detail: itemsErr },
         { status: 400 }
       );
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
     }
 
     const productIds = [...new Set((items || []).map((it: any) => asText(it.product_id)).filter(Boolean))];
@@ -193,14 +108,10 @@ export async function POST(req: NextRequest) {
         .in("id", productIds);
 
       if (prodErr) {
-        const response = NextResponse.json(
+        return NextResponse.json(
           { error: prodErr.message, detail: prodErr },
           { status: 400 }
         );
-        cookieJar.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
-        );
-        return response;
       }
 
       productUnitMap = new Map(
@@ -209,7 +120,7 @@ export async function POST(req: NextRequest) {
     }
 
     const insertPayload = {
-      org_id: inv.org_id,
+      org_id: orgId,
       invoice_id: invoiceId,
       customer_name: asText((inv as any).customer_name) || "",
       customer_phone: asText((inv as any).customer_phone) || null,
@@ -222,7 +133,7 @@ export async function POST(req: NextRequest) {
       created_by: user.id,
     };
 
-    const { data: createdDnRow, error: dnInsertErr } = await supabaseUser
+    const { data: createdDnRow, error: dnInsertErr } = await supabase
       .from("delivery_notes")
       .insert(insertPayload)
       .select("id")
@@ -235,60 +146,44 @@ export async function POST(req: NextRequest) {
         const { data: dn2, error: dn2Err } = await admin
           .from("delivery_notes")
           .select("id")
-          .eq("org_id", inv.org_id)
+          .eq("org_id", orgId)
           .eq("invoice_id", invoiceId)
           .maybeSingle();
 
         if (dn2Err || !dn2?.id) {
-          const response = NextResponse.json(
+          return NextResponse.json(
             { error: dn2Err?.message || "Duplicate but cannot fetch existing SJ" },
             { status: 400 }
           );
-          cookieJar.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-          return response;
         }
 
-        const response = NextResponse.json(
+        return NextResponse.json(
           { id: dn2.id, already_exists: true },
           { status: 200 }
         );
-        cookieJar.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
-        );
-        return response;
       }
 
-      const response = NextResponse.json(
+      return NextResponse.json(
         { error: dnInsertErr.message, detail: dnInsertErr },
         { status: 400 }
       );
-      cookieJar.forEach(({ name, value, options }) =>
-        response.cookies.set(name, value, options)
-      );
-      return response;
     }
 
     if (!deliveryNoteId) {
       const { data: lastDn, error: lastDnErr } = await admin
         .from("delivery_notes")
         .select("id")
-        .eq("org_id", inv.org_id)
+        .eq("org_id", orgId)
         .eq("invoice_id", invoiceId)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (lastDnErr || !lastDn?.id) {
-        const response = NextResponse.json(
+        return NextResponse.json(
           { error: lastDnErr?.message || "SJ dibuat, tapi gagal ambil id" },
           { status: 500 }
         );
-        cookieJar.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
-        );
-        return response;
       }
 
       deliveryNoteId = lastDn.id;
@@ -316,33 +211,21 @@ export async function POST(req: NextRequest) {
         .insert(payload);
 
       if (dnItemsErr) {
-        const response = NextResponse.json(
+        return NextResponse.json(
           { error: dnItemsErr.message, detail: dnItemsErr },
           { status: 400 }
         );
-        cookieJar.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
-        );
-        return response;
       }
     }
 
-    const response = NextResponse.json(
+    return NextResponse.json(
       { id: deliveryNoteId, already_exists: false },
       { status: 200 }
     );
-    cookieJar.forEach(({ name, value, options }) =>
-      response.cookies.set(name, value, options)
-    );
-    return response;
   } catch (e: any) {
-    const response = NextResponse.json(
+    return NextResponse.json(
       { error: e?.message || "Server error" },
       { status: 500 }
     );
-    cookieJar.forEach(({ name, value, options }) =>
-      response.cookies.set(name, value, options)
-    );
-    return response;
   }
 }

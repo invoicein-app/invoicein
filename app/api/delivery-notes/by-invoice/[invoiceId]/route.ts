@@ -1,8 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { requireApiContext } from "@/lib/api-context";
 
 export async function GET(
   _req: Request,
@@ -10,28 +9,9 @@ export async function GET(
 ) {
   const { invoiceId } = await ctx.params;
 
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabase.auth.getUser();
-  if (!userRes.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase } = auth.ctx;
 
   const { data, error } = await supabase
     .from("delivery_notes")

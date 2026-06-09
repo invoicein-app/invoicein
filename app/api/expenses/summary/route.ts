@@ -2,13 +2,12 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { paidSalesTotalForMonth, monthKeyFromDate, monthStart } from "@/lib/invoice-totals";
-import { asText, getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
+import { asText, requireApiContext } from "@/lib/api-context";
 
 export async function GET(req: NextRequest) {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { orgId } = auth;
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const month =
     asText(new URL(req.url).searchParams.get("month")) || monthKeyFromDate(monthStart(new Date()));

@@ -3,10 +3,8 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { updateVendorBodySchema } from "@/lib/validations/vendor";
 
@@ -18,28 +16,6 @@ function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
-async function makeSupabase() {
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-}
-
 type Ctx = { params: Promise<{ id: string }> | { id: string } };
 
 async function getId(ctx: Ctx) {
@@ -49,32 +25,10 @@ async function getId(ctx: Ctx) {
   return id;
 }
 
-async function getMembership(supabase: any, userId: string) {
-  const { data: membership, error } = await supabase
-    .from("memberships")
-    .select("org_id, role, is_active")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-
-  const orgId = String((membership as any)?.org_id || "");
-  const actorRole = String((membership as any)?.role || "staff");
-
-  if (!orgId) {
-    throw new Error("Org tidak ditemukan. Pastikan membership aktif.");
-  }
-
-  return { orgId, actorRole };
-}
-
 export async function GET(_req: Request, ctx: Ctx) {
-  const supabase = await makeSupabase();
-
-  const { data: userRes } = await supabase.auth.getUser();
-  if (!userRes?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase } = auth.ctx;
 
   const id = await getId(ctx);
   if (!id || !isUuid(id)) {
@@ -94,16 +48,9 @@ export async function GET(_req: Request, ctx: Ctx) {
 }
 
 export async function PATCH(req: Request, ctx: Ctx) {
-  const supabase = await makeSupabase();
-
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = userRes.user;
-
-  const { orgId, actorRole } = await getMembership(supabase, user.id);
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const id = await getId(ctx);
   if (!id || !isUuid(id)) {
@@ -148,16 +95,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
 // ✅ Soft delete: set is_active=false (lebih aman buat ERP)
 export async function DELETE(_req: Request, ctx: Ctx) {
-  const supabase = await makeSupabase();
-
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = userRes.user;
-
-  const { orgId, actorRole } = await getMembership(supabase, user.id);
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const id = await getId(ctx);
   if (!id || !isUuid(id)) {

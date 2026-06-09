@@ -5,48 +5,20 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { logActivity } from "@/lib/log-activity";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext, num } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { legacyAuthInvoiceUpdateBodySchema } from "@/lib/validations/auth";
-
-function num(v: any) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
 
 function text(v: any) {
   return String(v ?? "").trim();
 }
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  // auth
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = userRes.user;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, legacyAuthInvoiceUpdateBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -54,26 +26,6 @@ export async function POST(req: NextRequest) {
   const invoiceId = parsedBody.data.invoiceId;
   const headerIn = parsedBody.data.header;
   const itemsIn = parsedBody.data.items;
-
-  // ambil org + role utk activity log
-  const { data: membership, error: memErr } = await supabase
-    .from("memberships")
-    .select("org_id, role, is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (memErr) return NextResponse.json({ error: memErr.message }, { status: 400 });
-  if (!membership?.org_id) {
-    return NextResponse.json({ error: "Kamu belum punya organisasi aktif." }, { status: 400 });
-  }
-
-  const orgId = String(membership.org_id);
-  const actorRole = String(membership.role || "staff");
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
 
   // ===== header FINAL (tanpa *_type) =====
   // NOTE:

@@ -2,9 +2,8 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { requireCanWrite, getStaffLimitForPlan, getActiveStaffCount } from "@/lib/subscription";
+import { requireApiContext, requireWriteForOrg } from "@/lib/api-context";
+import { getStaffLimitForPlan, getActiveStaffCount } from "@/lib/subscription";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createStaffBodySchema } from "@/lib/validations/member";
 
@@ -29,30 +28,9 @@ function makeInternalEmail(username: string, orgCode: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes, error: userErr } = await supabaseUser.auth.getUser();
-  if (userErr || !userRes.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireApiContext({ requireAdmin: true });
+  if (!auth.ok) return auth.response;
+  const { supabase: supabaseUser, user } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, createStaffBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -65,31 +43,11 @@ export async function POST(req: NextRequest) {
   let orgId = String(bodyOrgId || "").trim();
 
   if (!orgId) {
-    const { data: myOrg } = await supabaseUser
-      .from("memberships")
-      .select("org_id, role")
-      .eq("user_id", userRes.user.id)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (!myOrg?.org_id) return NextResponse.json({ error: "Org tidak ditemukan" }, { status: 400 });
-    orgId = myOrg.org_id;
+    orgId = auth.ctx.orgId;
   }
 
-  const subBlock = await requireCanWrite(supabaseUser, orgId);
+  const subBlock = await requireWriteForOrg(supabaseUser, orgId);
   if (subBlock) return subBlock;
-
-  // 2) pastikan requester adalah admin org tsb (RLS gate)
-  const { data: me, error: meErr } = await supabaseUser
-    .from("memberships")
-    .select("role")
-    .eq("org_id", orgId)
-    .eq("user_id", userRes.user.id)
-    .maybeSingle();
-
-  if (meErr) return NextResponse.json({ error: meErr.message }, { status: 403 });
-  if (!me || me.role !== "admin") return NextResponse.json({ error: "Forbidden (admin only)" }, { status: 403 });
 
   // 3) admin client (service role) buat create auth user + insert membership
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {

@@ -1,9 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext, requireWriteForOrg } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { grnPurchaseOrderBodySchema } from "@/lib/validations/purchase-order";
 
@@ -11,23 +9,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const poId = String(id || "").trim();
 
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
-      },
-    }
-  );
-
-  const { data: userRes } = await supabase.auth.getUser();
-  if (!userRes.user)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase, user } = auth.ctx;
 
   const { data: poRow } = await supabase
     .from("purchase_orders")
@@ -36,7 +20,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     .maybeSingle();
   const orgId = (poRow as any)?.org_id;
   if (orgId) {
-    const subBlock = await requireCanWrite(supabase, orgId);
+    const subBlock = await requireWriteForOrg(supabase, orgId);
     if (subBlock) return subBlock;
   }
 
@@ -51,7 +35,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       po_id: poId,
       warehouse_id,
       sj_no,
-      received_by: userRes.user.id,
+      received_by: user.id,
       received_date,
       notes,
     })

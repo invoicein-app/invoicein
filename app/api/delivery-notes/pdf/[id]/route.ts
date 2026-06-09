@@ -4,8 +4,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { requireApiContext } from "@/lib/api-context";
 
 import React from "react";
 import {
@@ -49,30 +48,13 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const { id } = await ctx.params;
-  const cookieStore = await cookies();
 
   const url = new URL(req.url);
   const isDownload = url.searchParams.get("download") === "1";
 
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabaseUser.auth.getUser();
-  if (!userRes.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const supabaseUser = auth.ctx.supabase;
 
   const { data: gate, error: gateErr } = await supabaseUser
     .from("delivery_notes")

@@ -1,91 +1,16 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext, asText } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createProductBodySchema, updateProductBodySchema } from "@/lib/validations/product";
 
-function num(v: any) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function asText(v: any) {
-  return String(v ?? "").trim();
-}
-
-async function getSupabase() {
-  const cookieStore = await cookies();
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-}
-
-async function getAuthAndOrg(supabase: any) {
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-
-  if (userErr || !userRes?.user) {
-    return {
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
-  }
-
-  const user = userRes.user;
-
-  const { data: membership, error: memErr } = await supabase
-    .from("memberships")
-    .select("org_id, role, is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (memErr) {
-    return {
-      error: NextResponse.json({ error: memErr.message }, { status: 400 }),
-    };
-  }
-
-  if (!membership?.org_id) {
-    return {
-      error: NextResponse.json(
-        { error: "Kamu belum punya organisasi aktif." },
-        { status: 400 }
-      ),
-    };
-  }
-
-  return {
-    user,
-    orgId: String(membership.org_id),
-    actorRole: String(membership.role || "staff"),
-  };
-}
-
 export async function GET(req: NextRequest) {
-  const supabase = await getSupabase();
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
 
-  const auth = await getAuthAndOrg(supabase);
-  if ((auth as any).error) return (auth as any).error;
-
-  const { orgId } = auth as any;
+  const { supabase, orgId } = auth.ctx;
   const { searchParams } = new URL(req.url);
 
   const q = asText(searchParams.get("q"));
@@ -115,15 +40,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await getSupabase();
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
 
-  const auth = await getAuthAndOrg(supabase);
-  if ((auth as any).error) return (auth as any).error;
-
-  const { user, orgId, actorRole } = auth as any;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, createProductBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -162,15 +82,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const supabase = await getSupabase();
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
 
-  const auth = await getAuthAndOrg(supabase);
-  if ((auth as any).error) return (auth as any).error;
-
-  const { user, orgId, actorRole } = auth as any;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, updateProductBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -232,15 +147,10 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const supabase = await getSupabase();
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
 
-  const auth = await getAuthAndOrg(supabase);
-  if ((auth as any).error) return (auth as any).error;
-
-  const { user, orgId, actorRole } = auth as any;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const { searchParams } = new URL(req.url);
   const id = asText(searchParams.get("id"));

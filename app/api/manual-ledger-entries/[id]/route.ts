@@ -1,8 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { asText, getAuthAndOrg, getSupabaseFromCookies, num } from "@/lib/api-auth-org";
-import { requireCanWrite } from "@/lib/subscription";
+import { asText, requireApiContext } from "@/lib/api-context";
 import {
   calcRemaining,
   deriveManualLedgerStatus,
@@ -38,13 +37,9 @@ function withStatus(row: Record<string, unknown>) {
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { orgId } = auth;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, updateManualLedgerBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -128,13 +123,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { orgId } = auth;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const { error } = await supabase.from("manual_ledger_entries").delete().eq("org_id", orgId).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

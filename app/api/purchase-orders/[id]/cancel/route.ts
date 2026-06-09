@@ -5,9 +5,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext, requireWriteForOrg } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { cancelPurchaseOrderBodySchema } from "@/lib/validations/purchase-order";
 
@@ -16,30 +14,9 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(req: Request, { params }: Params) {
   const { id } = await params;
 
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, cancelPurchaseOrderBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -57,7 +34,7 @@ export async function POST(req: Request, { params }: Params) {
 
   const orgId = (po as any).org_id;
   if (orgId) {
-    const subBlock = await requireCanWrite(supabase, orgId);
+    const subBlock = await requireWriteForOrg(supabase, orgId);
     if (subBlock) return subBlock;
   }
 

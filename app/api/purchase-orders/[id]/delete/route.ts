@@ -4,66 +4,17 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
-import { requireCanWrite } from "@/lib/subscription";
-
-function isAdminRole(role: string) {
-  const r = String(role || "").toLowerCase();
-  return r === "admin" || r === "owner" || r === "super_admin";
-}
+import { requireApiContext, isAdminRole } from "@/lib/api-context";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  // auth
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = userRes.user;
-
-  // membership
-  const { data: membership, error: memErr } = await supabase
-    .from("memberships")
-    .select("org_id, role, is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (memErr) return NextResponse.json({ error: memErr.message }, { status: 400 });
-  if (!membership?.org_id) {
-    return NextResponse.json({ error: "Kamu belum punya organisasi aktif." }, { status: 400 });
-  }
-
-  const orgId = String(membership.org_id);
-  const role = String(membership.role || "staff");
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
+  const role = actorRole;
   const isAdmin = isAdminRole(role);
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
 
   // ambil PO (RLS tetap jalan)
   const { data: po, error: poErr } = await supabase

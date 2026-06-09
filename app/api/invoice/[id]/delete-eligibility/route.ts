@@ -1,64 +1,18 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireApiContext } from "@/lib/api-context";
 import { assessInvoiceDeletable, formatInvoiceDeleteBlockedMessage, isInvoiceDeleteAdmin } from "@/lib/invoice-delete";
-
-async function getSupabaseAndAuth() {
-  const { cookies } = await import("next/headers");
-  const { createServerClient } = await import("@supabase/ssr");
-
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-
-  const { data: membership, error: memErr } = await supabase
-    .from("memberships")
-    .select("org_id, role")
-    .eq("user_id", userRes.user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (memErr || !membership?.org_id) {
-    return {
-      error: NextResponse.json(
-        { error: memErr?.message || "Kamu belum punya organisasi aktif." },
-        { status: 400 }
-      ),
-    };
-  }
-
-  return { supabase, orgId: String(membership.org_id), actorRole: String(membership.role || "staff") };
-}
 
 export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
   const { id } = await ctx.params;
-  const auth = await getSupabaseAndAuth();
-  if ("error" in auth && auth.error) return auth.error;
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
 
-  const { supabase, orgId, actorRole } = auth;
+  const { supabase, orgId, actorRole } = auth.ctx;
 
   const { data: invoice, error: invErr } = await supabase
     .from("invoices")

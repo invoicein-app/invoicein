@@ -6,9 +6,8 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+import { requireApiContext } from "@/lib/api-context";
 
 function toNum(v: any) {
   const n = Number(v);
@@ -18,32 +17,9 @@ function toNum(v: any) {
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
-  // cookies() kadang ke-typing Promise
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  // 1) user gate (RLS via cookies)
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes, error: userErr } = await supabaseUser.auth.getUser();
-  if (userErr || !userRes?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase: supabaseUser } = auth.ctx;
 
   // 2) pastikan user boleh akses quotation ini (RLS)
   const { data: qGate, error: qGateErr } = await supabaseUser

@@ -7,70 +7,26 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { submitFeedbackBodySchema } from "@/lib/validations/feedback";
 
 export async function POST(req: Request) {
-  const csAny: any = cookies() as any;
-  const cookieStore = csAny?.then ? await csAny : csAny;
-
   const parsedBody = await parseJsonBody(req, submitFeedbackBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
   const { org_code: orgCodeRaw, category, message, current_route: currentRoute, name: bodyName } =
     parsedBody.data;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) => cookieStore.set(name, value, options));
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabase.auth.getUser();
-  const user = userRes?.user;
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId } = auth.ctx;
 
   const orgCode = orgCodeRaw.toUpperCase().replace(/\s+/g, "");
-
-  // derive membership for safety
-  const { data: mem, error: memErr } = await supabase
-    .from("memberships")
-    .select("org_id, role, is_active, username")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  // If membership isn't found, try by org_code
-  let membership = mem;
-  if (!membership || memErr) {
-    const { data: memByCode } = await supabase
-      .from("memberships")
-      .select("org_id, role, is_active, username")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .maybeSingle();
-    membership = memByCode;
-  }
-
-  if (!membership?.org_id) {
-    return NextResponse.json({ error: "Membership tidak ditemukan." }, { status: 403 });
-  }
 
   const { data: org } = await supabase
     .from("organizations")
     .select("org_code")
-    .eq("id", membership.org_id)
+    .eq("id", orgId)
     .maybeSingle();
 
   const derivedOrgCode = (org as any)?.org_code ?? "";
@@ -78,14 +34,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "org_code tidak sesuai dengan organisasi Anda." }, { status: 403 });
   }
 
-  const senderName = String(bodyName ?? membership.username ?? user.email ?? "").trim();
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("username")
+    .eq("user_id", user.id)
+    .eq("org_id", orgId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  const senderName = String(bodyName ?? membership?.username ?? user.email ?? "").trim();
   const senderEmail = String(user.email ?? "").trim();
 
   if (!senderName) return NextResponse.json({ error: "Nama wajib diisi." }, { status: 400 });
   if (!senderEmail) return NextResponse.json({ error: "Email tidak ditemukan." }, { status: 400 });
 
   const { error: insErr } = await supabase.from("feedback_submissions").insert({
-    org_id: membership.org_id,
+    org_id: orgId,
     org_code: derivedOrgCode,
     user_id: user.id,
     name: senderName,
@@ -98,9 +62,8 @@ export async function POST(req: Request) {
   });
 
   if (insErr) {
-    return NextResponse.json({ error: insErr.message || "Gagal menyimpan feedback." }, { status: 400 });
+    return NextResponse.json({ error: insErr.message }, { status: 400 });
   }
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }
-

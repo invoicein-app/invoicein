@@ -1,13 +1,12 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
+import { requireApiContext } from "@/lib/api-context";
 
 export async function GET() {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { orgId } = auth;
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const [custRes, vendorRes] = await Promise.all([
     supabase.from("customers").select("id, name").eq("org_id", orgId).order("name", { ascending: true }),

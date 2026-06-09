@@ -1,8 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext } from "@/lib/api-context";
 import { clearOtherDefaultBankAccounts } from "@/lib/company-bank-accounts";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { updateBankAccountBodySchema } from "@/lib/validations/company-bank-account";
@@ -21,18 +20,15 @@ export async function PATCH(
     return NextResponse.json({ error: "ID rekening wajib." }, { status: 400 });
   }
 
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-
-  const subBlock = await requireCanWrite(supabase, auth.orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const { data: existing, error: findErr } = await supabase
     .from("company_bank_accounts")
     .select("*")
     .eq("id", accountId)
-    .eq("org_id", auth.orgId)
+    .eq("org_id", orgId)
     .maybeSingle();
 
   if (findErr) return NextResponse.json({ error: findErr.message }, { status: 400 });
@@ -65,14 +61,14 @@ export async function PATCH(
     .from("company_bank_accounts")
     .update(patch)
     .eq("id", accountId)
-    .eq("org_id", auth.orgId)
+    .eq("org_id", orgId)
     .select("*")
     .single();
 
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
 
   if (updated?.is_default) {
-    await clearOtherDefaultBankAccounts(supabase, auth.orgId, accountId);
+    await clearOtherDefaultBankAccounts(supabase, orgId, accountId);
   }
 
   if (updated && !updated.is_active && updated.is_default) {
@@ -84,7 +80,7 @@ export async function PATCH(
     const { data: nextDefault } = await supabase
       .from("company_bank_accounts")
       .select("id")
-      .eq("org_id", auth.orgId)
+      .eq("org_id", orgId)
       .eq("is_active", true)
       .neq("id", accountId)
       .order("created_at", { ascending: true })
@@ -114,18 +110,15 @@ export async function DELETE(
     return NextResponse.json({ error: "ID rekening wajib." }, { status: 400 });
   }
 
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-
-  const subBlock = await requireCanWrite(supabase, auth.orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const { data: existing } = await supabase
     .from("company_bank_accounts")
     .select("id, is_default")
     .eq("id", accountId)
-    .eq("org_id", auth.orgId)
+    .eq("org_id", orgId)
     .maybeSingle();
 
   if (!existing) {
@@ -136,7 +129,7 @@ export async function DELETE(
     .from("company_bank_accounts")
     .delete()
     .eq("id", accountId)
-    .eq("org_id", auth.orgId);
+    .eq("org_id", orgId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
@@ -144,7 +137,7 @@ export async function DELETE(
     const { data: nextDefault } = await supabase
       .from("company_bank_accounts")
       .select("id")
-      .eq("org_id", auth.orgId)
+      .eq("org_id", orgId)
       .eq("is_active", true)
       .order("created_at", { ascending: true })
       .limit(1)

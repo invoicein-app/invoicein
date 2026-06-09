@@ -1,46 +1,21 @@
 // app/api/invoice/payment/[paymentId]/route.ts  (REPLACE FULL)
-// FIX: cookies() harus await juga
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { updateInvoicePaymentBodySchema } from "@/lib/validations/payment";
-
-async function sb() {
-  const cookieStore = await cookies(); // ✅ await
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-}
 
 export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ paymentId: string }> }
 ) {
   const { paymentId } = await ctx.params;
-  const supabase = await sb();
 
-  const { data: userRes } = await supabase.auth.getUser();
-  if (!userRes.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+
+  const { supabase, orgId } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, updateInvoicePaymentBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -58,10 +33,8 @@ export async function PATCH(
       .select("org_id")
       .eq("id", invoiceId)
       .maybeSingle();
-    const orgId = (invRow as any)?.org_id;
-    if (orgId) {
-      const subBlock = await requireCanWrite(supabase, orgId);
-      if (subBlock) return subBlock;
+    if (invRow && String((invRow as any).org_id) !== orgId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
 
@@ -81,12 +54,11 @@ export async function DELETE(
   ctx: { params: Promise<{ paymentId: string }> }
 ) {
   const { paymentId } = await ctx.params;
-  const supabase = await sb();
 
-  const { data: userRes } = await supabase.auth.getUser();
-  if (!userRes.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+
+  const { supabase, orgId } = auth.ctx;
 
   const { data: payRow } = await supabase
     .from("invoice_payments")
@@ -100,10 +72,8 @@ export async function DELETE(
       .select("org_id")
       .eq("id", invoiceId)
       .maybeSingle();
-    const orgId = (invRow as any)?.org_id;
-    if (orgId) {
-      const subBlock = await requireCanWrite(supabase, orgId);
-      if (subBlock) return subBlock;
+    if (invRow && String((invRow as any).org_id) !== orgId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
 

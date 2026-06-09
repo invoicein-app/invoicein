@@ -1,10 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext, num, asText, type ApiSupabase } from "@/lib/api-context";
 import { canEditInvoice, deriveInvoiceStatusAfterEdit, resyncInvoiceStockAfterEdit } from "@/lib/invoice-finalize";
 import { upsertCustomerLatestPrices } from "@/lib/customer-item-latest-price";
 import { upsertOrgManualItemsFromLines } from "@/lib/org-manual-items";
@@ -28,17 +26,8 @@ type NormItem = {
   unit: string | null;
 };
 
-function num(v: any) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function asText(v: any) {
-  return String(v ?? "").trim();
-}
-
 async function loadProductsForItems(
-  supabase: ReturnType<typeof createServerClient>,
+  supabase: ApiSupabase,
   orgId: string,
   items: NormItem[]
 ) {
@@ -105,81 +94,16 @@ function pickSafeHeader(raw: Record<string, any>) {
   return safe;
 }
 
-async function getSupabaseAndAuth() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) {
-    return {
-      supabase,
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
-  }
-
-  const user = userRes.user;
-
-  const { data: membership, error: memErr } = await supabase
-    .from("memberships")
-    .select("org_id, role, is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (memErr) {
-    return {
-      supabase,
-      error: NextResponse.json({ error: memErr.message }, { status: 400 }),
-    };
-  }
-
-  if (!membership?.org_id) {
-    return {
-      supabase,
-      error: NextResponse.json(
-        { error: "Kamu belum punya organisasi aktif." },
-        { status: 400 }
-      ),
-    };
-  }
-
-  return {
-    supabase,
-    user,
-    orgId: String(membership.org_id),
-    actorRole: String(membership.role || "staff"),
-  };
-}
-
 export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
   const { id } = await ctx.params;
 
-  const auth = await getSupabaseAndAuth();
-  if ((auth as any).error) return (auth as any).error;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
 
-  const { supabase, user, orgId, actorRole } = auth as any;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, updateInvoiceBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -408,13 +332,10 @@ export async function DELETE(
 ) {
   const { id } = await ctx.params;
 
-  const auth = await getSupabaseAndAuth();
-  if ((auth as any).error) return (auth as any).error;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
 
-  const { supabase, user, orgId, actorRole } = auth as any;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const { data: before, error: invErr } = await supabase
     .from("invoices")

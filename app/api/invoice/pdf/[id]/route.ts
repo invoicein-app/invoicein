@@ -4,8 +4,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { applyBankToOrgProfile, resolveInvoiceBankAccount } from "@/lib/company-bank-accounts";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { requireApiContext } from "@/lib/api-context";
 
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet, pdf } from "@react-pdf/renderer";
@@ -34,29 +33,12 @@ type PdfOpt = {
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
   const url = new URL(req.url);
   const isDownload = url.searchParams.get("download") === "1";
 
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) => cookieStore.set(name, value, options));
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabaseUser.auth.getUser();
-  if (!userRes.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase: supabaseUser } = auth.ctx;
 
   const { data: invGate, error: invGateErr } = await supabaseUser
     .from("invoices")

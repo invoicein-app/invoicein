@@ -1,10 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import crypto from "crypto";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { stockAdjustBodySchema } from "@/lib/validations/stock";
 
@@ -16,11 +14,6 @@ function isUuid(v: any) {
 function num(v: any) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
-}
-
-function isAdminRole(role: string) {
-  const r = String(role || "").toLowerCase();
-  return r === "admin" || r === "owner" || r === "super_admin";
 }
 
 function toKey(raw: any) {
@@ -45,65 +38,14 @@ export async function POST(
     return NextResponse.json({ error: "Invalid warehouse id" }, { status: 400 });
   }
 
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = userRes.user;
+  const auth = await requireApiContext({ requireWrite: true, requireAdmin: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, stockAdjustBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
   const { product_id: inputProductId, qty_delta: qtyDelta, note: rawNote } = parsedBody.data;
   const note = rawNote == null ? null : String(rawNote).trim() || null;
-
-  const { data: mem, error: memErr } = await supabase
-    .from("memberships")
-    .select("org_id, role, is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (memErr) {
-    return NextResponse.json({ error: memErr.message }, { status: 400 });
-  }
-
-  const orgId = String((mem as any)?.org_id || "");
-  const role = String((mem as any)?.role || "");
-
-  if (!orgId) {
-    return NextResponse.json({ error: "Org tidak ditemukan" }, { status: 400 });
-  }
-
-  if (!isAdminRole(role)) {
-    return NextResponse.json(
-      { error: "Forbidden (admin/owner only)" },
-      { status: 403 }
-    );
-  }
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
 
   const { data: wh, error: whErr } = await supabase
     .from("warehouses")

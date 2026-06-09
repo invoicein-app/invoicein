@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAppOrg } from "@/lib/auth/get-app-org";
+import { requireApiContext } from "@/lib/api-context";
 import {
   loadBookkeepingPreference,
   saveBookkeepingPreference,
@@ -10,15 +10,12 @@ import { parseJsonBody } from "@/lib/validations/parse-request";
 import { memberPreferencesBodySchema } from "@/lib/validations/member";
 
 export async function GET() {
-  const org = await getAppOrg();
-  if (!org.ok) {
-    return NextResponse.json(
-      { error: org.reason === "unauthorized" ? "Unauthorized" : org.message },
-      { status: org.reason === "unauthorized" ? 401 : 400 }
-    );
-  }
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
 
-  const result = await loadBookkeepingPreference(org.userId, org.orgId);
+  const { user, orgId } = auth.ctx;
+
+  const result = await loadBookkeepingPreference(user.id, orgId);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
@@ -29,20 +26,17 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const org = await getAppOrg();
-  if (!org.ok) {
-    return NextResponse.json(
-      { error: org.reason === "unauthorized" ? "Unauthorized" : org.message },
-      { status: org.reason === "unauthorized" ? 401 : 400 }
-    );
-  }
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+
+  const { user, orgId } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, memberPreferencesBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
 
   const result = await saveBookkeepingPreference(
-    org.userId,
-    org.orgId,
+    user.id,
+    orgId,
     parsedBody.data.show_invoice_bookkeeping_status
   );
 

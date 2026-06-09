@@ -2,7 +2,6 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/log-activity";
-import { requireCanWrite } from "@/lib/subscription";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { updateRecurringExpenseBodySchema } from "@/lib/validations/expense";
 import {
@@ -11,19 +10,15 @@ import {
   validateRecurringTemplateState,
   type RecurringFrequency,
 } from "@/lib/expense-recurring";
-import { asText, getAuthAndOrg, getSupabaseFromCookies, num } from "@/lib/api-auth-org";
+import { num, requireApiContext } from "@/lib/api-context";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { user, orgId, actorRole } = auth;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, updateRecurringExpenseBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -129,13 +124,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { user, orgId, actorRole } = auth;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const { data: before, error: beforeErr } = await supabase
     .from("expense_recurring_templates")

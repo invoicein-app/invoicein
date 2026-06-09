@@ -4,8 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { logActivity } from "@/lib/log-activity";
 import { coerceDateOrToday } from "@/lib/document-numbering";
-import { asText, getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
-import { requireCanWrite } from "@/lib/subscription";
+import { asText, requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createDeliveryNoteBodySchema } from "@/lib/validations/delivery-note";
 
@@ -15,13 +14,9 @@ function isUuid(v: unknown) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { user, orgId, actorRole } = auth;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, createDeliveryNoteBodySchema);
   if (!parsedBody.ok) return parsedBody.response;

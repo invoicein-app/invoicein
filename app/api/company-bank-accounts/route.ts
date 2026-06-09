@@ -1,8 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext } from "@/lib/api-context";
 import {
   clearOtherDefaultBankAccounts,
   listCompanyBankAccounts,
@@ -11,16 +10,16 @@ import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createBankAccountBodySchema } from "@/lib/validations/company-bank-account";
 
 export async function GET(req: NextRequest) {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const activeOnly = req.nextUrl.searchParams.get("active_only") === "1";
 
   try {
     const items = await listCompanyBankAccounts({
       supabase,
-      orgId: auth.orgId,
+      orgId,
       activeOnly,
     });
     return NextResponse.json({ ok: true, items });
@@ -30,12 +29,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-
-  const subBlock = await requireCanWrite(supabase, auth.orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, createBankAccountBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -45,7 +41,7 @@ export async function POST(req: NextRequest) {
   const { data: created, error } = await supabase
     .from("company_bank_accounts")
     .insert({
-      org_id: auth.orgId,
+      org_id: orgId,
       bank_name: body.bank_name,
       account_number: body.account_number,
       account_holder_name: body.account_holder_name,
@@ -62,12 +58,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.is_default && created?.id) {
-    await clearOtherDefaultBankAccounts(supabase, auth.orgId, String(created.id));
+    await clearOtherDefaultBankAccounts(supabase, orgId, String(created.id));
   } else if (!body.is_default) {
     const { count } = await supabase
       .from("company_bank_accounts")
       .select("id", { count: "exact", head: true })
-      .eq("org_id", auth.orgId);
+      .eq("org_id", orgId);
 
     if ((count || 0) <= 1 && created?.id) {
       await supabase

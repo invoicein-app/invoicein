@@ -2,19 +2,14 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { logActivity } from "@/lib/log-activity";
-import { requireCanWrite } from "@/lib/subscription";
 import { createExpenseFromRecurringTemplate } from "@/lib/expense-recurring-create";
-import { getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
+import { requireApiContext } from "@/lib/api-context";
 
 /** Buat pengeluaran periode berjalan untuk semua template aktif yang belum ada. */
 export async function POST() {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { user, orgId, actorRole } = auth;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const { data: templates, error: tplErr } = await supabase
     .from("expense_recurring_templates")

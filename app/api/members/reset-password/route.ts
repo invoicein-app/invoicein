@@ -2,33 +2,14 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { resetMemberPasswordBodySchema } from "@/lib/validations/member";
 
 export async function POST(req: NextRequest) {
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) => cookieStore.set(name, value, options));
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabaseUser.auth.getUser();
-  const meUser = userRes.user;
-  if (!meUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiContext({ requireAdmin: true });
+  if (!auth.ok) return auth.response;
+  const { user: meUser } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, resetMemberPasswordBodySchema);
   if (!parsedBody.ok) return parsedBody.response;

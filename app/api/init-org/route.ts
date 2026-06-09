@@ -3,8 +3,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { getSupabaseFromCookies } from "@/lib/api-context";
 import { buildNewOrgSubscriptionFields } from "@/lib/subscription";
 import { ensureOrgSubscription } from "@/lib/org-subscription";
 
@@ -62,25 +61,7 @@ async function createOrgWithUniqueCode(admin: any, orgName: string) {
 }
 
 export async function POST() {
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) => {
-              cookieStore.set(name, value, options);
-            });
-          } catch {}
-        },
-      },
-    }
-  );
+  const supabaseUser = await getSupabaseFromCookies();
 
   const { data: userRes, error: userErr } = await supabaseUser.auth.getUser();
   if (userErr || !userRes.user) {

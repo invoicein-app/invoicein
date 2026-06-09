@@ -1,9 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { receivePurchaseOrderBodySchema } from "@/lib/validations/purchase-order";
 
@@ -40,31 +38,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Invalid PO id" }, { status: 400 });
   }
 
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabase.auth.getUser();
-  if (!userRes.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = userRes.user;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, receivePurchaseOrderBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -77,24 +53,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     production_date: x.production_date,
     expired_date: x.expired_date,
   }));
-
-  const { data: mem, error: memErr } = await supabase
-    .from("memberships")
-    .select("org_id, role, is_active")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (memErr) return NextResponse.json({ error: memErr.message }, { status: 400 });
-  if (!mem?.org_id) {
-    return NextResponse.json({ error: "Kamu belum punya organisasi aktif." }, { status: 400 });
-  }
-
-  const orgId = String((mem as any).org_id);
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
 
   const { data: po, error: poErr } = await supabase
     .from("purchase_orders")

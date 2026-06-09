@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getAppOrg } from "@/lib/auth/get-app-org";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { invoiceBookkeepingBodySchema } from "@/lib/validations/invoice";
 
@@ -16,13 +16,10 @@ export async function PATCH(
     return NextResponse.json({ error: "Invoice id wajib" }, { status: 400 });
   }
 
-  const org = await getAppOrg();
-  if (!org.ok) {
-    return NextResponse.json(
-      { error: org.reason === "unauthorized" ? "Unauthorized" : org.message },
-      { status: org.reason === "unauthorized" ? 401 : 400 }
-    );
-  }
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+
+  const { orgId } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, invoiceBookkeepingBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -46,7 +43,7 @@ export async function PATCH(
   if (!inv) {
     return NextResponse.json({ error: "Invoice tidak ditemukan" }, { status: 404 });
   }
-  if (String((inv as { org_id?: string }).org_id) !== org.orgId) {
+  if (String((inv as { org_id?: string }).org_id) !== orgId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -54,7 +51,7 @@ export async function PATCH(
     .from("invoices")
     .update({ bookkeeping_recorded })
     .eq("id", invoiceId)
-    .eq("org_id", org.orgId)
+    .eq("org_id", orgId)
     .select("id, bookkeeping_recorded")
     .maybeSingle();
 

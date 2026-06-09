@@ -1,32 +1,15 @@
 // POST { ids: string[] } -> { labels: Record<userId, displayName> } using service role (optional)
 export const runtime = "nodejs";
 
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient as createSSRClient } from "@supabase/ssr";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { resolveUsersBodySchema } from "@/lib/validations/vendor";
 
 export async function POST(req: Request) {
-  const cookieStore = await cookies();
-  const supabaseUser = createSSRClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabaseUser.auth.getUser();
-  if (!userRes?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
 
   const parsedBody = await parseJsonBody(req, resolveUsersBodySchema);
   if (!parsedBody.ok) return parsedBody.response;

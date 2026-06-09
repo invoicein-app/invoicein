@@ -1,8 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { asText, getAuthAndOrg, getSupabaseFromCookies, num } from "@/lib/api-auth-org";
-import { requireCanWrite } from "@/lib/subscription";
+import { asText, requireApiContext } from "@/lib/api-context";
 import {
   calcRemaining,
   deriveManualLedgerStatus,
@@ -53,10 +52,9 @@ function statusFromRow(row: ManualLedgerRow, today: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { orgId } = auth;
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const { searchParams } = new URL(req.url);
   const type = asText(searchParams.get("type"));
@@ -113,13 +111,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { orgId } = auth;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, createManualLedgerBodySchema);
   if (!parsedBody.ok) return parsedBody.response;

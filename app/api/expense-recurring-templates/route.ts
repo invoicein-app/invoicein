@@ -2,7 +2,6 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/log-activity";
-import { requireCanWrite } from "@/lib/subscription";
 import { EXPENSE_CATEGORIES } from "@/lib/expense-categories";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createRecurringExpenseBodySchema } from "@/lib/validations/expense";
@@ -10,13 +9,12 @@ import {
   normalizeRecurringTemplateBody,
   validateRecurringTemplateState,
 } from "@/lib/expense-recurring";
-import { getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
+import { requireApiContext } from "@/lib/api-context";
 
 export async function GET() {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { orgId } = auth;
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
 
   const { data, error } = await supabase
     .from("expense_recurring_templates")
@@ -30,13 +28,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-  const { user, orgId, actorRole } = auth;
-
-  const subBlock = await requireCanWrite(supabase, orgId);
-  if (subBlock) return subBlock;
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
+  const { supabase, user, orgId, actorRole } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, createRecurringExpenseBodySchema);
   if (!parsedBody.ok) return parsedBody.response;

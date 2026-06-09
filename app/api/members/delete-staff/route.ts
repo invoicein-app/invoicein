@@ -2,34 +2,14 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext, requireWriteForOrg } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { deleteStaffBodySchema } from "@/lib/validations/member";
 
 export async function POST(req: NextRequest) {
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) => cookieStore.set(name, value, options));
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabaseUser.auth.getUser();
-  const meUser = userRes.user;
-  if (!meUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiContext({ requireAdmin: true });
+  if (!auth.ok) return auth.response;
+  const { supabase: supabaseUser, user: meUser } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, deleteStaffBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -54,7 +34,7 @@ export async function POST(req: NextRequest) {
   if (targetErr) return NextResponse.json({ error: targetErr.message }, { status: 400 });
   if (!target) return NextResponse.json({ error: "Member tidak ditemukan" }, { status: 404 });
 
-  const subBlock = await requireCanWrite(supabaseUser, target.org_id);
+  const subBlock = await requireWriteForOrg(supabaseUser, target.org_id);
   if (subBlock) return subBlock;
 
   // gate admin org

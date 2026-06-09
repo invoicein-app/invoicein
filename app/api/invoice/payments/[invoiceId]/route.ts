@@ -1,20 +1,13 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext, num } from "@/lib/api-context";
 import { computeInvoiceSaveTotals } from "@/lib/invoice-totals";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { recordInvoicePaymentBodySchema } from "@/lib/validations/payment";
 
 function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
-}
-
-function num(v: any) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
 }
 
 function clampPercent(v: any) {
@@ -55,26 +48,19 @@ export async function GET(
 ) {
   const { invoiceId } = await params;
 
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
 
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) return json({ error: "Unauthorized" }, 401);
+  const { supabase, orgId } = auth.ctx;
+
+  const { data: invCheck } = await supabase
+    .from("invoices")
+    .select("org_id")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  if (invCheck && String((invCheck as any).org_id) !== orgId) {
+    return json({ error: "Forbidden" }, 403);
+  }
 
   const { data, error } = await supabase
     .from("invoice_payments")
@@ -94,26 +80,10 @@ export async function POST(
 ) {
   const { invoiceId } = await params;
 
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
 
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userRes?.user) return json({ error: "Unauthorized" }, 401);
+  const { supabase, orgId } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, recordInvoicePaymentBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
@@ -128,10 +98,8 @@ export async function POST(
   if (invErr) return json({ error: invErr.message }, 400);
   if (!invoice) return json({ error: "Invoice tidak ditemukan" }, 404);
 
-  const orgId = (invoice as any).org_id;
-  if (orgId) {
-    const subBlock = await requireCanWrite(supabase, orgId);
-    if (subBlock) return subBlock;
+  if (String((invoice as any).org_id) !== orgId) {
+    return json({ error: "Forbidden" }, 403);
   }
 
   const status = String(invoice.status || "").toLowerCase();

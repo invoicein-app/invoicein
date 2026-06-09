@@ -2,9 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
-import { getAppOrg } from "@/lib/auth/get-app-org";
-import { supabaseServer } from "@/lib/supabase/server";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext } from "@/lib/api-context";
 import {
   buildExistingKeySet,
   duplicateKey,
@@ -20,17 +18,10 @@ const INSERT_CHUNK = 50;
 type StagedRow = { excelRow: number; data: MappedCustomerDraft };
 
 export async function POST(req: NextRequest) {
-  const org = await getAppOrg();
-  if (!org.ok) {
-    return NextResponse.json(
-      { error: org.reason === "unauthorized" ? "Unauthorized" : org.message || "Org tidak ditemukan" },
-      { status: org.reason === "unauthorized" ? 401 : 400 }
-    );
-  }
+  const auth = await requireApiContext({ requireWrite: true });
+  if (!auth.ok) return auth.response;
 
-  const supabase = await supabaseServer();
-  const writeBlock = await requireCanWrite(supabase, org.orgId);
-  if (writeBlock) return writeBlock;
+  const { supabase, orgId } = auth.ctx;
 
   let formData: FormData;
   try {
@@ -74,7 +65,7 @@ export async function POST(req: NextRequest) {
   const { data: existingRows, error: existErr } = await supabase
     .from("customers")
     .select("name, phone")
-    .eq("org_id", org.orgId);
+    .eq("org_id", orgId);
 
   if (existErr) {
     return NextResponse.json({ error: existErr.message }, { status: 400 });
@@ -147,7 +138,7 @@ export async function POST(req: NextRequest) {
   for (let c = 0; c < toInsert.length; c += INSERT_CHUNK) {
     const chunk = toInsert.slice(c, c + INSERT_CHUNK);
     const payload = chunk.map((row) => ({
-      org_id: org.orgId,
+      org_id: orgId,
       name: row.data.name,
       phone: row.data.phone,
       address: row.data.address,
@@ -172,7 +163,7 @@ export async function POST(req: NextRequest) {
 
     for (const row of chunk) {
       const { error: oneErr } = await supabase.from("customers").insert({
-        org_id: org.orgId,
+        org_id: orgId,
         name: row.data.name,
         phone: row.data.phone,
         address: row.data.address,
@@ -199,7 +190,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    org_id: org.orgId,
+    org_id: orgId,
     duplicate_rule:
       "Lewati baris jika nama+telepon (hanya digit) sama dengan customer di org ini, atau duplikat di file. Jika telepon kosong, hanya nama (normalized) yang dibandingkan.",
     summary,

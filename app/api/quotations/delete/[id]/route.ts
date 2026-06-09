@@ -4,36 +4,15 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext, requireWriteForOrg } from "@/lib/api-context";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
-  // cookies() kadang ke-typing Promise
-  const csAny: any = cookies() as any;
-  const cookieStore: any = csAny?.then ? await csAny : csAny;
-
-  // 1) user gate (RLS)
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }: any) => cookieStore.set(name, value, options));
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabaseUser.auth.getUser();
-  if (!userRes?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase: supabaseUser } = auth.ctx;
 
   // 2) pastikan user punya akses quotation ini (RLS)
   const { data: qGate, error: qGateErr } = await supabaseUser
@@ -47,7 +26,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const orgId = (qGate as any).organization_id;
   if (orgId) {
-    const subBlock = await requireCanWrite(supabaseUser, orgId);
+    const subBlock = await requireWriteForOrg(supabaseUser, orgId);
     if (subBlock) return subBlock;
   }
 

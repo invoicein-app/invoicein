@@ -1,9 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { requireCanWrite } from "@/lib/subscription";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { addInvoicePaymentBodySchema } from "@/lib/validations/payment";
 
@@ -38,31 +36,11 @@ export async function POST(req: Request) {
     if (!parsedBody.ok) return parsedBody.response;
     const { invoiceId, amount } = parsedBody.data;
 
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll(),
-          setAll: (cookiesToSet) => {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {}
-          },
-        },
-      }
-    );
+    const auth = await requireApiContext({ requireWrite: true });
+    if (!auth.ok) return auth.response;
 
-    const { data: userRes } = await supabase.auth.getUser();
-    const user = userRes.user;
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { supabase, orgId } = auth.ctx;
 
-    // ambil invoice + items untuk hitung total (RLS akan menyaring milik user)
     const { data: inv, error: invErr } = await supabase
       .from("invoices")
       .select(
@@ -85,22 +63,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: invErr?.message || "Invoice not found" }, { status: 404 });
     }
 
-    const orgId = (inv as any).org_id;
-    if (orgId) {
-      const subBlock = await requireCanWrite(supabase, orgId);
-      if (subBlock) return subBlock;
+    if (String((inv as any).org_id || "") !== orgId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const grandTotal = calcGrandTotal(inv);
     const oldPaid = Math.max(0, Number(inv.amount_paid || 0));
     const newPaid = oldPaid + amount;
 
-    // update amount_paid
     const updatePayload: any = {
       amount_paid: newPaid,
     };
 
-    // kalau sudah lunas -> set status invoice jadi paid (opsional tapi enak)
     if (grandTotal > 0 && newPaid >= grandTotal) {
       updatePayload.status = "paid";
     }

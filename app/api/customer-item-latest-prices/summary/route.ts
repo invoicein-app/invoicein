@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
+import { requireApiContext } from "@/lib/api-context";
 import {
   buildCustomerItemPeriodSummary,
   parsePeriodMonthYear,
@@ -9,11 +9,9 @@ import {
 } from "@/lib/customer-item-summary";
 
 export async function GET(req: NextRequest) {
-  const supabase = await getSupabaseFromCookies();
-  const auth = await getAuthAndOrg(supabase);
-  if ("error" in auth && auth.error) return auth.error;
-
-  const { orgId } = auth;
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase, orgId } = auth.ctx;
   const sp = req.nextUrl.searchParams;
   const { month, year } = parsePeriodMonthYear(sp.get("month"), sp.get("year"));
   const qCustomer = String(sp.get("q_customer") || sp.get("q") || "").trim();

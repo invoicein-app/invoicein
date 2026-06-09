@@ -5,35 +5,14 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { confirmSubscriptionPaymentBodySchema } from "@/lib/validations/admin";
 
 export async function POST(req: Request) {
-  const csAny: any = cookies() as any;
-  const cookieStore = csAny?.then ? await csAny : csAny;
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet: { name: string; value: string; options?: any }[]) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
-      },
-    }
-  );
-
-  const { data: userRes } = await supabase.auth.getUser();
-  const user = userRes?.user;
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiContext();
+  if (!auth.ok) return auth.response;
+  const { supabase, user } = auth.ctx;
 
   const parsedBody = await parseJsonBody(req, confirmSubscriptionPaymentBodySchema);
   if (!parsedBody.ok) return parsedBody.response;
