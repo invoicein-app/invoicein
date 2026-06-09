@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { num, rupiah } from "@/lib/money";
+import { computeInvoiceSaveTotals, lineAmountRupiah } from "@/lib/invoice-totals";
 import {
   buildItemSuggestions,
   type ItemSuggestion,
@@ -317,17 +318,14 @@ export default function InvoiceEditPage() {
   const calc = useMemo(() => {
     if (!inv) return { sub: 0, disc: 0, tax: 0, total: 0 };
 
-    const sub = items.reduce((a, it) => a + num(it.qty) * num(it.price), 0);
+    const { subtotal, discountAmount, taxAmount, total } = computeInvoiceSaveTotals({
+      items: items.map((it) => ({ qty: num(it.qty), price: num(it.price) })),
+      discountType: "percent",
+      discountValue: Math.max(0, Math.min(100, Number(inv.discount_value ?? 0))),
+      taxPercent: Math.max(0, Math.min(100, Number(inv.tax_value ?? 0))),
+    });
 
-    const discPct = Math.max(0, Math.min(100, Number(inv.discount_value ?? 0)));
-    const disc = sub * (discPct / 100);
-
-    const afterDisc = Math.max(0, sub - disc);
-
-    const taxPct = Math.max(0, Math.min(100, Number(inv.tax_value ?? 0)));
-    const tax = afterDisc * (taxPct / 100);
-
-    return { sub, disc, tax, total: Math.max(0, afterDisc + tax) };
+    return { sub: subtotal, disc: discountAmount, tax: taxAmount, total };
   }, [inv, items]);
 
   const remainingAfterEdit = Math.max(0, calc.total - amountPaid);
@@ -732,7 +730,7 @@ export default function InvoiceEditPage() {
                     />
                   </td>
                   <td className="inv-form-item-total" data-label="Total" style={td()}>
-                    {rupiah(num(it.qty) * num(it.price))}
+                    {rupiah(lineAmountRupiah(it.qty, it.price))}
                   </td>
                   <td className="inv-form-item-actions" data-label="Aksi" style={td()}>
                     <button onClick={() => removeItem(i)} style={btn()} disabled={!isEditable}>

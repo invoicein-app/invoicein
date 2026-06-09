@@ -15,6 +15,7 @@ import {
 } from "@/lib/invoice-items";
 import { deleteInvoiceSafely } from "@/lib/invoice-delete";
 import { resolveBankAccountIdForSave } from "@/lib/company-bank-accounts";
+import { computeInvoiceSaveTotals } from "@/lib/invoice-totals";
 
 type UpdateInvoiceBody = {
   header?: Record<string, any>;
@@ -267,10 +268,11 @@ export async function PATCH(
     safeHeader.bank_account_id = before.bank_account_id ?? null;
   }
 
-  const subtotal = safeItems.reduce(
-    (a, it) => a + Math.max(0, num(it.qty)) * Math.max(0, num(it.price)),
-    0
-  );
+  const discountType =
+    String(safeHeader.discount_type ?? before.discount_type ?? "percent").toLowerCase() ===
+    "amount"
+      ? "amount"
+      : "percent";
 
   const discountValue = Math.max(
     0,
@@ -281,10 +283,12 @@ export async function PATCH(
     num(safeHeader.tax_value ?? before.tax_value ?? 0)
   );
 
-  const discountAmount = subtotal * (discountValue / 100);
-  const afterDisc = Math.max(0, subtotal - discountAmount);
-  const taxAmount = afterDisc * (taxValue / 100);
-  const total = Math.max(0, afterDisc + taxAmount);
+  const { subtotal, discountAmount, taxAmount, total } = computeInvoiceSaveTotals({
+    items: safeItems,
+    discountType,
+    discountValue,
+    taxPercent: taxValue,
+  });
   const amountPaid = Math.max(0, Math.floor(num(before.amount_paid || 0)));
   const nextStatus = deriveInvoiceStatusAfterEdit({
     currentStatus,

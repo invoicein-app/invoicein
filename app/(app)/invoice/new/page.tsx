@@ -3,6 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { num, rupiah, sanitizeQtyInput, parseQtyInput, formatQtyInput } from "@/lib/money";
+import { computeInvoiceSaveTotals, lineAmountRupiah } from "@/lib/invoice-totals";
 import { formPageClasses as fpc } from "../../components/form-page-classes";
 import {
   formPageBackLink,
@@ -524,25 +525,19 @@ function InvoiceNewInner() {
   }, [warehouseId, warehouseProductIds]);
 
   const calc = useMemo(() => {
-    const sub = items.reduce((a, it) => a + num(it.qty) * num(it.price), 0);
+    const discountValue =
+      discountType === "percent"
+        ? clampPercent(num(discountPercent))
+        : Math.max(0, Math.floor(num(discountAmount)));
 
-    let disc = 0;
-    if (discountType === "percent") {
-      const discPct = clampPercent(num(discountPercent));
-      disc = sub * (discPct / 100);
-    } else {
-      disc = Math.max(0, num(discountAmount));
-    }
-    if (disc > sub) disc = sub;
+    const { subtotal, discountAmount: discAmt, taxAmount, total } = computeInvoiceSaveTotals({
+      items: items.map((it) => ({ qty: num(it.qty), price: num(it.price) })),
+      discountType,
+      discountValue,
+      taxPercent: clampPercent(num(taxPercent)),
+    });
 
-    const afterDisc = Math.max(0, sub - disc);
-
-    const taxPct = clampPercent(num(taxPercent));
-    const tax = afterDisc * (taxPct / 100);
-
-    const total = Math.max(0, afterDisc + tax);
-
-    return { sub, disc, tax, total };
+    return { sub: subtotal, disc: discAmt, tax: taxAmount, total };
   }, [items, discountType, discountPercent, discountAmount, taxPercent]);
 
   function setItem(i: number, patch: Partial<Item>) {
@@ -1251,7 +1246,7 @@ function InvoiceNewInner() {
             <tbody>
               {items.map((it, i) => {
                 const sug = it.openSug ? getSuggestionsFor(it.name) : [];
-                const total = num(it.qty) * num(it.price);
+                const total = lineAmountRupiah(it.qty, it.price);
 
                 return (
                   <tr key={i} className="inv-form-item-row">

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
+import { computeInvoiceSaveTotals } from "@/lib/invoice-totals";
 
 function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
@@ -26,30 +27,24 @@ function safeInt(v: any) {
 }
 
 function computeInvoiceTotal(invoice: any, items: any[]) {
-  const subtotal =
-    (items || []).reduce(
-      (acc, it: any) => acc + Number(it.qty || 0) * Number(it.price || 0),
-      0
-    ) || 0;
-
   const dtRaw = String(invoice?.discount_type || "percent").toLowerCase();
   const discountType: "percent" | "amount" =
     dtRaw === "amount" || dtRaw === "fixed" ? "amount" : "percent";
 
   const rawDiscountValue = safeInt(invoice?.discount_value);
-  const discPct = discountType === "percent" ? clampPercent(rawDiscountValue) : 0;
+  const discountValue =
+    discountType === "percent" ? clampPercent(rawDiscountValue) : Math.max(0, rawDiscountValue);
+  const taxPercent = clampPercent(invoice?.tax_value);
 
-  const discount =
-    discountType === "percent"
-      ? Math.max(0, Math.floor(subtotal * (discPct / 100)))
-      : Math.max(0, Math.min(subtotal, Math.floor(rawDiscountValue)));
-
-  const taxPct = clampPercent(invoice?.tax_value);
-  const afterDisc = Math.max(0, subtotal - discount);
-  const tax = Math.max(0, Math.floor(afterDisc * (taxPct / 100)));
-  const total = Math.max(0, afterDisc + tax);
-
-  return { subtotal, discount, tax, total };
+  return computeInvoiceSaveTotals({
+    items: (items || []).map((it: any) => ({
+      qty: Number(it.qty || 0),
+      price: Number(it.price || 0),
+    })),
+    discountType,
+    discountValue,
+    taxPercent,
+  });
 }
 
 export async function GET(

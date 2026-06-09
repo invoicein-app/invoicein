@@ -1,9 +1,46 @@
 /** Shared invoice total math (aligned with dashboard omset). */
 
+import { num } from "@/lib/money";
+
 function clampPercent(v: unknown) {
   const n = Number(v ?? 0);
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(100, n));
+}
+
+/** Whole Rupiah for DB bigint columns — avoids float artifacts (e.g. 6246799.999999999). */
+export function moneyInt(v: unknown): number {
+  return Math.max(0, Math.round(num(v)));
+}
+
+export function lineAmountRupiah(qty: unknown, price: unknown): number {
+  return moneyInt(num(qty) * num(price));
+}
+
+/** Totals for invoice create/update API — all amounts are whole Rupiah. */
+export function computeInvoiceSaveTotals(args: {
+  items: { qty: number; price: number }[];
+  discountType: "percent" | "amount";
+  discountValue: number;
+  taxPercent: number;
+}) {
+  const subtotal = args.items.reduce(
+    (a, it) => a + lineAmountRupiah(it.qty, it.price),
+    0
+  );
+
+  let discountAmount =
+    args.discountType === "percent"
+      ? moneyInt(subtotal * (args.discountValue / 100))
+      : moneyInt(args.discountValue);
+
+  if (discountAmount > subtotal) discountAmount = subtotal;
+
+  const afterDisc = Math.max(0, subtotal - discountAmount);
+  const taxAmount = moneyInt(afterDisc * (args.taxPercent / 100));
+  const total = Math.max(0, afterDisc + taxAmount);
+
+  return { subtotal, discountAmount, taxAmount, total };
 }
 
 export type InvoicePayState = "UNPAID" | "PARTIAL" | "PAID";
@@ -16,16 +53,16 @@ export function calcInvoiceTotals(inv: {
 }) {
   const items = inv?.invoice_items || [];
   const subtotal = items.reduce(
-    (a, it) => a + Number(it?.qty || 0) * Number(it?.price || 0),
+    (a, it) => a + lineAmountRupiah(it?.qty, it?.price),
     0
   );
 
   const discPct = clampPercent(inv?.discount_value);
   const taxPct = clampPercent(inv?.tax_value);
 
-  const discount = Math.max(0, subtotal * (discPct / 100));
+  const discount = moneyInt(subtotal * (discPct / 100));
   const afterDisc = Math.max(0, subtotal - discount);
-  const tax = Math.max(0, afterDisc * (taxPct / 100));
+  const tax = moneyInt(afterDisc * (taxPct / 100));
   const grandTotal = Math.max(0, afterDisc + tax);
 
   const paid = Math.max(0, Number(inv?.amount_paid || 0));

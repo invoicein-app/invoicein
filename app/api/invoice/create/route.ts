@@ -16,6 +16,7 @@ import {
   validateInvoiceItems,
 } from "@/lib/invoice-items";
 import { resolveBankAccountIdForSave } from "@/lib/company-bank-accounts";
+import { computeInvoiceSaveTotals } from "@/lib/invoice-totals";
 
 type Item = {
   product_id: string | null;
@@ -84,29 +85,6 @@ function normalizeDiscountType(
 
   const v = Math.floor(num(discount_value));
   return v > 100 ? "amount" : "percent";
-}
-
-function computeTotals(
-  items: Item[],
-  dt: "percent" | "amount",
-  dVal: number,
-  taxPct: number
-) {
-  const subtotal = items.reduce((a, it) => a + it.qty * it.price, 0);
-
-  let discountAmount =
-    dt === "percent"
-      ? Math.floor(subtotal * (dVal / 100))
-      : Math.floor(dVal);
-
-  if (discountAmount > subtotal) discountAmount = subtotal;
-  if (discountAmount < 0) discountAmount = 0;
-
-  const afterDisc = Math.max(0, subtotal - discountAmount);
-  const taxAmount = Math.floor(afterDisc * (taxPct / 100));
-  const total = Math.max(0, afterDisc + taxAmount);
-
-  return { subtotal, discountAmount, taxAmount, total };
 }
 
 export async function POST(req: Request) {
@@ -238,12 +216,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: bankResolved.error }, { status: 400 });
   }
 
-  const { subtotal, discountAmount, taxAmount, total } = computeTotals(
-    safeItems,
-    dt,
-    dVal,
-    tPct
-  );
+  const { subtotal, discountAmount, taxAmount, total } = computeInvoiceSaveTotals({
+    items: safeItems,
+    discountType: dt,
+    discountValue: dVal,
+    taxPercent: tPct,
+  });
 
   let quotationNumber: string | null = null;
   if (quotation_id) {
