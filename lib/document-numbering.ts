@@ -2,6 +2,14 @@ import { createClient } from "@supabase/supabase-js";
 
 export type DocumentType = "invoice" | "purchase_order" | "quotation";
 
+export type DocumentNumberAllocation = {
+  orgId: string;
+  docType: DocumentType;
+  periodKey: string;
+  sequence: number;
+  documentNumber: string;
+};
+
 const DEFAULT_PREFIX: Record<DocumentType, string> = {
   invoice: "INV",
   purchase_order: "PO",
@@ -44,20 +52,38 @@ export function coerceDateOrToday(dateValue: unknown) {
   return `${y}-${m}-${d}`;
 }
 
-export async function generateDocumentNumber(params: {
-  orgId: string;
-  docType: DocumentType;
-  documentDate: string;
-}) {
+function createNumberingAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for document numbering.");
   }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
+  return createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+function formatDocumentNumber(args: {
+  prefix: string;
+  publicCode: string | null;
+  documentDate: string;
+  sequence: number;
+}) {
+  const fullDate = formatDateForNumber(args.documentDate);
+  const padded = padSequence(args.sequence);
+  return args.publicCode
+    ? `${args.prefix}-${args.publicCode}-${fullDate}-${padded}`
+    : `${args.prefix}-${fullDate}-${padded}`;
+}
+
+/** Reserve the next sequence and return formatted document number + metadata for rollback. */
+export async function allocateDocumentNumber(params: {
+  orgId: string;
+  docType: DocumentType;
+  documentDate: string;
+}): Promise<DocumentNumberAllocation> {
+  const admin = createNumberingAdminClient();
 
   const { data: org, error: orgErr } = await admin
     .from("organizations")
@@ -70,23 +96,22 @@ export async function generateDocumentNumber(params: {
   }
 
   const normalizedDate = coerceDateOrToday(params.documentDate);
-  const year = normalizedDate.slice(0, 4);
-  const fullDate = formatDateForNumber(normalizedDate);
+  const periodKey = normalizedDate.slice(0, 4);
   const publicCode = normalizePublicCode((org as any).public_document_code);
 
   const rawPrefix =
     params.docType === "invoice"
       ? (org as any).invoice_prefix
       : params.docType === "purchase_order"
-      ? (org as any).po_prefix
-      : (org as any).quotation_prefix;
+        ? (org as any).po_prefix
+        : (org as any).quotation_prefix;
 
   const prefix = normalizePrefix(rawPrefix, DEFAULT_PREFIX[params.docType]);
 
   const { data: seq, error: seqErr } = await admin.rpc("next_document_sequence", {
     p_org_id: params.orgId,
     p_doc_type: params.docType,
-    p_period_key: year,
+    p_period_key: periodKey,
   });
 
   if (seqErr) {
@@ -98,8 +123,52 @@ export async function generateDocumentNumber(params: {
     throw new Error("Invalid document sequence returned from database.");
   }
 
-  const padded = padSequence(sequence);
-  return publicCode
-    ? `${prefix}-${publicCode}-${fullDate}-${padded}`
-    : `${prefix}-${fullDate}-${padded}`;
+  return {
+    orgId: params.orgId,
+    docType: params.docType,
+    periodKey,
+    sequence,
+    documentNumber: formatDocumentNumber({
+      prefix,
+      publicCode,
+      documentDate: normalizedDate,
+      sequence,
+    }),
+  };
+}
+
+/** Undo a sequence allocation when create failed before the document was committed. */
+export async function releaseDocumentNumberAllocation(
+  allocation: DocumentNumberAllocation | null | undefined
+): Promise<boolean> {
+  if (!allocation) return false;
+
+  try {
+    const admin = createNumberingAdminClient();
+    const { data, error } = await admin.rpc("release_document_sequence", {
+      p_org_id: allocation.orgId,
+      p_doc_type: allocation.docType,
+      p_period_key: allocation.periodKey,
+      p_sequence: allocation.sequence,
+    });
+
+    if (error) {
+      console.warn("release_document_sequence error:", error.message);
+      return false;
+    }
+
+    return Boolean(data);
+  } catch (e) {
+    console.warn("release_document_sequence exception:", e);
+    return false;
+  }
+}
+
+export async function generateDocumentNumber(params: {
+  orgId: string;
+  docType: DocumentType;
+  documentDate: string;
+}) {
+  const allocation = await allocateDocumentNumber(params);
+  return allocation.documentNumber;
 }

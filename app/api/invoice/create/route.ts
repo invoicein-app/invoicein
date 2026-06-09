@@ -6,7 +6,11 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
-import { coerceDateOrToday, generateDocumentNumber } from "@/lib/document-numbering";
+import {
+  allocateDocumentNumber,
+  coerceDateOrToday,
+  releaseDocumentNumberAllocation,
+} from "@/lib/document-numbering";
 import { finalizeInvoice } from "@/lib/invoice-finalize";
 import { upsertCustomerLatestPrices } from "@/lib/customer-item-latest-price";
 import { upsertOrgManualItemsFromLines } from "@/lib/org-manual-items";
@@ -266,12 +270,15 @@ export async function POST(req: Request) {
     status: "draft",
   };
 
+  let docAllocation: Awaited<ReturnType<typeof allocateDocumentNumber>> | null = null;
+
   if (!invoicePayload.invoice_number) {
-    invoicePayload.invoice_number = await generateDocumentNumber({
+    docAllocation = await allocateDocumentNumber({
       orgId,
       docType: "invoice",
       documentDate: coerceDateOrToday(invoicePayload.invoice_date || invoice_date),
     });
+    invoicePayload.invoice_number = docAllocation.documentNumber;
   }
 
   const { data: inv, error: invErr } = await supabase
@@ -281,6 +288,7 @@ export async function POST(req: Request) {
     .single();
 
   if (invErr) {
+    await releaseDocumentNumberAllocation(docAllocation);
     return NextResponse.json({ error: invErr.message }, { status: 400 });
   }
 
@@ -302,6 +310,7 @@ export async function POST(req: Request) {
 
   if (itemErr) {
     await supabase.from("invoices").delete().eq("id", inv.id);
+    await releaseDocumentNumberAllocation(docAllocation);
     return NextResponse.json({ error: itemErr.message }, { status: 400 });
   }
 
@@ -368,6 +377,7 @@ export async function POST(req: Request) {
   if (!finalized.ok) {
     await supabase.from("invoice_items").delete().eq("invoice_id", inv.id);
     await supabase.from("invoices").delete().eq("id", inv.id);
+    await releaseDocumentNumberAllocation(docAllocation);
     return NextResponse.json({ error: finalized.error }, { status: 400 });
   }
 

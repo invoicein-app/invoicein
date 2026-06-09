@@ -6,7 +6,11 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
-import { coerceDateOrToday, generateDocumentNumber } from "@/lib/document-numbering";
+import {
+  allocateDocumentNumber,
+  coerceDateOrToday,
+  releaseDocumentNumberAllocation,
+} from "@/lib/document-numbering";
 
 type POItemInput = {
   product_id: string;
@@ -224,12 +228,15 @@ export async function POST(req: Request) {
     created_by: user.id,
   };
 
+  let docAllocation: Awaited<ReturnType<typeof allocateDocumentNumber>> | null = null;
+
   if (!poPayload.po_number) {
-    poPayload.po_number = await generateDocumentNumber({
+    docAllocation = await allocateDocumentNumber({
       orgId,
       docType: "purchase_order",
       documentDate: coerceDateOrToday(poPayload.po_date || po_date),
     });
+    poPayload.po_number = docAllocation.documentNumber;
   }
 
   const { data: po, error: poErr } = await supabase
@@ -239,6 +246,7 @@ export async function POST(req: Request) {
     .single();
 
   if (poErr) {
+    await releaseDocumentNumberAllocation(docAllocation);
     return NextResponse.json({ error: poErr.message }, { status: 400 });
   }
 
@@ -259,6 +267,7 @@ export async function POST(req: Request) {
 
   if (itemErr) {
     await supabase.from("purchase_orders").delete().eq("id", po.id);
+    await releaseDocumentNumberAllocation(docAllocation);
     return NextResponse.json({ error: itemErr.message }, { status: 400 });
   }
 

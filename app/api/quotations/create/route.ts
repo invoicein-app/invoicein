@@ -4,7 +4,11 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
-import { coerceDateOrToday, generateDocumentNumber } from "@/lib/document-numbering";
+import {
+  allocateDocumentNumber,
+  coerceDateOrToday,
+  releaseDocumentNumberAllocation,
+} from "@/lib/document-numbering";
 
 type ItemIn = { product_id?: string | null; name: string; qty: number; price: number };
 
@@ -148,11 +152,12 @@ export async function POST(req: Request) {
 
   // quotation_number wajib (not null)
   const normalizedQuotationDate = coerceDateOrToday(quotation_date);
-  const quotation_number = await generateDocumentNumber({
+  const docAllocation = await allocateDocumentNumber({
     orgId,
     docType: "quotation",
     documentDate: normalizedQuotationDate,
   });
+  const quotation_number = docAllocation.documentNumber;
 
   // insert header
   const { data: quo, error: quoErr } = await supabase
@@ -186,6 +191,7 @@ export async function POST(req: Request) {
     .single();
 
   if (quoErr) {
+    await releaseDocumentNumberAllocation(docAllocation);
     return NextResponse.json({ error: quoErr.message }, { status: 400 });
   }
 
@@ -202,8 +208,8 @@ export async function POST(req: Request) {
   const { error: itemErr } = await supabase.from("quotation_items").insert(payloadItems);
 
   if (itemErr) {
-    // rollback best-effort
     await supabase.from("quotations").delete().eq("id", quo.id);
+    await releaseDocumentNumberAllocation(docAllocation);
     return NextResponse.json({ error: itemErr.message }, { status: 400 });
   }
 
