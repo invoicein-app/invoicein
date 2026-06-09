@@ -45,7 +45,7 @@ const navItems: NavItem[] = [
   { href: "/delivery-notes", label: "Surat Jalan", icon: "delivery" },
   { href: "/purchase-orders", label: "Purchase Order", icon: "po" },
   { href: "/expenses", label: "Pengeluaran", icon: "expense" },
-  { href: "/receivables", label: "Piutang", icon: "receivable" },
+  { href: "/receivables/dashboard", label: "Piutang", icon: "receivable" },
   { href: "/customers", label: "Customer", icon: "customer" },
   { href: "/products", label: "Barang", icon: "product" },
   { href: "/vendors", label: "Vendor", icon: "vendor" },
@@ -211,7 +211,10 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
         }}
       >
         {items.map((it) => {
-          const isActive = pathname === it.href || pathname.startsWith(it.href + "/");
+          const isReceivablesNav = it.icon === "receivable";
+          const isActive = isReceivablesNav
+            ? pathname.startsWith("/receivables")
+            : pathname === it.href || pathname.startsWith(it.href + "/");
           const hovered = !isActive && hoverHref === it.href;
           return (
             <AppNavLink

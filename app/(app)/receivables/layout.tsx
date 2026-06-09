@@ -6,6 +6,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { APP_BORDER, APP_TEAL } from "../components/app-ui-tokens";
 
 const tabs = [
+  { href: "/receivables/dashboard", label: "Dashboard" },
   { href: "/receivables", label: "Piutang Customer", exact: true },
   { href: "/receivables/manual", label: "Piutang Lainnya" },
   { href: "/receivables/payables", label: "Hutang" },

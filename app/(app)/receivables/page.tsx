@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import ListFiltersClient from "../components/list-filters-client";
 import ListPageLayout from "../components/list-page-layout";
 import { formatTanggalIndo, ul } from "../components/unified-list-table";
@@ -42,6 +43,15 @@ function fmtDate(v: string | null) {
 }
 
 export default function ReceivablesPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 24, color: "#64748b" }}>Memuat…</div>}>
+      <ReceivablesListInner />
+    </Suspense>
+  );
+}
+
+function ReceivablesListInner() {
+  const sp = useSearchParams();
   const [rows, setRows] = useState<SummaryRow[]>([]);
   const [agingTotals, setAgingTotals] = useState<AgingAmounts>(emptyAging());
   const [loading, setLoading] = useState(true);
@@ -51,6 +61,11 @@ export default function ReceivablesPage() {
   const [agingFilter, setAgingFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  useEffect(() => {
+    const aging = sp.get("aging") || "";
+    if (aging) setAgingFilter(aging);
+  }, [sp]);
 
   async function load() {
     setLoading(true);
