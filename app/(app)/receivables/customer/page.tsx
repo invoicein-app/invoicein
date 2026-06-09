@@ -10,6 +10,13 @@ import TableEmptyState from "../../components/table-empty-state";
 import { formPrimaryButton, tableActionSecondary } from "../../components/app-action-buttons";
 import { rupiah } from "@/lib/money";
 
+type AgingAmounts = {
+  current: number;
+  days_0_30: number;
+  days_31_60: number;
+  days_60_plus: number;
+};
+
 type DetailSummary = {
   customer_id: string | null;
   customer_name: string;
@@ -17,6 +24,7 @@ type DetailSummary = {
   invoice_count: number;
   overdue_count: number;
   nearest_due_date: string | null;
+  aging?: AgingAmounts;
 };
 
 type InvoiceRow = {
@@ -29,6 +37,9 @@ type InvoiceRow = {
   remaining_amount: number;
   receivable_status: "BELUM_DIBAYAR" | "SEBAGIAN" | "LUNAS" | "LEWAT_JATUH_TEMPO";
   receivable_status_label: string;
+  aging_bucket: "current" | "days_0_30" | "days_31_60" | "days_60_plus";
+  aging_bucket_label: string;
+  days_past_due: number;
 };
 
 function fmtDate(v: string | null) {
@@ -170,11 +181,12 @@ function ReceivableCustomerDetailInner() {
 
   const tableContent = (
     <div className={ul.scroll}>
-      <table className={`${ul.table} app-table--receivables-detail`} style={{ minWidth: 760 }}>
+      <table className={`${ul.table} app-table--receivables-detail`} style={{ minWidth: 900 }}>
         <thead>
           <tr>
             <th className={ul.th}>Nomor Invoice</th>
             <th className={ul.thCenter}>Status</th>
+            <th className={ul.thCenter}>Umur</th>
             <th className={ul.thRight}>Total</th>
             <th className={ul.thRight}>Terbayar</th>
             <th className={ul.thRight}>Sisa</th>
@@ -184,12 +196,12 @@ function ReceivableCustomerDetailInner() {
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={6} className={ul.loading}>
+              <td colSpan={7} className={ul.loading}>
                 Memuat…
               </td>
             </tr>
           ) : paginated.length === 0 ? (
-            <TableEmptyState colSpan={6} message="Belum ada invoice." />
+            <TableEmptyState colSpan={7} message="Belum ada invoice." />
           ) : (
             paginated.map((r) => {
               const badge = badgeStyle(r.receivable_status);
@@ -206,6 +218,12 @@ function ReceivableCustomerDetailInner() {
                   <td className={ul.tdCenter}>
                     <span className={ul.statusBadge} style={badge}>
                       {r.receivable_status_label}
+                    </span>
+                  </td>
+                  <td className={ul.tdCenter}>
+                    <span className={ul.statusBadge} style={agingBadgeStyle(r.aging_bucket)}>
+                      {r.aging_bucket_label}
+                      {r.days_past_due > 0 ? ` (${r.days_past_due} hr)` : ""}
                     </span>
                   </td>
                   <td className={ul.tdRight}>
@@ -258,6 +276,10 @@ function ReceivableCustomerDetailInner() {
               <span style={kpiPill()}>{`Total Piutang: ${rupiah(summary.total_receivable)}`}</span>
               <span style={kpiPill()}>{`Invoice Aktif: ${summary.invoice_count}`}</span>
               <span style={kpiPill()}>{`Overdue: ${summary.overdue_count}`}</span>
+              <span style={kpiPill()}>{`Belum JT: ${rupiah(summary.aging?.current || 0)}`}</span>
+              <span style={kpiPill({ warn: true })}>{`0–30 hr: ${rupiah(summary.aging?.days_0_30 || 0)}`}</span>
+              <span style={kpiPill({ warn: true })}>{`31–60 hr: ${rupiah(summary.aging?.days_31_60 || 0)}`}</span>
+              <span style={kpiPill({ danger: true })}>{`60+ hr: ${rupiah(summary.aging?.days_60_plus || 0)}`}</span>
               <span style={kpiPill()}>{`Jatuh Tempo Terdekat: ${fmtDate(summary.nearest_due_date)}`}</span>
             </div>
           ) : null}
@@ -298,7 +320,27 @@ function filterInput(): React.CSSProperties {
   };
 }
 
-function kpiPill(): React.CSSProperties {
+function kpiPill(opts?: { warn?: boolean; danger?: boolean }): React.CSSProperties {
+  if (opts?.danger) {
+    return {
+      padding: "6px 10px",
+      borderRadius: 999,
+      border: "1px solid #fca5a5",
+      background: "#fef2f2",
+      color: "#991b1b",
+      fontWeight: 700,
+    };
+  }
+  if (opts?.warn) {
+    return {
+      padding: "6px 10px",
+      borderRadius: 999,
+      border: "1px solid #fdba74",
+      background: "#fff7ed",
+      color: "#9a3412",
+      fontWeight: 700,
+    };
+  }
   return {
     padding: "6px 10px",
     borderRadius: 999,
@@ -307,6 +349,13 @@ function kpiPill(): React.CSSProperties {
     color: "#334155",
     fontWeight: 700,
   };
+}
+
+function agingBadgeStyle(bucket: InvoiceRow["aging_bucket"]): React.CSSProperties {
+  if (bucket === "current") return { ...badgeBase(), background: "#ecfdf5", color: "#065f46", borderColor: "#86efac" };
+  if (bucket === "days_0_30") return { ...badgeBase(), background: "#fff7ed", color: "#9a3412", borderColor: "#fdba74" };
+  if (bucket === "days_31_60") return { ...badgeBase(), background: "#ffedd5", color: "#c2410c", borderColor: "#fb923c" };
+  return { ...badgeBase(), background: "#fee2e2", color: "#991b1b", borderColor: "#fca5a5" };
 }
 
 function badgeStyle(status: InvoiceRow["receivable_status"]): React.CSSProperties {

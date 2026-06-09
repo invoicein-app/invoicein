@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { asText, requireApiContext } from "@/lib/api-context";
 import {
+  addToAgingAmounts,
+  emptyAgingAmounts,
   normalizeCustomerName,
   receivableStatusLabel,
   toReceivableInvoice,
@@ -70,6 +72,11 @@ export async function GET(req: NextRequest) {
   }
 
   const openRows = rows.filter((r) => r.remaining_amount > 0);
+  const aging = emptyAgingAmounts();
+  for (const r of openRows) {
+    addToAgingAmounts(aging, r.aging_bucket, r.remaining_amount);
+  }
+
   const summary = {
     customer_id: customerId || null,
     customer_name: customerName || normalizeCustomerName(rows[0]?.customer_name) || "-",
@@ -80,6 +87,7 @@ export async function GET(req: NextRequest) {
       .map((r) => r.due_date)
       .filter((d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d)))
       .sort()[0] || null,
+    aging,
   };
 
   return NextResponse.json({
@@ -96,6 +104,9 @@ export async function GET(req: NextRequest) {
       remaining_amount: r.remaining_amount,
       receivable_status: r.receivable_status,
       receivable_status_label: receivableStatusLabel(r.receivable_status),
+      aging_bucket: r.aging_bucket,
+      aging_bucket_label: r.aging_bucket_label,
+      days_past_due: r.days_past_due,
     })),
   });
 }

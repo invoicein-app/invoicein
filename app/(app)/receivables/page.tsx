@@ -9,6 +9,13 @@ import { formPrimaryButton, tableActionPrimary } from "../components/app-action-
 import { rupiah } from "@/lib/money";
 import TableEmptyState from "../components/table-empty-state";
 
+type AgingAmounts = {
+  current: number;
+  days_0_30: number;
+  days_31_60: number;
+  days_60_plus: number;
+};
+
 type SummaryRow = {
   customer_id: string | null;
   customer_name: string;
@@ -17,7 +24,15 @@ type SummaryRow = {
   overdue_count: number;
   nearest_due_date: string | null;
   progress_percent: number;
+  aging: AgingAmounts;
 };
+
+const emptyAging = (): AgingAmounts => ({
+  current: 0,
+  days_0_30: 0,
+  days_31_60: 0,
+  days_60_plus: 0,
+});
 
 function fmtDate(v: string | null) {
   if (!v) return "—";
@@ -28,10 +43,12 @@ function fmtDate(v: string | null) {
 
 export default function ReceivablesPage() {
   const [rows, setRows] = useState<SummaryRow[]>([]);
+  const [agingTotals, setAgingTotals] = useState<AgingAmounts>(emptyAging());
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
   const [q, setQ] = useState("");
   const [overdueFilter, setOverdueFilter] = useState("");
+  const [agingFilter, setAgingFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -42,14 +59,17 @@ export default function ReceivablesPage() {
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
       if (overdueFilter) params.set("overdue", overdueFilter);
+      if (agingFilter) params.set("aging", agingFilter);
       const res = await fetch(`/api/receivables/summary?${params.toString()}`, { credentials: "include" });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         setMsg(json?.error || "Gagal memuat data piutang.");
         setRows([]);
+        setAgingTotals(emptyAging());
         return;
       }
       setRows(json.rows || []);
+      setAgingTotals(json.aging_totals || emptyAging());
     } finally {
       setLoading(false);
     }
@@ -58,7 +78,7 @@ export default function ReceivablesPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overdueFilter]);
+  }, [overdueFilter, agingFilter]);
 
   useEffect(() => {
     const t = setTimeout(() => load(), q ? 300 : 0);
@@ -86,6 +106,7 @@ export default function ReceivablesPage() {
       onReset={() => {
         setQ("");
         setOverdueFilter("");
+        setAgingFilter("");
         setPage(1);
       }}
       perPage={pageSize}
@@ -108,6 +129,21 @@ export default function ReceivablesPage() {
         <option value="overdue">Ada yang overdue</option>
         <option value="non_overdue">Belum overdue</option>
       </select>
+      <select
+        value={agingFilter}
+        onChange={(e) => {
+          setAgingFilter(e.target.value);
+          setPage(1);
+        }}
+        style={filterInput()}
+        aria-label="Filter umur piutang"
+      >
+        <option value="">Semua umur</option>
+        <option value="current">Belum jatuh tempo</option>
+        <option value="0_30">0–30 hari lewat JT</option>
+        <option value="31_60">31–60 hari lewat JT</option>
+        <option value="60_plus">60+ hari lewat JT</option>
+      </select>
       <button type="button" onClick={() => load()} style={formPrimaryButton()}>
         Refresh
       </button>
@@ -116,27 +152,29 @@ export default function ReceivablesPage() {
 
   const tableContent = (
     <div className={ul.scroll}>
-      <table className={`${ul.table} app-table--receivables-summary`} style={{ minWidth: 800 }}>
+      <table className={`${ul.table} app-table--receivables-summary`} style={{ minWidth: 1080 }}>
         <thead>
           <tr>
             <th className={ul.th}>Customer</th>
-            <th className={ul.thRight}>Total Piutang</th>
-            <th className={ul.thRight}>Jumlah Invoice</th>
-            <th className={ul.thRight}>Overdue</th>
-            <th className={ul.th}>Jatuh Tempo Terdekat</th>
-            <th className={ul.th}>Progress</th>
+            <th className={ul.thRight}>Total</th>
+            <th className={ul.thRight}>Belum JT</th>
+            <th className={ul.thRight}>0–30 hr</th>
+            <th className={ul.thRight}>31–60 hr</th>
+            <th className={ul.thRight}>60+ hr</th>
+            <th className={ul.thRight}>Inv</th>
+            <th className={ul.th}>JT Terdekat</th>
             <th className={ul.th}>Aksi</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={7} className={ul.loading}>
+              <td colSpan={9} className={ul.loading}>
                 Memuat…
               </td>
             </tr>
           ) : paginated.length === 0 ? (
-            <TableEmptyState colSpan={7} message="Belum ada customer." />
+            <TableEmptyState colSpan={9} message="Belum ada customer." />
           ) : (
             paginated.map((r) => (
               <tr key={`${r.customer_id || "name"}-${r.customer_name}`}>
@@ -150,17 +188,12 @@ export default function ReceivablesPage() {
                 <td className={ul.tdRight}>
                   <span className={ul.money}>{rupiah(r.total_receivable)}</span>
                 </td>
+                <td className={ul.tdRight}>{agingCell(r.aging?.current)}</td>
+                <td className={ul.tdRight}>{agingCell(r.aging?.days_0_30, true)}</td>
+                <td className={ul.tdRight}>{agingCell(r.aging?.days_31_60, true)}</td>
+                <td className={ul.tdRight}>{agingCell(r.aging?.days_60_plus, true)}</td>
                 <td className={ul.tdRight}>{r.invoice_count}</td>
-                <td className={ul.tdRight}>{r.overdue_count}</td>
                 <td className={ul.td}>{formatTanggalIndo(r.nearest_due_date)}</td>
-                <td className={ul.td}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={progressBarWrap()}>
-                      <div style={progressBarFill(r.progress_percent)} />
-                    </div>
-                    <span style={{ fontWeight: 700, fontSize: 12 }}>{r.progress_percent}%</span>
-                  </div>
-                </td>
                 <td className={`${ul.td} app-td-actions`}>
                   <Link
                     href={`/receivables/customer?${new URLSearchParams({
@@ -182,7 +215,7 @@ export default function ReceivablesPage() {
   return (
     <ListPageLayout
       title="Piutang"
-      subtitle="Pantau piutang customer berdasarkan data invoice & pembayaran yang sudah ada."
+      subtitle="Pantau piutang customer dengan aging 0–30 / 31–60 / 60+ hari lewat jatuh tempo."
       filters={
         <>
           {msg ? (
@@ -204,7 +237,11 @@ export default function ReceivablesPage() {
           <div className="app-summary-pills" style={{ marginBottom: 10, display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12 }}>
             <span style={kpiPill()}>{`Total Piutang: ${rupiah(totalReceivable)}`}</span>
             <span style={kpiPill()}>{`Invoice Aktif: ${totalInvoices}`}</span>
-            <span style={kpiPill()}>{`Invoice Overdue: ${totalOverdue}`}</span>
+            <span style={kpiPill()}>{`Overdue: ${totalOverdue}`}</span>
+            <span style={kpiPill()}>{`Belum JT: ${rupiah(agingTotals.current)}`}</span>
+            <span style={kpiPill({ warn: true })}>{`0–30 hr: ${rupiah(agingTotals.days_0_30)}`}</span>
+            <span style={kpiPill({ warn: true })}>{`31–60 hr: ${rupiah(agingTotals.days_31_60)}`}</span>
+            <span style={kpiPill({ danger: true })}>{`60+ hr: ${rupiah(agingTotals.days_60_plus)}`}</span>
           </div>
           {filters}
         </>
@@ -231,6 +268,19 @@ export default function ReceivablesPage() {
   );
 }
 
+function agingCell(amount?: number, highlightOverdue = false) {
+  const n = Number(amount || 0);
+  if (n <= 0) return <span style={{ color: "#94a3b8" }}>—</span>;
+  return (
+    <span
+      className={ul.money}
+      style={highlightOverdue ? { color: "#b91c1c", fontWeight: 700 } : undefined}
+    >
+      {rupiah(n)}
+    </span>
+  );
+}
+
 function filterInput(): React.CSSProperties {
   return {
     padding: "10px 12px",
@@ -243,25 +293,27 @@ function filterInput(): React.CSSProperties {
   };
 }
 
-function progressBarWrap(): React.CSSProperties {
-  return {
-    width: 92,
-    height: 8,
-    borderRadius: 999,
-    background: "#e5e7eb",
-    overflow: "hidden",
-  };
-}
-
-function progressBarFill(percent: number): React.CSSProperties {
-  return {
-    width: `${Math.max(0, Math.min(100, percent))}%`,
-    height: "100%",
-    background: "#2D7D71",
-  };
-}
-
-function kpiPill(): React.CSSProperties {
+function kpiPill(opts?: { warn?: boolean; danger?: boolean }): React.CSSProperties {
+  if (opts?.danger) {
+    return {
+      padding: "6px 10px",
+      borderRadius: 999,
+      border: "1px solid #fca5a5",
+      background: "#fef2f2",
+      color: "#991b1b",
+      fontWeight: 700,
+    };
+  }
+  if (opts?.warn) {
+    return {
+      padding: "6px 10px",
+      borderRadius: 999,
+      border: "1px solid #fdba74",
+      background: "#fff7ed",
+      color: "#9a3412",
+      fontWeight: 700,
+    };
+  }
   return {
     padding: "6px 10px",
     borderRadius: 999,
