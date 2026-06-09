@@ -65,3 +65,32 @@ export const receivePurchaseOrderBodySchema = z
   });
 
 export type ReceivePurchaseOrderBody = z.infer<typeof receivePurchaseOrderBodySchema>;
+
+/** Legacy GRN endpoint — same payload shape as receive, without item_name. */
+export const grnPurchaseOrderLineSchema = z.object({
+  po_item_id: z.string().uuid("po_item_id tidak valid"),
+  qty_received: positiveIntQtySchema,
+  production_date: isoDateOptionalSchema.optional(),
+  expired_date: isoDateOptionalSchema.optional(),
+});
+
+export const grnPurchaseOrderBodySchema = z
+  .object({
+    warehouse_id: z.string().uuid("Warehouse wajib."),
+    sj_no: z.union([z.string(), z.null(), z.undefined()]).optional(),
+    received_date: isoDateOptionalSchema.optional(),
+    notes: z.union([z.string(), z.null(), z.undefined()]).optional(),
+    lines: z.array(grnPurchaseOrderLineSchema).min(1, "Minimal 1 item diterima."),
+  })
+  .transform((data) => ({
+    warehouse_id: data.warehouse_id,
+    sj_no: data.sj_no != null ? String(data.sj_no).trim() || null : null,
+    received_date: data.received_date ?? null,
+    notes: data.notes != null ? String(data.notes).trim() || null : null,
+    lines: data.lines.filter((line) => line.qty_received > 0),
+  }))
+  .refine((data) => data.lines.length > 0, {
+    message: "Minimal 1 item diterima.",
+  });
+
+export type GrnPurchaseOrderBody = z.infer<typeof grnPurchaseOrderBodySchema>;

@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { grnPurchaseOrderBodySchema } from "@/lib/validations/purchase-order";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -38,21 +40,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (subBlock) return subBlock;
   }
 
-  const body = await req.json();
-
-  const {
-    warehouse_id,
-    sj_no,
-    received_date,
-    notes,
-    lines, // [{ po_item_id, qty_received, production_date, expired_date }]
-  } = body;
-
-  if (!warehouse_id)
-    return NextResponse.json({ error: "Warehouse wajib." }, { status: 400 });
-
-  if (!Array.isArray(lines) || lines.length === 0)
-    return NextResponse.json({ error: "Minimal 1 item diterima." }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, grnPurchaseOrderBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { warehouse_id, sj_no, received_date, notes, lines } = parsedBody.data;
 
   // Insert header
   const { data: header, error: headErr } = await supabase
@@ -60,10 +50,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     .insert({
       po_id: poId,
       warehouse_id,
-      sj_no: sj_no || null,
+      sj_no,
       received_by: userRes.user.id,
-      received_date: received_date || null,
-      notes: notes || null,
+      received_date,
+      notes,
     })
     .select()
     .single();
@@ -74,15 +64,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const receiptId = header.id;
 
   // Insert lines
-  const payloadLines = lines
-    .filter((l: any) => Number(l.qty_received) > 0)
-    .map((l: any) => ({
-      receipt_id: receiptId,
-      po_item_id: l.po_item_id,
-      qty_received: Number(l.qty_received),
-      production_date: l.production_date || null,
-      expired_date: l.expired_date || null,
-    }));
+  const payloadLines = lines.map((l) => ({
+    receipt_id: receiptId,
+    po_item_id: l.po_item_id,
+    qty_received: l.qty_received,
+    production_date: l.production_date ?? null,
+    expired_date: l.expired_date ?? null,
+  }));
 
   const { error: lineErr } = await supabase
     .from("po_receipt_lines")
