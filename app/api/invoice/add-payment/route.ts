@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { addInvoicePaymentBodySchema } from "@/lib/validations/payment";
 
 function calcGrandTotal(inv: any) {
   const items = inv.invoice_items || [];
@@ -32,16 +34,9 @@ function calcGrandTotal(inv: any) {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const invoiceId = String(body?.invoiceId || "");
-    const amount = Number(body?.amount || 0);
-
-    if (!invoiceId) {
-      return NextResponse.json({ error: "invoiceId wajib" }, { status: 400 });
-    }
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ error: "amount harus > 0" }, { status: 400 });
-    }
+    const parsedBody = await parseJsonBody(req, addInvoicePaymentBodySchema);
+    if (!parsedBody.ok) return parsedBody.response;
+    const { invoiceId, amount } = parsedBody.data;
 
     const cookieStore = await cookies();
     const supabase = createServerClient(

@@ -6,6 +6,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { updateWarehouseBodySchema } from "@/lib/validations/warehouse";
 
 function safeStr(v: any) {
   return String(v ?? "").trim();
@@ -93,8 +95,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const wid = safeStr(id);
   if (!wid || !isUuid(wid)) return NextResponse.json({ error: "Invalid warehouse id" }, { status: 400 });
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, updateWarehouseBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   try {
     const { orgId } = await getMembershipOrg(supabase, userRes.user.id);
@@ -103,20 +106,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const subBlock = await requireCanWrite(supabase, orgId);
     if (subBlock) return subBlock;
 
-    const patch: any = {};
-
-    // ✅ code sengaja diabaikan (read-only)
-    if (body?.name !== undefined) patch.name = safeStr(body.name);
-    if (body?.phone !== undefined) patch.phone = safeStr(body.phone) || null;
-    if (body?.address !== undefined) patch.address = safeStr(body.address);
-    if (body?.is_active !== undefined) patch.is_active = body.is_active === false ? false : true;
-
-    if (patch.name !== undefined && !patch.name) {
-      return NextResponse.json({ error: "Nama gudang wajib diisi." }, { status: 400 });
-    }
-    if (patch.address !== undefined && !patch.address) {
-      return NextResponse.json({ error: "Alamat gudang wajib diisi." }, { status: 400 });
-    }
+    const patch: Record<string, unknown> = {};
+    if (body.name !== undefined) patch.name = body.name;
+    if (body.phone !== undefined) patch.phone = body.phone;
+    if (body.address !== undefined) patch.address = body.address;
+    if (body.is_active !== undefined) patch.is_active = body.is_active;
 
     const { data, error } = await supabase
       .from("warehouses")

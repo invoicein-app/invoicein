@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import FormSubmitButton from "../components/form-submit-button";
 import { useSubmitGuard } from "../components/use-submit-guard";
 import TableEmptyState from "../components/table-empty-state";
+import { toastError, toastSuccess } from "@/lib/app-toast";
 
 type InvoiceRow = {
   id: string;
@@ -84,8 +85,14 @@ export default function InvoiceListClient({ rows }: { rows: InvoiceRow[] }) {
   async function submitPay() {
     if (isBlocked()) return;
     if (!target) return;
-    if (!paidAt) return alert("Tanggal bayar wajib diisi.");
-    if (!amountNum || amountNum <= 0) return alert("Nominal harus > 0.");
+    if (!paidAt) {
+      toastError("Tanggal bayar wajib diisi.");
+      return;
+    }
+    if (!amountNum || amountNum <= 0) {
+      toastError("Nominal harus lebih dari 0.");
+      return;
+    }
 
     if (!tryBegin()) return;
     try {
@@ -98,16 +105,16 @@ export default function InvoiceListClient({ rows }: { rows: InvoiceRow[] }) {
 
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(`Gagal (${res.status}): ${json?.error || "error"}`);
+        toastError(json?.error || `Gagal mencatat pembayaran (${res.status})`);
         return;
       }
 
       setOpen(false);
       setTarget(null);
-
+      toastSuccess("Pembayaran berhasil dicatat.");
       router.refresh();
     } catch (e: any) {
-      alert(`Failed to fetch: ${e?.message || "unknown"}`);
+      toastError(e?.message || "Gagal mencatat pembayaran.");
     } finally {
       end();
     }
@@ -139,13 +146,14 @@ export default function InvoiceListClient({ rows }: { rows: InvoiceRow[] }) {
 
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(`Gagal hapus (${res.status}): ${json?.error || "error"}`);
+        toastError(json?.error || `Gagal menghapus invoice (${res.status})`);
         return;
       }
 
+      toastSuccess("Invoice berhasil dihapus.");
       router.refresh();
     } catch (e: any) {
-      alert(`Failed to fetch: ${e?.message || "unknown"}`);
+      toastError(e?.message || "Gagal menghapus invoice.");
     } finally {
       setDeletingId(null);
     }
@@ -296,7 +304,7 @@ export default function InvoiceListClient({ rows }: { rows: InvoiceRow[] }) {
                         style={{ ...actionBtn, ...(loading ? disabledBtn : {}) }}
                         title="Tambah pembayaran"
                       >
-                        test
+                        Bayar
                       </button>
 
                       {/* Edit */}

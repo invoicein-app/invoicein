@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import FormSubmitButton from "../components/form-submit-button";
 import { useSubmitGuard } from "../components/use-submit-guard";
+import { toastError, toastSuccess } from "@/lib/app-toast";
 
 type Props = {
   id: string;
@@ -204,16 +205,17 @@ export default function InvoiceActionsClient({
       const json = await res.json().catch(() => ({} as any));
 
       if (!res.ok) {
-        alert(`Gagal (${res.status}): ${json?.error || "Gagal tambah pembayaran."}`);
+        toastError(json?.error || `Gagal mencatat pembayaran (${res.status})`);
         return;
       }
 
       setOpenPay(false);
       setAmountText("");
       setPayMsg("");
+      toastSuccess("Pembayaran berhasil dicatat.");
       router.refresh();
     } catch (e: any) {
-      alert(e?.message || "Gagal tambah pembayaran.");
+      toastError(e?.message || "Gagal mencatat pembayaran.");
     } finally {
       payGuard.end();
     }
@@ -240,13 +242,14 @@ export default function InvoiceActionsClient({
 
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok) {
-        alert(`Gagal cancel (${res.status}): ${json?.error || "Gagal cancel invoice."}`);
+        toastError(json?.error || `Gagal membatalkan invoice (${res.status})`);
         return;
       }
 
+      toastSuccess("Invoice berhasil dibatalkan.");
       router.refresh();
     } catch (e: any) {
-      alert(e?.message || "Gagal cancel invoice.");
+      toastError(e?.message || "Gagal membatalkan invoice.");
     } finally {
       setCancelling(false);
     }
@@ -280,13 +283,14 @@ export default function InvoiceActionsClient({
 
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok) {
-        alert(json?.error || `Gagal hapus (${res.status})`);
+        toastError(json?.error || `Gagal menghapus invoice (${res.status})`);
         return;
       }
 
+      toastSuccess("Invoice berhasil dihapus.");
       window.location.href = "/invoice";
     } catch (e: any) {
-      alert(e?.message || "Gagal delete invoice.");
+      toastError(e?.message || "Gagal menghapus invoice.");
     } finally {
       deleteGuard.end();
     }

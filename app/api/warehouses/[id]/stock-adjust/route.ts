@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import crypto from "crypto";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { stockAdjustBodySchema } from "@/lib/validations/stock";
 
 function isUuid(v: any) {
   const s = String(v || "").trim();
@@ -69,25 +71,10 @@ export async function POST(
   }
   const user = userRes.user;
 
-  const body = await req.json().catch(() => null);
-  if (!body) {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const inputProductId = String(body.product_id || "").trim();
-  const qtyDelta = Math.floor(num(body.qty_delta));
-  const note = body.note == null ? null : String(body.note || "").trim();
-
-  if (!isUuid(inputProductId)) {
-    return NextResponse.json(
-      { error: "product_id wajib dipilih dari master barang." },
-      { status: 400 }
-    );
-  }
-
-  if (!Number.isFinite(qtyDelta) || qtyDelta === 0) {
-    return NextResponse.json({ error: "qty_delta harus != 0" }, { status: 400 });
-  }
+  const parsedBody = await parseJsonBody(req, stockAdjustBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { product_id: inputProductId, qty_delta: qtyDelta, note: rawNote } = parsedBody.data;
+  const note = rawNote == null ? null : String(rawNote).trim() || null;
 
   const { data: mem, error: memErr } = await supabase
     .from("memberships")

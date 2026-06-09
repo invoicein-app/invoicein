@@ -4,11 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-
-type Body = {
-  memberId?: string;      // id memberships
-  newPassword?: string;   // min 6
-};
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { resetMemberPasswordBodySchema } from "@/lib/validations/member";
 
 export async function POST(req: NextRequest) {
   const csAny: any = cookies() as any;
@@ -33,12 +30,9 @@ export async function POST(req: NextRequest) {
   const meUser = userRes.user;
   if (!meUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = (await req.json().catch(() => ({}))) as Body;
-  const memberId = String(body.memberId || "").trim();
-  const newPassword = String(body.newPassword || "");
-
-  if (!memberId) return NextResponse.json({ error: "memberId wajib" }, { status: 400 });
-  if (newPassword.length < 6) return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, resetMemberPasswordBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { memberId, newPassword } = parsedBody.data;
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY belum di-set" }, { status: 500 });

@@ -6,6 +6,7 @@ import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
 import PurchaseOrdersListTable, { type PurchaseOrderRow } from "./purchase-orders-list-table";
 import { toolbarButtonOutline } from "../components/app-action-buttons";
+import { toastError } from "@/lib/app-toast";
 
 export default function PurchaseOrdersListPage() {
   const supabase = supabaseBrowser();
@@ -17,70 +18,99 @@ export default function PurchaseOrdersListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  async function load() {
+  const [orgId, setOrgId] = useState("");
+  const [totalRowsDb, setTotalRowsDb] = useState(0);
+
+  async function load(currentPage = page, currentPageSize = pageSize, search = q) {
     setLoading(true);
     setErr("");
     try {
-      const { data: userRes } = await supabase.auth.getUser();
-      const user = userRes.user;
-      if (!user) {
-        setRows([]);
-        setErr("Unauthorized");
-        return;
+      let oid = orgId;
+      if (!oid) {
+        const { data: userRes } = await supabase.auth.getUser();
+        const user = userRes.user;
+        if (!user) {
+          setRows([]);
+          const m = "Unauthorized";
+          setErr(m);
+          toastError(m);
+          return;
+        }
+
+        const { data: membership, error: memErr } = await supabase
+          .from("memberships")
+          .select("org_id")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+
+        if (memErr) throw memErr;
+
+        oid = String((membership as { org_id?: string } | null)?.org_id || "");
+        if (!oid) {
+          setRows([]);
+          const m = "Org tidak ditemukan. Pastikan membership aktif.";
+          setErr(m);
+          toastError(m);
+          return;
+        }
+        setOrgId(oid);
       }
 
-      const { data: membership, error: memErr } = await supabase
-        .from("memberships")
-        .select("org_id")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
+      const fromIdx = (currentPage - 1) * currentPageSize;
+      const toIdx = fromIdx + currentPageSize - 1;
+      const term = search.trim();
 
-      if (memErr) throw memErr;
+      let countQ = supabase
+        .from("purchase_orders")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", oid);
 
-      const orgId = String((membership as any)?.org_id || "");
-      if (!orgId) {
-        setRows([]);
-        setErr("Org tidak ditemukan. Pastikan membership aktif.");
-        return;
+      if (term) {
+        const like = `%${term}%`;
+        countQ = countQ.or(`po_number.ilike.${like},vendor_name.ilike.${like},status.ilike.${like}`);
       }
 
-      const { data, error } = await supabase
+      const { count, error: countErr } = await countQ;
+      if (countErr) throw countErr;
+
+      const total = count || 0;
+      setTotalRowsDb(total);
+
+      let dataQ = supabase
         .from("purchase_orders")
         .select("id,po_number,po_date,vendor_name,total,status")
-        .eq("org_id", orgId)
+        .eq("org_id", oid)
         .order("po_date", { ascending: false })
-        .limit(200);
+        .range(fromIdx, toIdx);
 
+      if (term) {
+        const like = `%${term}%`;
+        dataQ = dataQ.or(`po_number.ilike.${like},vendor_name.ilike.${like},status.ilike.${like}`);
+      }
+
+      const { data, error } = await dataQ;
       if (error) throw error;
       setRows((data as PurchaseOrderRow[]) || []);
-    } catch (e: any) {
-      setErr(e?.message || "Gagal load purchase orders.");
+    } catch (e: unknown) {
+      const m = e instanceof Error ? e.message : "Gagal load purchase orders.";
+      setErr(m);
+      toastError(m);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    load();
+    load(page, pageSize, q);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [page, pageSize]);
 
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return rows;
-    return rows.filter((r) => {
-      const blob = `${r.po_number || ""} ${r.vendor_name || ""} ${r.status || ""}`.toLowerCase();
-      return blob.includes(s);
-    });
-  }, [rows, q]);
-
-  const totalRows = filtered.length;
+  const totalRows = totalRowsDb;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-  const fromIdx = (page - 1) * pageSize;
-  const toIdx = fromIdx + pageSize - 1;
-  const paginated = useMemo(() => filtered.slice(fromIdx, fromIdx + pageSize), [filtered, fromIdx, pageSize]);
+  const fromIdx = totalRows === 0 ? 0 : (page - 1) * pageSize;
+  const toIdx = Math.min(fromIdx + pageSize - 1, Math.max(0, totalRows - 1));
 
   const clientPagination = useMemo(
     () => ({
@@ -96,10 +126,15 @@ export default function PurchaseOrdersListPage() {
     <ListFiltersClient
       searchPlaceholder="Cari PO number / vendor / status..."
       searchValue={q}
-      onSearchChange={setQ}
+      onSearchChange={(v) => {
+        setQ(v);
+        setPage(1);
+        load(1, pageSize, v);
+      }}
       onReset={() => {
         setQ("");
         setPage(1);
+        load(1, pageSize, "");
       }}
       perPage={pageSize}
       onPerPageChange={(v) => {
@@ -111,7 +146,7 @@ export default function PurchaseOrdersListPage() {
     >
       <button
         type="button"
-        onClick={load}
+        onClick={() => load(page, pageSize, q)}
         style={loading ? { ...toolbarButtonOutline(), opacity: 0.6, cursor: "wait" } : toolbarButtonOutline()}
         disabled={loading}
       >
@@ -136,7 +171,7 @@ export default function PurchaseOrdersListPage() {
         fromIdx={fromIdx}
         toIdx={toIdx}
         clientPagination={clientPagination}
-        tableContent={<PurchaseOrdersListTable rows={paginated} loading={loading} />}
+        tableContent={<PurchaseOrdersListTable rows={rows} loading={loading} />}
         listCardTitle="Master Data Purchase Order"
         onPageSizeChange={(v) => {
           setPageSize(v);

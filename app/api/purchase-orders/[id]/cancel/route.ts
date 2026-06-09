@@ -8,6 +8,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { cancelPurchaseOrderBodySchema } from "@/lib/validations/purchase-order";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -39,8 +41,9 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => ({}));
-  const reason = String(body?.reason || "").trim();
+  const parsedBody = await parseJsonBody(req, cancelPurchaseOrderBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { reason } = parsedBody.data;
 
   // ambil dulu biar bisa guard status
   const { data: po, error: poErr } = await supabase

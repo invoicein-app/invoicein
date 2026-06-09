@@ -7,6 +7,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { updateVendorBodySchema } from "@/lib/validations/vendor";
 
 function safeStr(v: any) {
   return String(v ?? "").trim();
@@ -108,21 +110,18 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return NextResponse.json({ error: "Invalid vendor id" }, { status: 400 });
   }
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, updateVendorBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
-  const patch: any = {};
-  if (body?.vendor_code !== undefined) patch.vendor_code = safeStr(body.vendor_code) || null;
-  if (body?.name !== undefined) patch.name = safeStr(body.name);
-  if (body?.phone !== undefined) patch.phone = safeStr(body.phone) || null;
-  if (body?.email !== undefined) patch.email = safeStr(body.email) || null;
-  if (body?.address !== undefined) patch.address = safeStr(body.address) || null;
-  if (body?.note !== undefined) patch.note = safeStr(body.note) || null;
-  if (body?.is_active !== undefined) patch.is_active = body.is_active === false ? false : true;
-
-  if (patch.name !== undefined && !patch.name) {
-    return NextResponse.json({ error: "Vendor name wajib diisi." }, { status: 400 });
-  }
+  const patch: Record<string, unknown> = {};
+  if (body.vendor_code !== undefined) patch.vendor_code = body.vendor_code;
+  if (body.name !== undefined) patch.name = body.name;
+  if (body.phone !== undefined) patch.phone = body.phone;
+  if (body.email !== undefined) patch.email = body.email;
+  if (body.address !== undefined) patch.address = body.address;
+  if (body.note !== undefined) patch.note = body.note;
+  if (body.is_active !== undefined) patch.is_active = body.is_active;
 
   const { data, error } = await supabase
     .from("vendors")

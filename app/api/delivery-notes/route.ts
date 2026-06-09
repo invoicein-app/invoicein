@@ -4,50 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { logActivity } from "@/lib/log-activity";
 import { coerceDateOrToday } from "@/lib/document-numbering";
-import { asText, getAuthAndOrg, getSupabaseFromCookies, num } from "@/lib/api-auth-org";
+import { asText, getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
 import { requireCanWrite } from "@/lib/subscription";
-
-type ManualItemInput = {
-  name?: string;
-  qty?: number | string;
-  unit?: string;
-  product_id?: string;
-  item_key?: string;
-};
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createDeliveryNoteBodySchema } from "@/lib/validations/delivery-note";
 
 function isUuid(v: unknown) {
   const s = String(v || "").trim();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
-}
-
-function normalizeItems(raw: unknown) {
-  const list = Array.isArray(raw) ? raw : [];
-  const out: {
-    name: string;
-    qty: number;
-    unit: string | null;
-    product_id: string | null;
-    item_key: string | null;
-    sort_order: number;
-  }[] = [];
-
-  for (let i = 0; i < list.length; i++) {
-    const row = (list[i] || {}) as ManualItemInput;
-    const name = asText(row.name);
-    const qty = num(row.qty);
-    if (!name || qty <= 0) continue;
-    const productId = asText(row.product_id);
-    out.push({
-      name,
-      qty,
-      unit: asText(row.unit) || null,
-      product_id: productId && isUuid(productId) ? productId : null,
-      item_key: asText(row.item_key) || null,
-      sort_order: i,
-    });
-  }
-
-  return out;
 }
 
 export async function POST(req: NextRequest) {
@@ -59,27 +23,22 @@ export async function POST(req: NextRequest) {
   const subBlock = await requireCanWrite(supabase, orgId);
   if (subBlock) return subBlock;
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, createDeliveryNoteBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
-  const sj_date = coerceDateOrToday(body.sj_date);
-  const shipping_address = asText(body.shipping_address);
-  const driver_name = asText(body.driver_name);
-  const note = asText(body.note);
-  const warehouse_id = asText(body.warehouse_id);
-  const customer_id = asText(body.customer_id);
-  let customer_name = asText(body.customer_name);
-  let customer_phone = asText(body.customer_phone) || null;
-  const invoice_id = asText(body.invoice_id);
-
-  if (!shipping_address) {
-    return NextResponse.json({ error: "Alamat pengiriman wajib diisi." }, { status: 400 });
-  }
+  const sj_date = coerceDateOrToday(body.sj_date || undefined);
+  const shipping_address = body.shipping_address;
+  const driver_name = body.driver_name;
+  const note = body.note;
+  const warehouse_id = body.warehouse_id;
+  const customer_id = body.customer_id;
+  let customer_name = body.customer_name;
+  let customer_phone = body.customer_phone ? String(body.customer_phone).trim() : null;
+  const invoice_id = body.invoice_id;
+  const items = body.items;
 
   if (customer_id) {
-    if (!isUuid(customer_id)) {
-      return NextResponse.json({ error: "Customer tidak valid." }, { status: 400 });
-    }
     const { data: cust, error: custErr } = await supabase
       .from("customers")
       .select("id, name, phone, address")
@@ -97,19 +56,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Nama customer wajib diisi." }, { status: 400 });
   }
 
-  const items = normalizeItems(body.items);
-  if (items.length === 0) {
-    return NextResponse.json(
-      { error: "Minimal satu item dengan nama dan qty lebih dari 0." },
-      { status: 400 }
-    );
-  }
-
   let linkedInvoiceId: string | null = null;
   if (invoice_id) {
-    if (!isUuid(invoice_id)) {
-      return NextResponse.json({ error: "Invoice tidak valid." }, { status: 400 });
-    }
     const { data: inv, error: invErr } = await supabase
       .from("invoices")
       .select("id, org_id, status, customer_name, customer_phone, customer_address")

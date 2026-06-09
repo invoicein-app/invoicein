@@ -3,7 +3,8 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
-import { isExpenseCategory } from "@/lib/expense-categories";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { updateRecurringExpenseBodySchema } from "@/lib/validations/expense";
 import {
   isIsoWeekday,
   isRecurringFrequency,
@@ -24,8 +25,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const subBlock = await requireCanWrite(supabase, orgId);
   if (subBlock) return subBlock;
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, updateRecurringExpenseBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const { data: before, error: beforeErr } = await supabase
     .from("expense_recurring_templates")
@@ -39,23 +41,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if (body.name !== undefined) {
-    const n = asText(body.name);
-    if (!n) return NextResponse.json({ error: "Nama wajib diisi." }, { status: 400 });
-    patch.name = n;
-  }
-  if (body.category !== undefined) {
-    const c = asText(body.category);
-    if (!isExpenseCategory(c)) return NextResponse.json({ error: "Kategori tidak valid." }, { status: 400 });
-    patch.category = c;
-  }
-  if (body.default_amount !== undefined) {
-    const a = Math.max(0, num(body.default_amount));
-    if (a <= 0) return NextResponse.json({ error: "Nominal default harus > 0." }, { status: 400 });
-    patch.default_amount = a;
-  }
-  if (body.is_active !== undefined) patch.is_active = body.is_active === false ? false : true;
-  if (body.notes !== undefined) patch.notes = asText(body.notes) || null;
+  if (body.name !== undefined) patch.name = body.name;
+  if (body.category !== undefined) patch.category = body.category;
+  if (body.default_amount !== undefined) patch.default_amount = body.default_amount;
+  if (body.is_active !== undefined) patch.is_active = body.is_active;
+  if (body.notes !== undefined) patch.notes = body.notes;
 
   const mergedFrequency = (
     body.frequency !== undefined ? String(body.frequency) : before.frequency || "monthly"
@@ -69,13 +59,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     frequency: mergedFrequency,
     due_day_of_month:
       body.due_day_of_month !== undefined
-        ? body.due_day_of_month === null || body.due_day_of_month === ""
+        ? body.due_day_of_month === null
           ? null
           : Math.floor(num(body.due_day_of_month))
         : before.due_day_of_month,
     due_day_of_week:
       body.due_day_of_week !== undefined
-        ? body.due_day_of_week === null || body.due_day_of_week === ""
+        ? body.due_day_of_week === null
           ? null
           : Math.floor(num(body.due_day_of_week))
         : before.due_day_of_week,

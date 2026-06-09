@@ -3,12 +3,14 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
-import { EXPENSE_CATEGORIES, isExpenseCategory } from "@/lib/expense-categories";
+import { EXPENSE_CATEGORIES } from "@/lib/expense-categories";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createRecurringExpenseBodySchema } from "@/lib/validations/expense";
 import {
   normalizeRecurringTemplateBody,
   validateRecurringTemplateState,
 } from "@/lib/expense-recurring";
-import { asText, getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
+import { getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
 
 export async function GET() {
   const supabase = await getSupabaseFromCookies();
@@ -36,13 +38,10 @@ export async function POST(req: NextRequest) {
   const subBlock = await requireCanWrite(supabase, orgId);
   if (subBlock) return subBlock;
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-
-  const category = asText(body.category);
-  if (!category || !isExpenseCategory(category)) {
-    return NextResponse.json({ error: "Kategori tidak valid." }, { status: 400 });
-  }
+  const parsedBody = await parseJsonBody(req, createRecurringExpenseBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
+  const { category } = body;
 
   const parsed = normalizeRecurringTemplateBody(body);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });

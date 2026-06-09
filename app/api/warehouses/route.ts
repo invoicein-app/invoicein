@@ -6,6 +6,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createWarehouseBodySchema } from "@/lib/validations/warehouse";
 
 function safeStr(v: any) {
   return String(v ?? "").trim();
@@ -86,8 +88,9 @@ export async function POST(req: Request) {
   const { data: userRes, error: userErr } = await supabase.auth.getUser();
   if (userErr || !userRes?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, createWarehouseBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   try {
     const { orgId } = await getMembershipOrg(supabase, userRes.user.id);
@@ -96,23 +99,14 @@ export async function POST(req: Request) {
     const subBlock = await requireCanWrite(supabase, orgId);
     if (subBlock) return subBlock;
 
-    const name = safeStr(body?.name);
-    const address = safeStr(body?.address);
-    const phone = safeStr(body?.phone) || null;
-    const is_active = body?.is_active === false ? false : true;
-
-    if (!name) return NextResponse.json({ error: "Nama gudang wajib diisi." }, { status: 400 });
-    if (!address) return NextResponse.json({ error: "Alamat wajib diisi." }, { status: 400 });
-
-    // ✅ code jangan dikirim (biar trigger isi)
     const { data, error } = await supabase
       .from("warehouses")
       .insert({
         org_id: orgId,
-        name,
-        phone,
-        address,
-        is_active,
+        name: body.name,
+        phone: body.phone,
+        address: body.address,
+        is_active: body.is_active,
         created_by: userRes.user.id,
       })
       .select("id,code")

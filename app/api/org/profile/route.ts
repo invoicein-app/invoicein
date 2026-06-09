@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { updateOrgProfileBodySchema } from "@/lib/validations/org";
 
 function cleanCode(v: unknown, maxLen = 12) {
   return String(v ?? "")
@@ -47,8 +49,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No organization found for this user." }, { status: 400 });
   }
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, updateOrgProfileBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const subBlock = await requireCanWrite(supabase, mem.org_id);
   if (subBlock) return subBlock;
@@ -64,14 +67,14 @@ export async function POST(req: Request) {
   }
 
   const payload = {
-    name: String(body.name || ""),
-    address: String(body.address || ""),
-    phone: String(body.phone || ""),
-    email: String(body.email || ""),
-    bank_name: String(body.bank_name || ""),
-    bank_account: String(body.bank_account || ""),
-    bank_account_name: String(body.bank_account_name || ""),
-    invoice_footer: String(body.invoice_footer || ""),
+    name: body.name,
+    address: body.address,
+    phone: body.phone,
+    email: body.email,
+    bank_name: body.bank_name,
+    bank_account: body.bank_account,
+    bank_account_name: body.bank_account_name,
+    invoice_footer: body.invoice_footer,
     public_document_code: publicCode || null,
     invoice_prefix: invoicePrefix,
     po_prefix: poPrefix,

@@ -16,18 +16,8 @@ import {
 import { deleteInvoiceSafely } from "@/lib/invoice-delete";
 import { resolveBankAccountIdForSave } from "@/lib/company-bank-accounts";
 import { computeInvoiceSaveTotals } from "@/lib/invoice-totals";
-
-type UpdateInvoiceBody = {
-  header?: Record<string, any>;
-  items?: Array<{
-    product_id: string;
-    name: string;
-    item_key: string;
-    qty: number;
-    price: number;
-    sort_order?: number;
-  }>;
-};
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { updateInvoiceBodySchema } from "@/lib/validations/invoice";
 
 type NormItem = {
   product_id: string | null;
@@ -85,6 +75,7 @@ function pickSafeHeader(raw: Record<string, any>) {
     note: h.note,
     invoice_date: h.invoice_date,
     due_date: h.due_date,
+    discount_type: h.discount_type,
     discount_value: h.discount_value,
     tax_value: h.tax_value,
     warehouse_id: h.warehouse_id,
@@ -190,10 +181,9 @@ export async function PATCH(
   const subBlock = await requireCanWrite(supabase, orgId);
   if (subBlock) return subBlock;
 
-  const body = (await req.json().catch(() => null)) as UpdateInvoiceBody | null;
-  if (!body) {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsedBody = await parseJsonBody(req, updateInvoiceBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const { data: before, error: invErr } = await supabase
     .from("invoices")
@@ -224,14 +214,9 @@ export async function PATCH(
     );
   }
 
-  const itemsRaw = Array.isArray(body.items) ? body.items : [];
-  if (itemsRaw.length === 0) {
-    return NextResponse.json({ error: "Minimal 1 item." }, { status: 400 });
-  }
-
   const inventoryEnabled = await loadOrgInventoryEnabled(supabase, orgId);
 
-  const normItems: NormItem[] = itemsRaw.map((it) => normalizeInvoiceItemInput(it));
+  const normItems: NormItem[] = body.items.map((it) => normalizeInvoiceItemInput(it));
 
   let productsById = new Map<string, any>();
   try {

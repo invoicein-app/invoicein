@@ -5,6 +5,8 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireCanWrite, getStaffLimitForPlan, getActiveStaffCount } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createStaffBodySchema } from "@/lib/validations/member";
 
 function normalizeUsername(raw: string) {
   return String(raw || "")
@@ -25,13 +27,6 @@ function normalizeOrgCode(raw: string) {
 function makeInternalEmail(username: string, orgCode: string) {
   return `${normalizeUsername(username)}+${normalizeOrgCode(orgCode)}@invoiceku.local`;
 }
-
-type Body = {
-  orgId?: string;      // boleh kosong kalau kamu mau auto-detect dari membership admin
-  username?: string;   // kasir1
-  password?: string;   // bebas
-  role?: "staff" | "admin"; // default staff
-};
 
 export async function POST(req: NextRequest) {
   const csAny: any = cookies() as any;
@@ -59,16 +54,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as Body;
-  const username = normalizeUsername(body.username || "");
-  const password = String(body.password || "");
-  const role: "staff" | "admin" = body.role || "staff";
+  const parsedBody = await parseJsonBody(req, createStaffBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { orgId: bodyOrgId, password, role } = parsedBody.data;
+  const username = normalizeUsername(parsedBody.data.username);
 
   if (!username) return NextResponse.json({ error: "username wajib" }, { status: 400 });
-  if (password.length < 6) return NextResponse.json({ error: "password minimal 6 karakter" }, { status: 400 });
 
   // 1) tentukan orgId: dari body atau ambil org pertama user (admin)
-  let orgId = String(body.orgId || "").trim();
+  let orgId = String(bodyOrgId || "").trim();
 
   if (!orgId) {
     const { data: myOrg } = await supabaseUser

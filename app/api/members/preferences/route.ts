@@ -6,6 +6,8 @@ import {
   loadBookkeepingPreference,
   saveBookkeepingPreference,
 } from "@/lib/member-preferences";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { memberPreferencesBodySchema } from "@/lib/validations/member";
 
 export async function GET() {
   const org = await getAppOrg();
@@ -35,21 +37,13 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  const body = (await req.json().catch(() => ({}))) as {
-    show_invoice_bookkeeping_status?: boolean;
-  };
-
-  if (typeof body.show_invoice_bookkeeping_status !== "boolean") {
-    return NextResponse.json(
-      { error: "show_invoice_bookkeeping_status (boolean) wajib" },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseJsonBody(req, memberPreferencesBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
 
   const result = await saveBookkeepingPreference(
     org.userId,
     org.orgId,
-    body.show_invoice_bookkeeping_status
+    parsedBody.data.show_invoice_bookkeeping_status
   );
 
   if (!result.ok) {

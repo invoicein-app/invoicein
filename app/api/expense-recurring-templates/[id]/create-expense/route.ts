@@ -5,6 +5,8 @@ import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
 import { createExpenseFromRecurringTemplate } from "@/lib/expense-recurring-create";
 import { getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createExpenseFromRecurringBodySchema } from "@/lib/validations/expense";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -18,7 +20,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const subBlock = await requireCanWrite(supabase, orgId);
   if (subBlock) return subBlock;
 
-  const body = await req.json().catch(() => ({}));
+  const parsedBody = await parseJsonBody(req, createExpenseFromRecurringBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
 
   const { data: template, error: tplErr } = await supabase
     .from("expense_recurring_templates")
@@ -31,9 +34,9 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   if (!template) return NextResponse.json({ error: "Template tidak ditemukan." }, { status: 404 });
 
   const result = await createExpenseFromRecurringTemplate(supabase, orgId, template, {
-    month: body?.month,
-    week: body?.week,
-    date: body?.date,
+    month: parsedBody.data.month,
+    week: parsedBody.data.week,
+    date: parsedBody.data.date ?? undefined,
   });
 
   if (result.status === "skipped") {

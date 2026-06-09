@@ -11,6 +11,8 @@ import {
   coerceDateOrToday,
   releaseDocumentNumberAllocation,
 } from "@/lib/document-numbering";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createPurchaseOrderBodySchema } from "@/lib/validations/purchase-order";
 
 type POItemInput = {
   product_id: string;
@@ -21,20 +23,8 @@ type POItemInput = {
   unit: string | null;
 };
 
-function num(v: any) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
 function asText(v: any) {
   return String(v ?? "").trim();
-}
-
-function safeDateOrNull(v: any) {
-  const s = String(v || "").trim();
-  if (!s) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  return null;
 }
 
 function toKey(raw: string) {
@@ -75,40 +65,6 @@ export async function POST(req: Request) {
   }
   const user = userRes.user;
 
-  const body = await req.json().catch(() => null);
-  if (!body) {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const {
-    po_date,
-
-    vendor_id,
-    vendor_name,
-    vendor_phone,
-    vendor_address,
-
-    warehouse_id,
-    ship_to_name,
-    ship_to_phone,
-    ship_to_address,
-
-    note,
-    items,
-  } = body as any;
-
-  if (!asText(vendor_name)) {
-    return NextResponse.json({ error: "Nama vendor wajib." }, { status: 400 });
-  }
-
-  if (!warehouse_id) {
-    return NextResponse.json({ error: "Gudang tujuan wajib dipilih." }, { status: 400 });
-  }
-
-  if (!Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ error: "Minimal 1 item." }, { status: 400 });
-  }
-
   const { data: membership, error: memErr } = await supabase
     .from("memberships")
     .select("org_id, role, is_active")
@@ -134,30 +90,32 @@ export async function POST(req: Request) {
   const subBlock = await requireCanWrite(supabase, orgId);
   if (subBlock) return subBlock;
 
-  const normItems: POItemInput[] = (items as any[]).map((it: any) => ({
-    product_id: asText(it?.product_id),
-    name: asText(it?.name),
-    item_key: toKey(asText(it?.item_key)),
-    qty: Math.max(0, Math.floor(num(it?.qty))),
-    price: Math.max(0, Math.floor(num(it?.price))),
+  const parsedBody = await parseJsonBody(req, createPurchaseOrderBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
+
+  const {
+    po_date,
+    vendor_id,
+    vendor_name,
+    vendor_phone,
+    vendor_address,
+    warehouse_id,
+    ship_to_name,
+    ship_to_phone,
+    ship_to_address,
+    note,
+    items,
+  } = body;
+
+  const normItems: POItemInput[] = items.map((it) => ({
+    product_id: it.product_id,
+    name: it.name,
+    item_key: toKey(it.item_key),
+    qty: it.qty,
+    price: it.price,
     unit: null,
   }));
-
-  const badIndex = normItems.findIndex(
-    (it) =>
-      !it.product_id ||
-      !it.name ||
-      !it.item_key ||
-      !Number.isFinite(it.qty) ||
-      it.qty <= 0
-  );
-
-  if (badIndex >= 0) {
-    return NextResponse.json(
-      { error: `Item baris ${badIndex + 1} wajib pilih dari master barang.` },
-      { status: 400 }
-    );
-  }
 
   const productIds = [...new Set(normItems.map((it) => it.product_id))];
 
@@ -211,18 +169,16 @@ export async function POST(req: Request) {
 
   const poPayload: any = {
     org_id: orgId,
-    po_date: safeDateOrNull(po_date),
-    vendor_id: vendor_id || null,
-    vendor_name: asText(vendor_name),
-    vendor_phone: asText(vendor_phone) || null,
-    vendor_address: asText(vendor_address) || null,
-
-    warehouse_id: warehouse_id || null,
-    ship_to_name: asText(ship_to_name) || null,
-    ship_to_phone: asText(ship_to_phone) || null,
-    ship_to_address: asText(ship_to_address) || null,
-
-    note: asText(note) || null,
+    po_date,
+    vendor_id,
+    vendor_name,
+    vendor_phone: vendor_phone || null,
+    vendor_address: vendor_address || null,
+    warehouse_id,
+    ship_to_name: ship_to_name || null,
+    ship_to_phone: ship_to_phone || null,
+    ship_to_address: ship_to_address || null,
+    note: note || null,
     subtotal,
     status: "draft",
     created_by: user.id,
@@ -300,9 +256,9 @@ export async function POST(req: Request) {
       po_id: po.id,
       po_number: po.po_number ?? null,
       vendor_id: vendor_id || null,
-      vendor_name: asText(vendor_name),
-      warehouse_id: warehouse_id || null,
-      ship_to_name: asText(ship_to_name) || null,
+      vendor_name,
+      warehouse_id,
+      ship_to_name: ship_to_name || null,
       subtotal,
       items_count: payloadItems.length,
       status: po.status || "draft",

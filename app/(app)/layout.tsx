@@ -7,6 +7,7 @@ import Navbar from "@/app/components/navbar";
 import SubscriptionBanner from "@/app/components/subscription-banner";
 import AppShell from "@/app/components/app-shell";
 import FeedbackWidget from "@/app/components/feedback/feedback-widget";
+import AppToaster from "@/app/components/app-toaster";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Navbar />
       <AppShell>{children}</AppShell>
       <FeedbackWidget />
+      <AppToaster />
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
 import { computeInvoiceSaveTotals } from "@/lib/invoice-totals";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { recordInvoicePaymentBodySchema } from "@/lib/validations/payment";
 
 function json(data: any, status = 200) {
   return NextResponse.json(data, { status });
@@ -113,15 +115,9 @@ export async function POST(
   const { data: userRes, error: userErr } = await supabase.auth.getUser();
   if (userErr || !userRes?.user) return json({ error: "Unauthorized" }, 401);
 
-  const body = await req.json().catch(() => null);
-  if (!body) return json({ error: "Invalid JSON" }, 400);
-
-  const paid_at = String(body.paid_at || "").slice(0, 10);
-  const amount = Math.floor(Math.max(0, num(body.amount)));
-  const note = String(body.note || "").trim();
-
-  if (!paid_at) return json({ error: "paid_at wajib diisi" }, 400);
-  if (!amount || amount <= 0) return json({ error: "amount harus > 0" }, 400);
+  const parsedBody = await parseJsonBody(req, recordInvoicePaymentBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { paid_at, amount, note } = parsedBody.data;
 
   const { data: invoice, error: invErr } = await supabase
     .from("invoices")

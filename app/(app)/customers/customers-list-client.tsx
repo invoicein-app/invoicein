@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import ListPageLayout from "../components/list-page-layout";
@@ -15,6 +15,8 @@ import {
 import FormSubmitButton from "../components/form-submit-button";
 import { useSubmitGuard } from "../components/use-submit-guard";
 import CustomersImportPanel from "./customers-import-panel";
+import { toastError, toastSuccess } from "@/lib/app-toast";
+import { buildListPageQuery } from "@/lib/list-pagination";
 
 export type CustomerRow = {
   id: string;
@@ -32,18 +34,29 @@ type CustomerForm = {
 
 type Props = {
   orgId: string;
-  initialCustomers: CustomerRow[];
+  customers: CustomerRow[];
+  page: number;
+  pageSize: number;
+  totalRows: number;
+  totalPages: number;
+  searchQuery: string;
+  baseQuery: string;
 };
 
-export default function CustomersListClient({ orgId, initialCustomers }: Props) {
+export default function CustomersListClient({
+  orgId,
+  customers,
+  page,
+  pageSize,
+  totalRows,
+  totalPages,
+  searchQuery,
+  baseQuery,
+}: Props) {
   const router = useRouter();
   const supabase = supabaseBrowser();
 
-  const [customers, setCustomers] = useState<CustomerRow[]>(initialCustomers);
   const [msg, setMsg] = useState("");
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
   const [refreshing, setRefreshing] = useState(false);
 
   const [importOpen, setImportOpen] = useState(false);
@@ -54,35 +67,21 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
   const [saving, setSaving] = useState(false);
   const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
 
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return customers;
-    return customers.filter((c) => {
-      const a = `${c.name || ""} ${c.phone || ""} ${c.address || ""}`.toLowerCase();
-      return a.includes(term);
-    });
-  }, [customers, q]);
+  const fromIdx = totalRows === 0 ? 0 : (page - 1) * pageSize;
+  const toIdx = Math.min(fromIdx + pageSize - 1, Math.max(0, totalRows - 1));
 
-  const totalRows = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-  const fromIdx = (page - 1) * pageSize;
-  const toIdx = fromIdx + pageSize - 1;
-  const paginated = useMemo(
-    () => filtered.slice(fromIdx, fromIdx + pageSize),
-    [filtered, fromIdx, pageSize]
-  );
+  function pushQuery(patch: Record<string, string>) {
+    const qs = buildListPageQuery(
+      Object.fromEntries(new URLSearchParams(baseQuery).entries()),
+      patch
+    );
+    router.push(qs ? `/customers?${qs}` : "/customers");
+  }
 
   async function refreshList() {
     setRefreshing(true);
     try {
       router.refresh();
-      const { data } = await supabase
-        .from("customers")
-        .select("id,name,phone,address,created_at")
-        .eq("org_id", orgId)
-        .order("created_at", { ascending: false })
-        .limit(500);
-      setCustomers((data as CustomerRow[]) || []);
     } finally {
       setRefreshing(false);
     }
@@ -105,7 +104,12 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
   async function saveCustomer() {
     if (isBlocked()) return;
     setMsg("");
-    if (!form.name.trim()) return setMsg("Nama customer wajib diisi.");
+    if (!form.name.trim()) {
+      const m = "Nama customer wajib diisi.";
+      setMsg(m);
+      toastError(m);
+      return;
+    }
     if (!tryBegin()) return;
     try {
       if (mode === "create") {
@@ -115,7 +119,12 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
           phone: form.phone.trim(),
           address: form.address.trim(),
         });
-        if (error) return setMsg(error.message);
+        if (error) {
+          setMsg(error.message);
+          toastError(error.message);
+          return;
+        }
+        toastSuccess("Customer berhasil ditambahkan.");
       } else {
         const { error } = await supabase
           .from("customers")
@@ -125,7 +134,12 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
             address: form.address.trim(),
           })
           .eq("id", editingId);
-        if (error) return setMsg(error.message);
+        if (error) {
+          setMsg(error.message);
+          toastError(error.message);
+          return;
+        }
+        toastSuccess("Customer berhasil diperbarui.");
       }
       setSheetOpen(false);
       await refreshList();
@@ -138,34 +152,30 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
     setMsg("");
     if (!confirm("Hapus customer ini?")) return;
     const { error } = await supabase.from("customers").delete().eq("id", id);
-    if (error) return setMsg(error.message);
+    if (error) {
+      setMsg(error.message);
+      toastError(error.message);
+      return;
+    }
+    toastSuccess("Customer berhasil dihapus.");
     await refreshList();
   }
 
-  const clientPagination = useMemo(
-    () => ({
-      onFirst: () => setPage(1),
-      onPrev: () => setPage((p) => Math.max(1, p - 1)),
-      onNext: () => setPage((p) => Math.min(totalPages, p + 1)),
-      onLast: () => setPage(totalPages),
-    }),
-    [totalPages]
-  );
+  const clientPagination = {
+    onFirst: () => pushQuery({ p: "1" }),
+    onPrev: () => pushQuery({ p: String(Math.max(1, page - 1)) }),
+    onNext: () => pushQuery({ p: String(Math.min(totalPages, page + 1)) }),
+    onLast: () => pushQuery({ p: String(totalPages) }),
+  };
 
   const filters = (
     <ListFiltersClient
       searchPlaceholder="Cari nama / telp / alamat..."
-      searchValue={q}
-      onSearchChange={setQ}
-      onReset={() => {
-        setQ("");
-        setPage(1);
-      }}
+      searchValue={searchQuery}
+      onSearchChange={(v) => pushQuery({ q: v.trim(), p: "1" })}
+      onReset={() => pushQuery({ q: "", p: "1" })}
       perPage={pageSize}
-      onPerPageChange={(v) => {
-        setPageSize(v);
-        setPage(1);
-      }}
+      onPerPageChange={(v) => pushQuery({ ps: String(v), p: "1" })}
       perPageOptions={[10, 20, 30, 50]}
       hidePerPage
     >
@@ -198,10 +208,10 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
                 Memperbarui…
               </td>
             </tr>
-          ) : paginated.length === 0 ? (
+          ) : customers.length === 0 ? (
             <TableEmptyState colSpan={3} message="Belum ada customer." />
           ) : (
-            paginated.map((c) => (
+            customers.map((c) => (
               <tr key={c.id}>
                 <td className={ul.tdTop}>
                   <span className={ul.primaryText}>{c.name}</span>
@@ -244,10 +254,7 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
         clientPagination={clientPagination}
         tableContent={tableContent}
         listCardTitle="Master Data Customer"
-        onPageSizeChange={(v) => {
-          setPageSize(v);
-          setPage(1);
-        }}
+        onPageSizeChange={(v) => pushQuery({ ps: String(v), p: "1" })}
       />
 
       {msg ? (

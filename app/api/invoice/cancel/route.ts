@@ -5,11 +5,9 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { cancelInvoiceBodySchema } from "@/lib/validations/invoice";
 
-function isUuid(v: any) {
-  const s = String(v || "").trim();
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
-}
 function num(v: any) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -42,15 +40,9 @@ export async function POST(req: Request) {
   }
   const user = userRes.user;
 
-  const body = await req.json().catch(() => null);
-  if (!body) {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const invoiceId = String(body.invoice_id || "").trim();
-  if (!isUuid(invoiceId)) {
-    return NextResponse.json({ error: "Invalid invoice id" }, { status: 400 });
-  }
+  const parsedBody = await parseJsonBody(req, cancelInvoiceBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { invoice_id: invoiceId } = parsedBody.data;
 
   const { data: mem, error: memErr } = await supabase
     .from("memberships")

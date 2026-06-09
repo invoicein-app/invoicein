@@ -102,9 +102,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   if (po.org_id) {
     const { data: setRow } = await admin
-      // TODO: ganti ini sesuai tabel settings kamu:
       .from("po_settings")
-      // TODO: ganti field sesuai yang kamu bikin:
       .select("show_warehouse_name")
       .eq("organization_id", po.org_id)
       .maybeSingle();

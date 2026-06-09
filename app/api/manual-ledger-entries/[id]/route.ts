@@ -6,11 +6,12 @@ import { requireCanWrite } from "@/lib/subscription";
 import {
   calcRemaining,
   deriveManualLedgerStatus,
-  isPartySourceType,
   labelManualLedgerStatus,
   toYmd,
   type PartySourceType,
 } from "@/lib/manual-ledger";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { updateManualLedgerBodySchema } from "@/lib/validations/manual-ledger";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -45,8 +46,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const subBlock = await requireCanWrite(supabase, orgId);
   if (subBlock) return subBlock;
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, updateManualLedgerBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const { data: before, error: beforeErr } = await supabase
     .from("manual_ledger_entries")
@@ -58,40 +60,23 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (!before) return NextResponse.json({ error: "Data tidak ditemukan." }, { status: 404 });
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (body.entry_date !== undefined) {
-    const d = normalizeDateOrNull(body.entry_date);
-    if (!d) return NextResponse.json({ error: "Tanggal wajib diisi." }, { status: 400 });
-    patch.entry_date = d;
-  }
-  if (body.description !== undefined) {
-    const d = asText(body.description);
-    if (!d) return NextResponse.json({ error: "Deskripsi wajib diisi." }, { status: 400 });
-    patch.description = d;
-  }
-  if (body.total_amount !== undefined) {
-    const t = Math.max(0, num(body.total_amount));
-    if (t <= 0) return NextResponse.json({ error: "Nominal total harus > 0." }, { status: 400 });
-    patch.total_amount = t;
-  }
-  if (body.paid_amount !== undefined) {
-    patch.paid_amount = Math.max(0, num(body.paid_amount));
-  }
-  if (body.due_date !== undefined) patch.due_date = normalizeDateOrNull(body.due_date);
-  if (body.notes !== undefined) patch.notes = asText(body.notes) || null;
+  if (body.entry_date !== undefined) patch.entry_date = body.entry_date;
+  if (body.description !== undefined) patch.description = body.description;
+  if (body.total_amount !== undefined) patch.total_amount = body.total_amount;
+  if (body.paid_amount !== undefined) patch.paid_amount = body.paid_amount;
+  if (body.due_date !== undefined) patch.due_date = body.due_date;
+  if (body.notes !== undefined) patch.notes = body.notes ? String(body.notes).trim() || null : null;
 
   let nextPartySourceType = (patch.party_source_type ?? before.party_source_type) as PartySourceType;
   if (body.party_source_type !== undefined) {
-    const x = asText(body.party_source_type);
-    if (!isPartySourceType(x)) {
-      return NextResponse.json({ error: "Sumber pihak tidak valid." }, { status: 400 });
-    }
-    nextPartySourceType = x;
-    patch.party_source_type = x;
+    nextPartySourceType = body.party_source_type;
+    patch.party_source_type = body.party_source_type;
   }
 
-  const nextCustomerId = body.customer_id !== undefined ? asText(body.customer_id) || null : before.customer_id;
-  const nextVendorId = body.vendor_id !== undefined ? asText(body.vendor_id) || null : before.vendor_id;
-  let nextPartyName = body.party_name !== undefined ? asText(body.party_name) : String(before.party_name || "");
+  const nextCustomerId = body.customer_id !== undefined ? body.customer_id ?? null : before.customer_id;
+  const nextVendorId = body.vendor_id !== undefined ? body.vendor_id ?? null : before.vendor_id;
+  let nextPartyName =
+    body.party_name !== undefined ? String(body.party_name).trim() : String(before.party_name || "");
 
   if (nextPartySourceType === "customer") {
     if (!nextCustomerId) return NextResponse.json({ error: "Customer wajib dipilih." }, { status: 400 });

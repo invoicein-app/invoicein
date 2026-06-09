@@ -6,6 +6,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { updateInvoicePaymentBodySchema } from "@/lib/validations/payment";
 
 async function sb() {
   const cookieStore = await cookies(); // ✅ await
@@ -40,11 +42,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => ({}));
-  const amount = body?.amount !== undefined ? Number(body.amount) : undefined;
-  const paid_at = body?.paid_at !== undefined ? String(body.paid_at) : undefined;
-  const note =
-    body?.note !== undefined ? (body.note ? String(body.note) : null) : undefined;
+  const parsedBody = await parseJsonBody(req, updateInvoicePaymentBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const { data: payRow } = await supabase
     .from("invoice_payments")
@@ -65,30 +65,10 @@ export async function PATCH(
     }
   }
 
-  const patch: any = {};
-
-  if (amount !== undefined) {
-    if (!Number.isFinite(amount) || amount < 0) {
-      return NextResponse.json({ error: "amount invalid." }, { status: 400 });
-    }
-    patch.amount = amount;
-  }
-
-  if (paid_at !== undefined) {
-    if (!paid_at) {
-      return NextResponse.json({ error: "paid_at tidak boleh kosong." }, { status: 400 });
-    }
-    patch.paid_at = paid_at;
-  }
-
-  if (note !== undefined) patch.note = note;
-
-  if (Object.keys(patch).length === 0) {
-    return NextResponse.json(
-      { error: "Tidak ada field untuk diupdate." },
-      { status: 400 }
-    );
-  }
+  const patch: Record<string, unknown> = {};
+  if (body.amount !== undefined) patch.amount = body.amount;
+  if (body.paid_at !== undefined) patch.paid_at = body.paid_at;
+  if (body.note !== undefined) patch.note = body.note;
 
   const { error } = await supabase.from("invoice_payments").update(patch).eq("id", paymentId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

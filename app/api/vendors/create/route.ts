@@ -7,10 +7,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
-
-function safeStr(v: any) {
-  return String(v ?? "").trim();
-}
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createVendorBodySchema } from "@/lib/validations/vendor";
 
 export async function POST(req: Request) {
   const csAny: any = cookies() as any;
@@ -61,21 +59,19 @@ export async function POST(req: Request) {
   if (subBlock) return subBlock;
 
   // body
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-
-  const name = safeStr(body?.name);
-  if (!name) return NextResponse.json({ error: "Vendor name wajib diisi." }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, createVendorBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const payload = {
     org_id: orgId,
-    vendor_code: safeStr(body?.vendor_code) || null, // ✅ optional, kalau kosong trigger isi otomatis
-    name,
-    phone: safeStr(body?.phone) || null,
-    email: safeStr(body?.email) || null,
-    address: safeStr(body?.address) || null,
-    note: safeStr(body?.note) || null,
-    is_active: body?.is_active === false ? false : true,
+    vendor_code: body.vendor_code,
+    name: body.name,
+    phone: body.phone,
+    email: body.email,
+    address: body.address,
+    note: body.note,
+    is_active: body.is_active,
     created_by: user.id,
   };
 

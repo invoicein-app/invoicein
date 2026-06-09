@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createDeliveryNoteFromInvoiceBodySchema } from "@/lib/validations/delivery-note";
 
 type CookieToSet = { name: string; value: string; options: any };
 
@@ -15,13 +17,9 @@ export async function POST(req: NextRequest) {
   const cookieJar: CookieToSet[] = [];
 
   try {
-    const { invoiceId } = (await req.json().catch(() => ({}))) as {
-      invoiceId?: string;
-    };
-
-    if (!invoiceId) {
-      return NextResponse.json({ error: "invoiceId wajib" }, { status: 400 });
-    }
+    const parsedBody = await parseJsonBody(req, createDeliveryNoteFromInvoiceBodySchema);
+    if (!parsedBody.ok) return parsedBody.response;
+    const { invoiceId } = parsedBody.data;
 
     const supabaseUser = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

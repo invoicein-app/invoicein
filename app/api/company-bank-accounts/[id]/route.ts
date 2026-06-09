@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthAndOrg, getSupabaseFromCookies } from "@/lib/api-auth-org";
 import { requireCanWrite } from "@/lib/subscription";
 import { clearOtherDefaultBankAccounts } from "@/lib/company-bank-accounts";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { updateBankAccountBodySchema } from "@/lib/validations/company-bank-account";
 
 function asText(v: unknown) {
   return String(v ?? "").trim();
@@ -36,17 +38,23 @@ export async function PATCH(
   if (findErr) return NextResponse.json({ error: findErr.message }, { status: 400 });
   if (!existing) return NextResponse.json({ error: "Rekening tidak ditemukan." }, { status: 404 });
 
-  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  const parsedBody = await parseJsonBody(req, updateBankAccountBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
+
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (body.bank_name !== undefined) patch.bank_name = body.bank_name;
+  if (body.account_number !== undefined) patch.account_number = body.account_number;
+  if (body.account_holder_name !== undefined) patch.account_holder_name = body.account_holder_name;
+  if (body.branch !== undefined) patch.branch = body.branch;
+  if (body.is_active !== undefined) patch.is_active = body.is_active;
+  if (body.is_default !== undefined) patch.is_default = body.is_default;
 
-  if (body.bank_name != null) patch.bank_name = asText(body.bank_name);
-  if (body.account_number != null) patch.account_number = asText(body.account_number);
-  if (body.account_holder_name != null) patch.account_holder_name = asText(body.account_holder_name);
-  if (body.branch != null) patch.branch = asText(body.branch) || null;
-  if (typeof body.is_active === "boolean") patch.is_active = body.is_active;
-  if (typeof body.is_default === "boolean") patch.is_default = body.is_default;
-
-  if (!asText(patch.bank_name ?? existing.bank_name) || !asText(patch.account_number ?? existing.account_number) || !asText(patch.account_holder_name ?? existing.account_holder_name)) {
+  if (
+    !asText(patch.bank_name ?? existing.bank_name) ||
+    !asText(patch.account_number ?? existing.account_number) ||
+    !asText(patch.account_holder_name ?? existing.account_holder_name)
+  ) {
     return NextResponse.json(
       { error: "Nama bank, nomor rekening, dan atas nama wajib diisi." },
       { status: 400 }

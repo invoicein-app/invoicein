@@ -7,10 +7,8 @@ import {
   clearOtherDefaultBankAccounts,
   listCompanyBankAccounts,
 } from "@/lib/company-bank-accounts";
-
-function asText(v: unknown) {
-  return String(v ?? "").trim();
-}
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createBankAccountBodySchema } from "@/lib/validations/company-bank-account";
 
 export async function GET(req: NextRequest) {
   const supabase = await getSupabaseFromCookies();
@@ -39,33 +37,21 @@ export async function POST(req: NextRequest) {
   const subBlock = await requireCanWrite(supabase, auth.orgId);
   if (subBlock) return subBlock;
 
-  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-
-  const bank_name = asText(body.bank_name);
-  const account_number = asText(body.account_number);
-  const account_holder_name = asText(body.account_holder_name);
-  const branch = asText(body.branch) || null;
-  const is_active = body.is_active !== false;
-  const is_default = Boolean(body.is_default);
-
-  if (!bank_name || !account_number || !account_holder_name) {
-    return NextResponse.json(
-      { error: "Nama bank, nomor rekening, dan atas nama wajib diisi." },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseJsonBody(req, createBankAccountBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const now = new Date().toISOString();
   const { data: created, error } = await supabase
     .from("company_bank_accounts")
     .insert({
       org_id: auth.orgId,
-      bank_name,
-      account_number,
-      account_holder_name,
-      branch,
-      is_active,
-      is_default,
+      bank_name: body.bank_name,
+      account_number: body.account_number,
+      account_holder_name: body.account_holder_name,
+      branch: body.branch,
+      is_active: body.is_active,
+      is_default: body.is_default,
       updated_at: now,
     })
     .select("*")
@@ -75,9 +61,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  if (is_default && created?.id) {
+  if (body.is_default && created?.id) {
     await clearOtherDefaultBankAccounts(supabase, auth.orgId, String(created.id));
-  } else if (!is_default) {
+  } else if (!body.is_default) {
     const { count } = await supabase
       .from("company_bank_accounts")
       .select("id", { count: "exact", head: true })

@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { receivePurchaseOrderBodySchema } from "@/lib/validations/purchase-order";
 
 function num(v: any) {
   const n = Number(v);
@@ -13,13 +15,6 @@ function num(v: any) {
 function isUuid(v: any) {
   const s = String(v || "").trim();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
-}
-
-function safeDateOrNull(v: any) {
-  const s = String(v || "").trim();
-  if (!s) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  return null;
 }
 
 function canReceiveStatus(status: string) {
@@ -71,31 +66,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   const user = userRes.user;
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, receivePurchaseOrderBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { warehouse_id, sj_no, received_date, notes, lines } = parsedBody.data;
 
-  const { warehouse_id, sj_no, received_date, notes, lines } = body as any;
-
-  if (!isUuid(warehouse_id)) {
-    return NextResponse.json({ error: "warehouse_id wajib UUID" }, { status: 400 });
-  }
-  if (!Array.isArray(lines) || lines.length === 0) {
-    return NextResponse.json({ error: "Lines kosong" }, { status: 400 });
-  }
-
-  const normLines = (lines as any[])
-    .map((x) => ({
-      po_item_id: String(x?.po_item_id || "").trim(),
-      item_name: String(x?.item_name || "").trim(),
-      qty_received: Math.max(0, Math.floor(num(x?.qty_received))),
-      production_date: safeDateOrNull(x?.production_date),
-      expired_date: safeDateOrNull(x?.expired_date),
-    }))
-    .filter((x) => isUuid(x.po_item_id) && x.qty_received > 0);
-
-  if (normLines.length === 0) {
-    return NextResponse.json({ error: "Minimal 1 item qty_received > 0" }, { status: 400 });
-  }
+  const normLines = lines.map((x) => ({
+    po_item_id: x.po_item_id,
+    item_name: x.item_name,
+    qty_received: x.qty_received,
+    production_date: x.production_date,
+    expired_date: x.expired_date,
+  }));
 
   const { data: mem, error: memErr } = await supabase
     .from("memberships")
@@ -238,7 +219,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       warehouse_id,
       sj_no: sj_no ? String(sj_no).trim() : null,
       received_by: user.id,
-      received_date: safeDateOrNull(received_date) || null,
+      received_date: received_date || null,
       notes: notes ? String(notes).trim() : null,
     })
     .select("id")

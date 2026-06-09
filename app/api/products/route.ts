@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { logActivity } from "@/lib/log-activity";
 import { requireCanWrite } from "@/lib/subscription";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createProductBodySchema, updateProductBodySchema } from "@/lib/validations/product";
 
 function num(v: any) {
   const n = Number(v);
@@ -123,20 +125,9 @@ export async function POST(req: NextRequest) {
   const subBlock = await requireCanWrite(supabase, orgId);
   if (subBlock) return subBlock;
 
-  const body = await req.json().catch(() => null);
-  if (!body) {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const name = asText(body.name);
-  const sku = asText(body.sku) || null;
-  const unit = asText(body.unit) || null;
-  const price = Math.max(0, num(body.price));
-  const is_active = body.is_active === false ? false : true;
-
-  if (!name) {
-    return NextResponse.json({ error: "Nama barang wajib." }, { status: 400 });
-  }
+  const parsedBody = await parseJsonBody(req, createProductBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { name, sku, unit, price, is_active } = parsedBody.data;
 
   const { data: row, error } = await supabase
     .from("products")
@@ -181,15 +172,9 @@ export async function PATCH(req: NextRequest) {
   const subBlock = await requireCanWrite(supabase, orgId);
   if (subBlock) return subBlock;
 
-  const body = await req.json().catch(() => null);
-  if (!body) {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const id = asText(body.id);
-  if (!id) {
-    return NextResponse.json({ error: "Missing id" }, { status: 400 });
-  }
+  const parsedBody = await parseJsonBody(req, updateProductBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { id, ...fields } = parsedBody.data;
 
   const { data: before, error: beforeErr } = await supabase
     .from("products")
@@ -209,17 +194,12 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  const patch: any = {};
-
-  if (body.name !== undefined) patch.name = asText(body.name);
-  if (body.sku !== undefined) patch.sku = asText(body.sku) || null;
-  if (body.unit !== undefined) patch.unit = asText(body.unit) || null;
-  if (body.price !== undefined) patch.price = Math.max(0, num(body.price));
-  if (body.is_active !== undefined) patch.is_active = body.is_active === false ? false : true;
-
-  if (patch.name !== undefined && !patch.name) {
-    return NextResponse.json({ error: "Nama barang wajib." }, { status: 400 });
-  }
+  const patch: Record<string, unknown> = {};
+  if (fields.name !== undefined) patch.name = fields.name;
+  if (fields.sku !== undefined) patch.sku = fields.sku;
+  if (fields.unit !== undefined) patch.unit = fields.unit;
+  if (fields.price !== undefined) patch.price = fields.price;
+  if (fields.is_active !== undefined) patch.is_active = fields.is_active;
 
   const { data: row, error } = await supabase
     .from("products")

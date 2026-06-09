@@ -77,14 +77,10 @@ function formatDocumentNumber(args: {
     : `${args.prefix}-${fullDate}-${padded}`;
 }
 
-/** Reserve the next sequence and return formatted document number + metadata for rollback. */
-export async function allocateDocumentNumber(params: {
-  orgId: string;
-  docType: DocumentType;
-  documentDate: string;
-}): Promise<DocumentNumberAllocation> {
-  const admin = createNumberingAdminClient();
-
+async function resolveNumberingConfig(
+  admin: ReturnType<typeof createNumberingAdminClient>,
+  params: { orgId: string; docType: DocumentType; documentDate: string }
+) {
   const { data: org, error: orgErr } = await admin
     .from("organizations")
     .select("public_document_code, invoice_prefix, po_prefix, quotation_prefix")
@@ -107,6 +103,50 @@ export async function allocateDocumentNumber(params: {
         : (org as any).quotation_prefix;
 
   const prefix = normalizePrefix(rawPrefix, DEFAULT_PREFIX[params.docType]);
+
+  return { prefix, publicCode, periodKey, normalizedDate };
+}
+
+/** Preview the next document number without incrementing the counter. */
+export async function peekDocumentNumber(params: {
+  orgId: string;
+  docType: DocumentType;
+  documentDate: string;
+}): Promise<string> {
+  const admin = createNumberingAdminClient();
+  const { prefix, publicCode, periodKey, normalizedDate } = await resolveNumberingConfig(admin, params);
+
+  const { data: counter, error: counterErr } = await admin
+    .from("document_counters")
+    .select("last_number")
+    .eq("org_id", params.orgId)
+    .eq("doc_type", params.docType)
+    .eq("period_key", periodKey)
+    .maybeSingle();
+
+  if (counterErr) {
+    throw new Error(counterErr.message || "Failed to read document counter.");
+  }
+
+  const lastNumber = Number((counter as { last_number?: number } | null)?.last_number ?? 0);
+  const sequence = Math.max(1, (Number.isFinite(lastNumber) ? lastNumber : 0) + 1);
+
+  return formatDocumentNumber({
+    prefix,
+    publicCode,
+    documentDate: normalizedDate,
+    sequence,
+  });
+}
+
+/** Reserve the next sequence and return formatted document number + metadata for rollback. */
+export async function allocateDocumentNumber(params: {
+  orgId: string;
+  docType: DocumentType;
+  documentDate: string;
+}): Promise<DocumentNumberAllocation> {
+  const admin = createNumberingAdminClient();
+  const { prefix, publicCode, periodKey, normalizedDate } = await resolveNumberingConfig(admin, params);
 
   const { data: seq, error: seqErr } = await admin.rpc("next_document_sequence", {
     p_org_id: params.orgId,

@@ -7,12 +7,13 @@ import {
   calcRemaining,
   deriveManualLedgerStatus,
   isManualEntryType,
-  isPartySourceType,
   labelManualLedgerStatus,
   toYmd,
   type ManualEntryType,
   type PartySourceType,
 } from "@/lib/manual-ledger";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { createManualLedgerBodySchema } from "@/lib/validations/manual-ledger";
 
 type ManualLedgerRow = {
   id: string;
@@ -120,33 +121,21 @@ export async function POST(req: NextRequest) {
   const subBlock = await requireCanWrite(supabase, orgId);
   if (subBlock) return subBlock;
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-
-  const entry_type = asText(body.entry_type);
-  const party_source_type = asText(body.party_source_type || "other");
-  const entry_date = normalizeDateOrNull(body.entry_date);
-  const due_date = normalizeDateOrNull(body.due_date);
-  const description = asText(body.description);
-  const total_amount = Math.max(0, num(body.total_amount));
-  const paid_amount = Math.max(0, num(body.paid_amount));
-  const notes = asText(body.notes) || null;
-  const customer_id = asText(body.customer_id) || null;
-  const vendor_id = asText(body.vendor_id) || null;
-  let party_name = asText(body.party_name);
-
-  if (!isManualEntryType(entry_type)) {
-    return NextResponse.json({ error: "Jenis entri tidak valid." }, { status: 400 });
-  }
-  if (!isPartySourceType(party_source_type)) {
-    return NextResponse.json({ error: "Sumber pihak tidak valid." }, { status: 400 });
-  }
-  if (!entry_date) return NextResponse.json({ error: "Tanggal wajib diisi." }, { status: 400 });
-  if (!description) return NextResponse.json({ error: "Deskripsi wajib diisi." }, { status: 400 });
-  if (total_amount <= 0) return NextResponse.json({ error: "Nominal total harus > 0." }, { status: 400 });
-  if (paid_amount > total_amount) {
-    return NextResponse.json({ error: "Jumlah dibayar tidak boleh melebihi total." }, { status: 400 });
-  }
+  const parsedBody = await parseJsonBody(req, createManualLedgerBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const {
+    entry_type,
+    party_source_type,
+    entry_date,
+    due_date,
+    description,
+    total_amount,
+    paid_amount,
+    notes,
+    customer_id,
+    vendor_id,
+  } = parsedBody.data;
+  let party_name = String(parsedBody.data.party_name ?? "").trim();
 
   if (party_source_type === "customer") {
     if (!customer_id) return NextResponse.json({ error: "Customer wajib dipilih." }, { status: 400 });

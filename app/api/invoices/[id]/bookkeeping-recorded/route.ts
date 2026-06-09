@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getAppOrg } from "@/lib/auth/get-app-org";
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { invoiceBookkeepingBodySchema } from "@/lib/validations/invoice";
 
 export async function PATCH(
   req: NextRequest,
@@ -22,16 +24,9 @@ export async function PATCH(
     );
   }
 
-  const body = (await req.json().catch(() => ({}))) as {
-    bookkeeping_recorded?: boolean;
-  };
-
-  if (typeof body.bookkeeping_recorded !== "boolean") {
-    return NextResponse.json(
-      { error: "bookkeeping_recorded (boolean) wajib" },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseJsonBody(req, invoiceBookkeepingBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { bookkeeping_recorded } = parsedBody.data;
 
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,7 +52,7 @@ export async function PATCH(
 
   const { data: updated, error: upErr } = await admin
     .from("invoices")
-    .update({ bookkeeping_recorded: body.bookkeeping_recorded })
+    .update({ bookkeeping_recorded })
     .eq("id", invoiceId)
     .eq("org_id", org.orgId)
     .select("id, bookkeeping_recorded")

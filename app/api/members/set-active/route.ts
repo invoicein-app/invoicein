@@ -5,11 +5,8 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireCanWrite } from "@/lib/subscription";
-
-type Body = {
-  memberId?: string;      // id row memberships
-  isActive?: boolean;     // true/false
-};
+import { parseJsonBody } from "@/lib/validations/parse-request";
+import { setMemberActiveBodySchema } from "@/lib/validations/member";
 
 export async function POST(req: NextRequest) {
   const csAny: any = cookies() as any;
@@ -34,11 +31,9 @@ export async function POST(req: NextRequest) {
   const meUser = userRes.user;
   if (!meUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = (await req.json().catch(() => ({}))) as Body;
-  const memberId = String(body.memberId || "").trim();
-  const isActive = Boolean(body.isActive);
-
-  if (!memberId) return NextResponse.json({ error: "memberId wajib" }, { status: 400 });
+  const parsedBody = await parseJsonBody(req, setMemberActiveBodySchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const { memberId, isActive } = parsedBody.data;
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY belum di-set" }, { status: 500 });
   }
