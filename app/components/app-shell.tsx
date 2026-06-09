@@ -2,11 +2,21 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Sidebar from "@/app/components/sidebar";
+import { NavContentLoadingOverlay, NavProgressProvider, useNavProgressOptional } from "@/app/components/nav-progress-context";
 
 const STORAGE_KEY = "invoiceku-sidebar-collapsed";
 const MOBILE_MAX = 768;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <NavProgressProvider>
+      <AppShellInner>{children}</AppShellInner>
+    </NavProgressProvider>
+  );
+}
+
+function AppShellInner({ children }: { children: React.ReactNode }) {
+  const nav = useNavProgressOptional();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -88,7 +98,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             onCloseMobile={closeMobileNav}
           />
         </div>
-        <main className="app-shell-main">{children}</main>
+        <main className="app-shell-main">
+          <div
+            className={`app-shell-main__inner${nav?.isNavigating ? " app-shell-main__inner--loading" : ""}`}
+          >
+            {children}
+          </div>
+          {nav?.isNavigating ? <NavContentLoadingOverlay /> : null}
+        </main>
       </div>
     </>
   );

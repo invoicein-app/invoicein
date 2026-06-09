@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 
 const TEAL = "#2D7D71";
 const BORDER = "#e5e7eb";
@@ -45,6 +47,7 @@ export default function ProductForm({ variant, mode, initial, onCancel, onSucces
   const [isActive, setIsActive] = useState(true);
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
 
   useEffect(() => {
     setMsg("");
@@ -85,6 +88,7 @@ export default function ProductForm({ variant, mode, initial, onCancel, onSucces
   }
 
   async function submit() {
+    if (isBlocked()) return;
     setMsg("");
     const nm = asText(name);
     if (!nm) {
@@ -92,7 +96,7 @@ export default function ProductForm({ variant, mode, initial, onCancel, onSucces
       return;
     }
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       const payload: Record<string, unknown> = {
         name: nm,
@@ -122,7 +126,7 @@ export default function ProductForm({ variant, mode, initial, onCancel, onSucces
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : "Gagal simpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -178,8 +182,7 @@ export default function ProductForm({ variant, mode, initial, onCancel, onSucces
     </div>
   );
 
-  const primaryLabel =
-    mode === "edit" ? (saving ? "Menyimpan…" : "Simpan Perubahan") : saving ? "Menyimpan…" : "Tambah Barang Baru";
+  const submitLabel = mode === "edit" ? "Simpan Perubahan" : "Tambah Barang Baru";
 
   const footer =
     variant === "modal" ? (
@@ -201,23 +204,9 @@ export default function ProductForm({ variant, mode, initial, onCancel, onSucces
         >
           Batalkan
         </button>
-        <button
-          type="button"
-          onClick={submit}
-          disabled={saving}
-          style={{
-            padding: "14px 16px",
-            borderRadius: 8,
-            border: "none",
-            background: saving ? "#8fb3af" : TEAL,
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: saving ? "not-allowed" : "pointer",
-          }}
-        >
-          {primaryLabel}
-        </button>
+        <FormSubmitButton busy={saving} busyLabel="Menyimpan…" onClick={submit} style={{ padding: "14px 16px", borderRadius: 8, fontSize: 15 }}>
+          {submitLabel}
+        </FormSubmitButton>
       </div>
     ) : (
       <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 24, flexWrap: "wrap" }}>
@@ -238,23 +227,9 @@ export default function ProductForm({ variant, mode, initial, onCancel, onSucces
         >
           Kembali
         </button>
-        <button
-          type="button"
-          onClick={submit}
-          disabled={saving}
-          style={{
-            padding: "12px 22px",
-            borderRadius: 8,
-            border: "none",
-            background: saving ? "#8fb3af" : TEAL,
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: saving ? "not-allowed" : "pointer",
-          }}
-        >
-          {primaryLabel}
-        </button>
+        <FormSubmitButton busy={saving} busyLabel="Menyimpan…" onClick={submit} style={{ padding: "12px 22px", borderRadius: 8, fontSize: 15 }}>
+          {submitLabel}
+        </FormSubmitButton>
       </div>
     );
 

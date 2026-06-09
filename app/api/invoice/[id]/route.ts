@@ -13,6 +13,8 @@ import {
   normalizeInvoiceItemInput,
   validateInvoiceItems,
 } from "@/lib/invoice-items";
+import { deleteInvoiceSafely } from "@/lib/invoice-delete";
+import { resolveBankAccountIdForSave } from "@/lib/company-bank-accounts";
 
 type UpdateInvoiceBody = {
   header?: Record<string, any>;
@@ -85,13 +87,14 @@ function pickSafeHeader(raw: Record<string, any>) {
     discount_value: h.discount_value,
     tax_value: h.tax_value,
     warehouse_id: h.warehouse_id,
+    bank_account_id: h.bank_account_id,
   };
 
   for (const k of ["customer_phone", "customer_address", "note"] as const) {
     if (safe[k] == null || String(safe[k]).trim() === "") safe[k] = "";
   }
 
-  for (const k of ["due_date", "warehouse_id"] as const) {
+  for (const k of ["due_date", "warehouse_id", "bank_account_id"] as const) {
     if (safe[k] != null && String(safe[k]).trim() === "") safe[k] = null;
   }
 
@@ -247,6 +250,22 @@ export async function PATCH(
   }
 
   const safeItems = validated.items;
+
+  const headerHasBankAccountId = Object.prototype.hasOwnProperty.call(body.header || {}, "bank_account_id");
+  if (headerHasBankAccountId) {
+    const bankResolved = await resolveBankAccountIdForSave({
+      supabase,
+      orgId,
+      requestedId: safeHeader.bank_account_id,
+      explicitNull: safeHeader.bank_account_id === null,
+    });
+    if (!bankResolved.ok) {
+      return NextResponse.json({ error: bankResolved.error }, { status: 400 });
+    }
+    safeHeader.bank_account_id = bankResolved.bank_account_id;
+  } else {
+    safeHeader.bank_account_id = before.bank_account_id ?? null;
+  }
 
   const subtotal = safeItems.reduce(
     (a, it) => a + Math.max(0, num(it.qty)) * Math.max(0, num(it.price)),
@@ -422,38 +441,18 @@ export async function DELETE(
     return NextResponse.json({ error: "Invoice tidak ditemukan." }, { status: 404 });
   }
 
-  const currentStatus = String(before.status || "").toLowerCase();
-  if (currentStatus !== "draft") {
+  const deleted = await deleteInvoiceSafely({
+    supabase,
+    orgId,
+    invoice: before as Record<string, unknown>,
+    actorRole,
+  });
+
+  if (!deleted.ok) {
     return NextResponse.json(
-      { error: "Hanya invoice draft yang boleh dihapus." },
+      { error: deleted.error, assessment: deleted.assessment || null },
       { status: 400 }
     );
-  }
-
-  if (before.quotation_id) {
-    return NextResponse.json(
-      { error: "Invoice yang berasal dari quotation tidak boleh dihapus." },
-      { status: 400 }
-    );
-  }
-
-  const { error: delItemsErr } = await supabase
-    .from("invoice_items")
-    .delete()
-    .eq("invoice_id", id);
-
-  if (delItemsErr) {
-    return NextResponse.json({ error: delItemsErr.message }, { status: 400 });
-  }
-
-  const { error: delInvErr } = await supabase
-    .from("invoices")
-    .delete()
-    .eq("id", id)
-    .eq("org_id", orgId);
-
-  if (delInvErr) {
-    return NextResponse.json({ error: delInvErr.message }, { status: 400 });
   }
 
   await logActivity({

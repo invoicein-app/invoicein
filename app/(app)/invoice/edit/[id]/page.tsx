@@ -4,9 +4,9 @@ import { formPageClasses as fpc } from "../../../components/form-page-classes";
 import {
   formPageBackLink,
   formPageHeaderActions,
-  formPageSaveButton,
-  formPageSaveButtonDisabled,
 } from "../../../components/app-action-buttons";
+import FormSubmitButton from "../../../components/form-submit-button";
+import { useSubmitGuard } from "../../../components/use-submit-guard";
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -17,6 +17,7 @@ import {
   type ItemSuggestion,
   type ManualSuggestionSource,
 } from "@/lib/invoice-item-suggestions";
+import { formatBankAccountLabel, type CompanyBankAccount } from "@/lib/company-bank-accounts";
 
 type Product = {
   id: string;
@@ -77,8 +78,12 @@ export default function InvoiceEditPage() {
   const [loadingProd, setLoadingProd] = useState(true);
   const [loadingManualItems, setLoadingManualItems] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [msg, setMsg] = useState("");
   const [latestManualPriceMap, setLatestManualPriceMap] = useState<Record<string, number>>({});
+  const [bankAccounts, setBankAccounts] = useState<CompanyBankAccount[]>([]);
+  const [bankAccountId, setBankAccountId] = useState<string>("");
+  const [loadingBankAccounts, setLoadingBankAccounts] = useState(true);
 
   const currentStatus = String(inv?.status || "").toLowerCase();
   const amountPaid = Math.max(0, Number(inv?.amount_paid || 0));
@@ -116,6 +121,7 @@ export default function InvoiceEditPage() {
     invData.tax_value = Number(invData.tax_value ?? 0);
 
     setInv(invData);
+    setBankAccountId(String(invData.bank_account_id || ""));
     setItems(
       ((itemData || []) as any[]).map((row) => ({
         ...row,
@@ -154,6 +160,19 @@ export default function InvoiceEditPage() {
     }
   }
 
+  async function loadBankAccounts() {
+    setLoadingBankAccounts(true);
+    try {
+      const res = await fetch("/api/company-bank-accounts?active_only=1", { credentials: "include" });
+      const json = await res.json().catch(() => ({}));
+      setBankAccounts(res.ok ? ((json.items || []) as CompanyBankAccount[]) : []);
+    } catch {
+      setBankAccounts([]);
+    } finally {
+      setLoadingBankAccounts(false);
+    }
+  }
+
   async function loadInventorySetting() {
     const { data: userRes } = await supabase.auth.getUser();
     const user = userRes.user;
@@ -184,6 +203,7 @@ export default function InvoiceEditPage() {
     load();
     loadProducts();
     loadManualItems();
+    loadBankAccounts();
     loadInventorySetting();
   }, [id]);
 
@@ -344,6 +364,7 @@ export default function InvoiceEditPage() {
   }
 
   async function save() {
+    if (isBlocked()) return;
     setMsg("");
 
     if (!isEditable) {
@@ -354,7 +375,7 @@ export default function InvoiceEditPage() {
     if (items.length === 0) return setMsg("Minimal 1 item.");
     if (items.some((it) => !String(it.name || "").trim())) return setMsg("Nama item tidak boleh kosong.");
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch(`/api/invoice/${id}`, {
         method: "PATCH",
@@ -367,6 +388,7 @@ export default function InvoiceEditPage() {
             customer_phone: inv.customer_phone || "",
             customer_address: inv.customer_address || "",
             note: inv.note || "",
+            bank_account_id: bankAccountId || null,
             discount_value: Number(inv.discount_value ?? 0),
             tax_value: Number(inv.tax_value ?? 0),
             warehouse_id: inv.warehouse_id || null,
@@ -389,7 +411,7 @@ export default function InvoiceEditPage() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -502,6 +524,30 @@ export default function InvoiceEditPage() {
                 style={{ ...input(), minHeight: 80 }}
                 disabled={!isEditable}
               />
+            </label>
+
+            <label style={label()}>
+              Rekening Pembayaran
+              <select
+                value={bankAccountId}
+                onChange={(e) => setBankAccountId(e.target.value)}
+                style={input()}
+                disabled={!isEditable}
+              >
+                <option value="">Default perusahaan</option>
+                {bankAccounts.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {formatBankAccountLabel(b)}
+                  </option>
+                ))}
+              </select>
+              {loadingBankAccounts ? (
+                <small style={{ color: "#666" }}>Loading rekening...</small>
+              ) : (
+                <small style={{ color: "#666" }}>
+                  Rekening yang ditampilkan di PDF invoice.
+                </small>
+              )}
             </label>
 
             <label style={label()}>
@@ -711,14 +757,14 @@ export default function InvoiceEditPage() {
         {msg ? (
           <p style={{ color: "#b00", margin: "0 auto 0 0", alignSelf: "center", fontSize: 14 }}>{msg}</p>
         ) : null}
-        <button
-          type="button"
+        <FormSubmitButton
+          busy={saving}
+          busyLabel="Menyimpan..."
           onClick={save}
-          disabled={saving || !isEditable}
-          style={saving || !isEditable ? formPageSaveButtonDisabled() : formPageSaveButton()}
+          disabled={!isEditable}
         >
-          {saving ? "Menyimpan..." : "Simpan"}
-        </button>
+          Simpan
+        </FormSubmitButton>
       </div>
     </div>
   );

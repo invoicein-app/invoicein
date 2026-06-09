@@ -15,6 +15,7 @@ import {
   normalizeInvoiceItemInput,
   validateInvoiceItems,
 } from "@/lib/invoice-items";
+import { resolveBankAccountIdForSave } from "@/lib/company-bank-accounts";
 
 type Item = {
   product_id: string | null;
@@ -156,6 +157,7 @@ export async function POST(req: Request) {
     tax_value,
 
     warehouse_id,
+    bank_account_id,
     items,
   } = body as any;
 
@@ -226,6 +228,16 @@ export async function POST(req: Request) {
 
   const safeItems = validated.items;
 
+  const bankResolved = await resolveBankAccountIdForSave({
+    supabase,
+    orgId,
+    requestedId: bank_account_id,
+    explicitNull: bank_account_id === null,
+  });
+  if (!bankResolved.ok) {
+    return NextResponse.json({ error: bankResolved.error }, { status: 400 });
+  }
+
   const { subtotal, discountAmount, taxAmount, total } = computeTotals(
     safeItems,
     dt,
@@ -264,6 +276,7 @@ export async function POST(req: Request) {
     discount_value: dVal,
     tax_value: tPct,
     warehouse_id: inventoryEnabled ? warehouse_id || null : null,
+    bank_account_id: bankResolved.bank_account_id,
 
     subtotal,
     discount_amount: discountAmount,

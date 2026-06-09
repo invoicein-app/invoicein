@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 type FeedbackCategory = "bug" | "saran" | "pertanyaan" | "keluhan";
 type FeedbackStatus = "new" | "read" | "processed" | "done";
@@ -58,6 +60,7 @@ export default function AdminFeedbackClient() {
   const [statusDraft, setStatusDraft] = useState<FeedbackStatus>("read");
 
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -86,8 +89,9 @@ export default function AdminFeedbackClient() {
   }, [selected]);
 
   async function save() {
+    if (isBlocked()) return;
     if (!selected) return;
-    setSaving(true);
+    if (!tryBegin()) return;
     setToast(null);
     setError(null);
     try {
@@ -119,7 +123,7 @@ export default function AdminFeedbackClient() {
     } catch (e: any) {
       setError(e?.message || "Gagal menyimpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -280,22 +284,18 @@ export default function AdminFeedbackClient() {
               </div>
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
-                <button
+                <FormSubmitButton
                   type="button"
-                  disabled={saving}
                   onClick={save}
+                  busy={saving}
+                  busyLabel="Menyimpan..."
                   style={{
                     padding: "12px 14px",
                     borderRadius: 10,
-                    border: "1px solid #0f172a",
-                    background: saving ? "#9ca3af" : "#0f172a",
-                    color: "white",
-                    fontWeight: 900,
-                    cursor: saving ? "not-allowed" : "pointer",
                   }}
                 >
-                  {saving ? "Menyimpan..." : "Simpan perubahan"}
-                </button>
+                  Simpan perubahan
+                </FormSubmitButton>
               </div>
 
               {toast ? <div style={{ fontSize: 13, color: "#166534", fontWeight: 900 }}>{toast}</div> : null}

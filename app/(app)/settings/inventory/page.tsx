@@ -5,6 +5,8 @@
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 type Warehouse = {
   id: string;
@@ -35,6 +37,7 @@ export default function InventorySettingsPage() {
 
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [msg, setMsg] = useState("");
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
 
   useEffect(() => {
     let alive = true;
@@ -97,8 +100,8 @@ export default function InventorySettingsPage() {
 
   async function save() {
     if (!orgId) return;
-
-    setSaving(true);
+    if (isBlocked()) return;
+    if (!tryBegin()) return;
     setMsg("");
 
     try {
@@ -119,9 +122,9 @@ export default function InventorySettingsPage() {
       }
     } catch (e: any) {
       setMsg(e?.message || "Gagal menyimpan.");
+    } finally {
+      end();
     }
-
-    setSaving(false);
   }
 
   const card: React.CSSProperties = {
@@ -143,16 +146,6 @@ export default function InventorySettingsPage() {
     border: "1px solid #e5e7eb",
     width: "100%",
     marginTop: 6,
-  };
-
-  const btn: React.CSSProperties = {
-    padding: "10px 16px",
-    borderRadius: 10,
-    border: "1px solid #111",
-    background: "#111",
-    color: "white",
-    cursor: "pointer",
-    fontWeight: 700,
   };
 
   return (
@@ -281,9 +274,9 @@ export default function InventorySettingsPage() {
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <button style={btn} onClick={save} disabled={saving}>
-              {saving ? "Menyimpan..." : "Simpan Pengaturan"}
-            </button>
+            <FormSubmitButton type="button" onClick={save} busy={saving}>
+              Simpan Pengaturan
+            </FormSubmitButton>
 
             {msg && <div style={{ fontSize: 13, color: "#065f46" }}>{msg}</div>}
           </div>

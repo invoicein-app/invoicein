@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 import {
   formPrimaryButton,
   tableActionDanger,
@@ -43,6 +45,7 @@ export default function AdminBillingClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState(false);
+  const updateGuard = useSubmitGuard(setUpdating);
   const [updatePlan, setUpdatePlan] = useState("");
   const [updateExpiresAt, setUpdateExpiresAt] = useState("");
   const [confirmations, setConfirmations] = useState<Confirmation[]>([]);
@@ -172,9 +175,10 @@ export default function AdminBillingClient() {
   }
 
   async function saveUpdate() {
+    if (updateGuard.isBlocked()) return;
     if (!org) return;
     setError("");
-    setUpdating(true);
+    if (!updateGuard.tryBegin()) return;
     try {
       const body: Record<string, unknown> = {
         org_id: org.id,
@@ -200,7 +204,7 @@ export default function AdminBillingClient() {
         loadSubscriptionHistory(json.org.id);
       }
     } finally {
-      setUpdating(false);
+      updateGuard.end();
     }
   }
 
@@ -491,14 +495,14 @@ export default function AdminBillingClient() {
                   style={input}
                 />
               </div>
-              <button
+              <FormSubmitButton
                 type="button"
                 onClick={saveUpdate}
-                disabled={updating}
-                style={updating ? tableActionDisabled() : formPrimaryButton()}
+                busy={updating}
+                busyLabel="Menyimpan..."
               >
-                {updating ? "Menyimpan..." : "Simpan perubahan"}
-              </button>
+                Simpan perubahan
+              </FormSubmitButton>
             </div>
           </div>
         </>

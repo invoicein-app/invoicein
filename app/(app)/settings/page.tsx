@@ -109,9 +109,16 @@ export default function SettingsHome() {
       icon: "clipboard",
     },
     {
+      href: "/settings/bank-accounts",
+      title: "Rekening Pembayaran",
+      desc: "Kelola beberapa rekening bank perusahaan untuk ditampilkan di invoice.",
+      adminOnly: true,
+      icon: "briefcase",
+    },
+    {
       href: "/settings/organization",
       title: "Pengaturan Usaha",
-      desc: "Logo, Alamat, Telp, Email, Rekening, Footer Invoice",
+      desc: "Logo, Alamat, Telp, Email, Footer Invoice",
       icon: "briefcase",
     },
     {

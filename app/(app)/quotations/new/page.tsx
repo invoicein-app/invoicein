@@ -8,9 +8,9 @@ import { num, rupiah } from "@/lib/money";
 import {
   formPageBackLink,
   formPageHeaderActions,
-  formPageSaveButton,
-  formPageSaveButtonDisabled,
 } from "../../components/app-action-buttons";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 type Customer = { id: string; name: string; phone: string; address: string };
 type Product = {
@@ -71,6 +71,7 @@ export default function QuotationNewPage() {
   const [loadingProd, setLoadingProd] = useState(true);
 
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [msg, setMsg] = useState("");
 
   const [quotationDate, setQuotationDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
@@ -207,13 +208,14 @@ export default function QuotationNewPage() {
   }
 
   async function save() {
+    if (isBlocked()) return;
     setMsg("");
 
     if (!customerName.trim()) return setMsg("Customer name wajib diisi.");
     if (items.length === 0) return setMsg("Minimal 1 item.");
     if (items.some((it) => !it.name.trim())) return setMsg("Nama item tidak boleh kosong.");
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       // ✅ DB payload rules:
       // - discount_type: 'percent' | 'amount'  (default percent)
@@ -259,7 +261,7 @@ export default function QuotationNewPage() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -274,14 +276,9 @@ export default function QuotationNewPage() {
           <a href="/quotations" style={formPageBackLink()}>
             Kembali
           </a>
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            style={saving ? formPageSaveButtonDisabled() : formPageSaveButton()}
-          >
-            {saving ? "Menyimpan..." : "Simpan Quotation"}
-          </button>
+          <FormSubmitButton busy={saving} busyLabel="Menyimpan..." onClick={save}>
+            Simpan Quotation
+          </FormSubmitButton>
         </div>
       </div>
 

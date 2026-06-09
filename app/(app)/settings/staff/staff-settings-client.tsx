@@ -4,6 +4,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 type OrgRow = {
   id: string;
@@ -38,6 +40,7 @@ export default function StaffSettingsClient() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"staff">("staff");
   const [creating, setCreating] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setCreating);
 
   async function load() {
     setLoading(true);
@@ -66,10 +69,11 @@ export default function StaffSettingsClient() {
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
+    if (isBlocked()) return;
     setMsg("");
-    setCreating(true);
 
     try {
+      if (!tryBegin()) return;
       if (!username.trim()) throw new Error("Username wajib");
       if (password.length < 6) throw new Error("Password minimal 6 karakter");
 
@@ -90,7 +94,7 @@ export default function StaffSettingsClient() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal membuat staff");
     } finally {
-      setCreating(false);
+      end();
     }
   }
 
@@ -123,16 +127,6 @@ export default function StaffSettingsClient() {
     background: "#fff",
     color: "#111827",
     outline: "none",
-  };
-
-  const btn: React.CSSProperties = {
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1px solid #111827",
-    background: "#111827",
-    color: "white",
-    fontWeight: 900,
-    cursor: "pointer",
   };
 
   const chip: React.CSSProperties = {
@@ -283,16 +277,14 @@ export default function StaffSettingsClient() {
               />
             </div>
 
-            <button
-              disabled={creating || (limits != null && limits.staffUsed >= limits.staffLimit)}
-              style={{
-                ...btn,
-                opacity: creating || (limits != null && limits.staffUsed >= limits.staffLimit) ? 0.6 : 1,
-                cursor: limits != null && limits.staffUsed >= limits.staffLimit ? "not-allowed" : "pointer",
-              }}
+            <FormSubmitButton
+              type="submit"
+              busy={creating}
+              busyLabel="Membuat..."
+              disabled={limits != null && limits.staffUsed >= limits.staffLimit}
             >
-              {creating ? "Membuat..." : limits != null && limits.staffUsed >= limits.staffLimit ? "Batas staff tercapai" : "Buat Akun Staff"}
-            </button>
+              {limits != null && limits.staffUsed >= limits.staffLimit ? "Batas staff tercapai" : "Buat Akun Staff"}
+            </FormSubmitButton>
 
             <div style={{ marginTop: 8, color: "#64748b", fontSize: 13, lineHeight: 1.5 }}>
               Setelah dibuat, kasih ke staff: <b>Org Code</b> + <b>Username</b> + <b>Password</b>.

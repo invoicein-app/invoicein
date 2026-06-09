@@ -7,6 +7,8 @@ import {
   tableActionDanger,
   tableActionSecondary,
 } from "../../components/app-action-buttons";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 import { StatusToggle } from "../../components/status-toggle";
 import { formatRibuanInput, parseRibuanInput, rupiah } from "@/lib/money";
 import { monthKeyFromDate, monthStart } from "@/lib/invoice-totals";
@@ -87,6 +89,7 @@ export default function RecurringExpensesPage() {
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState<TemplateForm>(emptyTemplateForm());
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
 
   async function syncCurrentPeriod(): Promise<{ created: number; createdNames: string[] }> {
     const res = await fetch("/api/expense-recurring-templates/sync-period", {
@@ -176,6 +179,7 @@ export default function RecurringExpensesPage() {
   }
 
   async function save() {
+    if (isBlocked()) return;
     if (form.frequency === "weekly" && !form.due_day_of_week) {
       setMsg("Hari wajib dipilih untuk frekuensi mingguan.");
       return;
@@ -188,8 +192,8 @@ export default function RecurringExpensesPage() {
       }
     }
 
-    setSaving(true);
     setMsg("");
+    if (!tryBegin()) return;
     try {
       const payload = {
         name: form.name.trim(),
@@ -219,7 +223,7 @@ export default function RecurringExpensesPage() {
       setSheetOpen(false);
       await load();
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -427,12 +431,12 @@ export default function RecurringExpensesPage() {
                 />
               </label>
               <div className="app-modal-sheet__actions" style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button type="button" onClick={() => setSheetOpen(false)} style={tableActionSecondary()}>
+                <button type="button" onClick={() => setSheetOpen(false)} disabled={saving} style={tableActionSecondary()}>
                   Batal
                 </button>
-                <button type="button" onClick={save} disabled={saving} style={formPrimaryButton()}>
-                  {saving ? "Menyimpan..." : "Simpan"}
-                </button>
+                <FormSubmitButton busy={saving} busyLabel="Menyimpan..." onClick={save}>
+                  Simpan
+                </FormSubmitButton>
               </div>
             </div>
           </div>

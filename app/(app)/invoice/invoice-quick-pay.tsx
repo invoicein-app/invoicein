@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 
 type Props = {
   invoiceId: string;
@@ -44,6 +46,7 @@ export default function InvoiceQuickPay({ invoiceId, invoiceNumber, remaining }:
   const amountNum = useMemo(() => (amountDigits ? parseInt(amountDigits, 10) : 0), [amountDigits]);
 
   const [loading, setLoading] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setLoading);
 
   // ✅ disable bayar kalau remaining sudah 0 (kalau remaining tidak dikirim, biarkan tetap bisa)
   const disabledPay = typeof remaining === "number" ? remaining <= 0 : false;
@@ -63,12 +66,13 @@ export default function InvoiceQuickPay({ invoiceId, invoiceNumber, remaining }:
   }
 
   async function submit() {
+    if (isBlocked()) return;
     // ✅ guard server-side behavior (biar aman walau UI di-bypass)
     if (disabledPay) return alert("Invoice sudah lunas.");
     if (!paidAt) return alert("Tanggal bayar wajib diisi.");
     if (!amountNum || amountNum <= 0) return alert("Nominal harus > 0.");
 
-    setLoading(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch(`/api/invoice/payments/${invoiceId}`, {
         method: "POST",
@@ -88,7 +92,7 @@ export default function InvoiceQuickPay({ invoiceId, invoiceNumber, remaining }:
     } catch (e: any) {
       alert(`Failed to fetch: ${e?.message || "unknown"}`);
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
@@ -227,23 +231,20 @@ export default function InvoiceQuickPay({ invoiceId, invoiceNumber, remaining }:
                   Batal
                 </button>
 
-                <button
+                <FormSubmitButton
                   type="button"
                   onClick={submit}
-                  disabled={loading}
+                  busy={loading}
                   style={{
                     height: 42,
                     flex: 1,
                     borderRadius: 10,
                     border: "1px solid #111",
                     background: "#111",
-                    color: "white",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    fontWeight: 900,
                   }}
                 >
-                  {loading ? "Menyimpan..." : "Simpan"}
-                </button>
+                  Simpan
+                </FormSubmitButton>
               </div>
             </div>
           </div>

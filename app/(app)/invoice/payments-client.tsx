@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 import TableEmptyState from "../components/table-empty-state";
 
 type Payment = {
@@ -38,6 +40,7 @@ export default function PaymentsClient({
   remaining?: number;
 }) {
   const [loading, setLoading] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setLoading);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
@@ -78,10 +81,11 @@ export default function PaymentsClient({
   }, [invoiceId]);
 
   async function addPayment() {
+    if (isBlocked()) return;
     if (!paidAt) return alert("Tanggal bayar wajib diisi.");
     if (!amountNum || amountNum <= 0) return alert("Nominal harus > 0.");
 
-    setLoading(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch(`/api/invoice/payments/${invoiceId}`, {
         method: "POST",
@@ -97,7 +101,7 @@ export default function PaymentsClient({
     } catch (e: any) {
       alert(e?.message || "error");
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
@@ -189,23 +193,20 @@ export default function PaymentsClient({
           </div>
         </div>
 
-        <button
+        <FormSubmitButton
           type="button"
           onClick={addPayment}
-          disabled={loading}
+          busy={loading}
           style={{
             height: 42,
             borderRadius: 10,
             border: "1px solid #111",
             background: "#111",
-            color: "white",
-            cursor: loading ? "not-allowed" : "pointer",
-            fontWeight: 900,
             width: "100%",
           }}
         >
-          {loading ? "Menyimpan..." : "Tambah"}
-        </button>
+          Tambah
+        </FormSubmitButton>
       </div>
 
       <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid #e2e8f0" }}>

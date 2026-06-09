@@ -12,6 +12,8 @@ import {
   tableActionDanger,
   tableActionSecondary,
 } from "../components/app-action-buttons";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 import CustomersImportPanel from "./customers-import-panel";
 
 export type CustomerRow = {
@@ -49,6 +51,8 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState<CustomerForm>({ name: "", phone: "", address: "" });
+  const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -99,29 +103,35 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
   }
 
   async function saveCustomer() {
+    if (isBlocked()) return;
     setMsg("");
     if (!form.name.trim()) return setMsg("Nama customer wajib diisi.");
-    if (mode === "create") {
-      const { error } = await supabase.from("customers").insert({
-        org_id: orgId,
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        address: form.address.trim(),
-      });
-      if (error) return setMsg(error.message);
-    } else {
-      const { error } = await supabase
-        .from("customers")
-        .update({
+    if (!tryBegin()) return;
+    try {
+      if (mode === "create") {
+        const { error } = await supabase.from("customers").insert({
+          org_id: orgId,
           name: form.name.trim(),
           phone: form.phone.trim(),
           address: form.address.trim(),
-        })
-        .eq("id", editingId);
-      if (error) return setMsg(error.message);
+        });
+        if (error) return setMsg(error.message);
+      } else {
+        const { error } = await supabase
+          .from("customers")
+          .update({
+            name: form.name.trim(),
+            phone: form.phone.trim(),
+            address: form.address.trim(),
+          })
+          .eq("id", editingId);
+        if (error) return setMsg(error.message);
+      }
+      setSheetOpen(false);
+      await refreshList();
+    } finally {
+      end();
     }
-    setSheetOpen(false);
-    await refreshList();
   }
 
   async function deleteCustomer(id: string) {
@@ -262,7 +272,7 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
                 <h3 style={{ margin: 0 }}>{mode === "create" ? "Tambah Customer" : "Edit Customer"}</h3>
                 <p style={{ marginTop: 6, color: "#666" }}>Data ini dipakai untuk invoice & surat jalan</p>
               </div>
-              <button type="button" onClick={() => setSheetOpen(false)} style={tableActionSecondary()}>
+              <button type="button" onClick={() => setSheetOpen(false)} disabled={saving} style={tableActionSecondary()}>
                 Tutup
               </button>
             </div>
@@ -284,12 +294,12 @@ export default function CustomersListClient({ orgId, initialCustomers }: Props) 
                 />
               </label>
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button type="button" onClick={() => setSheetOpen(false)} style={tableActionSecondary()}>
+                <button type="button" onClick={() => setSheetOpen(false)} disabled={saving} style={tableActionSecondary()}>
                   Batal
                 </button>
-                <button type="button" onClick={saveCustomer} style={formPrimaryButton()}>
+                <FormSubmitButton busy={saving} busyLabel="Menyimpan..." onClick={saveCustomer}>
                   Simpan
-                </button>
+                </FormSubmitButton>
               </div>
             </div>
             {msg ? <p style={{ marginTop: 10, color: "#b00" }}>{msg}</p> : null}

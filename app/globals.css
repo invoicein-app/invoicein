@@ -60,6 +60,66 @@ body {
   grid-row: 1;
   background: #f8f9fa;
   min-height: calc(100vh - 56px);
+  position: relative;
+}
+
+.app-shell-main__inner {
+  min-height: calc(100vh - 56px);
+  transition: opacity 0.18s ease;
+}
+
+.app-shell-main__inner--loading {
+  opacity: 0.42;
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes navContentFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.nav-content-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 249, 250, 0.62);
+  backdrop-filter: blur(2px);
+  animation: navContentFadeIn 0.16s ease;
+  pointer-events: none;
+}
+
+.nav-content-loading__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 36px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.08);
+  pointer-events: auto;
+}
+
+.nav-content-loading__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+.nav-content-loading__sub {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
 }
 
 .app-mobile-menu-fab,
@@ -1067,4 +1127,14 @@ body {
   100% {
     background-position: -200% 0;
   }
+}
+
+@keyframes formSubmitSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.form-submit-spinner {
+  animation: formSubmitSpin 0.75s linear infinite;
 }

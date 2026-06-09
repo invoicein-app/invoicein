@@ -2,10 +2,11 @@
 // invoiceku/app/(app)/warehouses/[id]/edit/page.tsx
 "use client";
 
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import FormSubmitButton from "../../../components/form-submit-button";
+import { useSubmitGuard } from "../../../components/use-submit-guard";
 
 type Row = {
   id: string;
@@ -28,6 +29,7 @@ export default function WarehouseEditPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [msg, setMsg] = useState("");
 
   const [row, setRow] = useState<Row | null>(null);
@@ -78,12 +80,13 @@ export default function WarehouseEditPage() {
   }
 
   async function save() {
+    if (isBlocked()) return;
     setMsg("");
     if (!safeStr(code)) return setMsg("Kode gudang wajib diisi.");
     if (!safeStr(name)) return setMsg("Nama gudang wajib diisi.");
     if (!safeStr(address)) return setMsg("Alamat gudang wajib diisi.");
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       const { error } = await supabase
         .from("warehouses")
@@ -103,7 +106,7 @@ export default function WarehouseEditPage() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -124,12 +127,12 @@ export default function WarehouseEditPage() {
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/warehouses" style={btn()}>
+          <button type="button" onClick={() => router.push("/warehouses")} disabled={saving} style={btn()}>
             Kembali
-          </Link>
-          <button onClick={save} disabled={saving || loading || !row} style={btnPrimary()}>
-            {saving ? "Menyimpan..." : "Simpan"}
           </button>
+          <FormSubmitButton busy={saving} busyLabel="Menyimpan..." disabled={loading || !row} onClick={save}>
+            Simpan
+          </FormSubmitButton>
         </div>
       </div>
 
@@ -188,7 +191,4 @@ function input(): React.CSSProperties {
 }
 function btn(): React.CSSProperties {
   return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", textDecoration: "none", color: "#111", fontWeight: 900 };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer", fontWeight: 900 };
 }

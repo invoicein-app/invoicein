@@ -6,6 +6,8 @@ import ListPageLayout from "../components/list-page-layout";
 import { formatTanggalIndo, ul } from "../components/unified-list-table";
 import TableEmptyState from "../components/table-empty-state";
 import { formPrimaryButton, tableActionDanger, tableActionSecondary } from "../components/app-action-buttons";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 import { formatRibuanInput, parseRibuanInput, rupiah } from "@/lib/money";
 
 type EntryType = "receivable" | "payable";
@@ -101,6 +103,7 @@ export default function ManualLedgerPageClient({
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
 
   async function loadParties() {
     const res = await fetch("/api/receivables/parties", { credentials: "include" });
@@ -178,8 +181,9 @@ export default function ManualLedgerPageClient({
   }
 
   async function save() {
-    setSaving(true);
+    if (isBlocked()) return;
     setMsg("");
+    if (!tryBegin()) return;
     try {
       const payload = {
         entry_type: entryType,
@@ -210,7 +214,7 @@ export default function ManualLedgerPageClient({
       setSheetOpen(false);
       await loadRows();
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -530,12 +534,12 @@ export default function ManualLedgerPageClient({
               </label>
 
               <div className="app-modal-sheet__actions" style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button type="button" onClick={() => setSheetOpen(false)} style={tableActionSecondary()}>
+                <button type="button" onClick={() => setSheetOpen(false)} disabled={saving} style={tableActionSecondary()}>
                   Batal
                 </button>
-                <button type="button" onClick={save} disabled={saving} style={formPrimaryButton()}>
-                  {saving ? "Menyimpan..." : "Simpan"}
-                </button>
+                <FormSubmitButton busy={saving} busyLabel="Menyimpan..." onClick={save}>
+                  Simpan
+                </FormSubmitButton>
               </div>
             </div>
           </div>

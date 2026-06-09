@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 
 type Props = {
   id: string;
@@ -9,6 +11,10 @@ type Props = {
   remaining: number;
   payStatus: string;
   hasQuotation?: boolean;
+  canDelete?: boolean;
+  deleteBlockMessage?: string | null;
+  isCancelled?: boolean;
+  isAdminDelete?: boolean;
 };
 
 function digitsOnly(raw: string) {
@@ -134,6 +140,10 @@ export default function InvoiceActionsClient({
   remaining,
   payStatus,
   hasQuotation = false,
+  canDelete = false,
+  deleteBlockMessage = null,
+  isCancelled = false,
+  isAdminDelete = false,
 }: Props) {
   const router = useRouter();
 
@@ -143,7 +153,7 @@ export default function InvoiceActionsClient({
   const showBayar = status === "UNPAID" || status === "PARTIAL";
   const showCancel = status === "UNPAID" || status === "PARTIAL";
   const showEdit = status !== "CANCELLED";
-  const showDelete = status === "DRAFT" && !hasQuotation;
+  const showDelete = canDelete;
 
   const [openPay, setOpenPay] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -152,10 +162,15 @@ export default function InvoiceActionsClient({
   const [payMsg, setPayMsg] = useState("");
 
   const [cancelling, setCancelling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const payGuard = useSubmitGuard(setPaying);
+  const deleteGuard = useSubmitGuard(setDeleting);
 
   const parsedAmount = useMemo(() => parseMoney(amountText), [amountText]);
 
   async function submitPayment() {
+    if (payGuard.isBlocked()) return;
     setPayMsg("");
 
     if (!showBayar) {
@@ -173,7 +188,7 @@ export default function InvoiceActionsClient({
       return;
     }
 
-    setPaying(true);
+    if (!payGuard.tryBegin()) return;
     try {
       const res = await fetch(`/api/invoice/payments/${id}`, {
         method: "POST",
@@ -200,7 +215,7 @@ export default function InvoiceActionsClient({
     } catch (e: any) {
       alert(e?.message || "Gagal tambah pembayaran.");
     } finally {
-      setPaying(false);
+      payGuard.end();
     }
   }
 
@@ -239,12 +254,24 @@ export default function InvoiceActionsClient({
 
   async function submitDelete() {
     if (!showDelete) return;
+    if (deleteGuard.isBlocked()) return;
 
-    const ok = window.confirm(
-      `Hapus invoice ${invoiceNumber || id}?\n\nAksi ini sebaiknya hanya untuk invoice draft / yang belum final.`
-    );
+    const confirmLines = isCancelled && isAdminDelete
+      ? [
+          `Hapus permanen invoice ${invoiceNumber || id}?`,
+          "",
+          "Invoice ini sudah dibatalkan. Sebagai admin, hapus permanen akan menghapus jejak invoice dari sistem.",
+          "Tindakan ini tidak bisa dibatalkan.",
+        ]
+      : [
+          `Hapus permanen invoice ${invoiceNumber || id}?`,
+          "",
+          "Data invoice akan dihapus dari sistem. Tindakan ini tidak bisa dibatalkan.",
+        ];
+    const ok = window.confirm(confirmLines.join("\n"));
     if (!ok) return;
 
+    if (!deleteGuard.tryBegin()) return;
     try {
       const res = await fetch(`/api/invoice/${id}`, {
         method: "DELETE",
@@ -253,13 +280,15 @@ export default function InvoiceActionsClient({
 
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok) {
-        alert(`Gagal delete (${res.status}): ${json?.error || "Gagal delete invoice."}`);
+        alert(json?.error || `Gagal hapus (${res.status})`);
         return;
       }
 
-      router.refresh();
+      window.location.href = "/invoice";
     } catch (e: any) {
       alert(e?.message || "Gagal delete invoice.");
+    } finally {
+      deleteGuard.end();
     }
   }
 
@@ -311,10 +340,27 @@ export default function InvoiceActionsClient({
         )}
 
         {showDelete && (
-          <button type="button" onClick={submitDelete} style={btnDanger()} title="Hapus invoice">
+          <FormSubmitButton
+            type="button"
+            variant="danger"
+            onClick={submitDelete}
+            busy={deleting}
+            busyLabel="Menghapus…"
+            style={btnDanger()}
+            title="Hapus permanen invoice"
+          >
             Hapus
-          </button>
+          </FormSubmitButton>
         )}
+
+        {!showDelete && deleteBlockMessage && !isCancelled ? (
+          <span
+            title={deleteBlockMessage}
+            style={{ fontSize: 11, color: "#94a3b8", maxWidth: 140, lineHeight: 1.3 }}
+          >
+            Hapus tidak tersedia
+          </span>
+        ) : null}
       </div>
 
       {openPay ? (
@@ -426,14 +472,14 @@ export default function InvoiceActionsClient({
               >
                 Batal
               </button>
-              <button
+              <FormSubmitButton
                 type="button"
                 onClick={submitPayment}
-                disabled={paying}
+                busy={paying}
                 style={btnDark(paying)}
               >
-                {paying ? "Menyimpan..." : "Simpan"}
-              </button>
+                Simpan
+              </FormSubmitButton>
             </div>
           </div>
         </div>

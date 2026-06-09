@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 import OrgLogoClient from "./org-logo-client";
 
 const TEAL = "#1D7A73";
@@ -144,8 +146,10 @@ function SectionDivider() {
 export default function OrgSettingsClient({ initial }: { initial: OrgForm }) {
   const [form, setForm] = useState<OrgForm>(initial);
   const [loading, setLoading] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setLoading);
 
   async function save() {
+    if (isBlocked()) return;
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim() || !form.address.trim()) {
       alert("Lengkapi Nama Usaha, No Telepon, Email, dan Alamat Usaha.");
       return;
@@ -159,7 +163,7 @@ export default function OrgSettingsClient({ initial }: { initial: OrgForm }) {
       quotation_prefix: cleanPrefix(form.quotation_prefix, "QUO"),
     };
 
-    setLoading(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch("/api/org/profile", {
         method: "POST",
@@ -186,7 +190,7 @@ export default function OrgSettingsClient({ initial }: { initial: OrgForm }) {
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Gagal simpan");
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
@@ -235,24 +239,22 @@ export default function OrgSettingsClient({ initial }: { initial: OrgForm }) {
           </div>
         </div>
 
-        <button
+        <FormSubmitButton
           type="button"
           onClick={save}
-          disabled={loading}
+          busy={loading}
+          busyLabel="Menyimpan…"
           style={{
             padding: "12px 22px",
             borderRadius: 8,
             border: "none",
-            background: loading ? "#8fb3af" : TEAL,
-            color: "#fff",
-            fontWeight: 700,
+            background: TEAL,
             fontSize: 15,
-            cursor: loading ? "not-allowed" : "pointer",
             whiteSpace: "nowrap",
           }}
         >
-          {loading ? "Menyimpan…" : "Simpan Pengaturan"}
-        </button>
+          Simpan Pengaturan
+        </FormSubmitButton>
       </div>
 
       {/* Single card */}

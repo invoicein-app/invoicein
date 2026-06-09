@@ -9,6 +9,10 @@ import InvoiceBookkeepingToggle from "./invoice-bookkeeping-toggle";
 import InvoicePaginationClient from "./invoice-pagination-client";
 import TableEmptyState from "../components/table-empty-state";
 import { getShowInvoiceBookkeepingStatus } from "@/lib/member-preferences";
+import {
+  assessInvoiceDeletableFromSets,
+  formatInvoiceDeleteBlockedMessage,
+} from "@/lib/invoice-delete";
 
 type SearchParams = {
   inv?: string;
@@ -143,6 +147,16 @@ export default async function InvoiceListPage({
     );
   }
 
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  const actorRole = String(membership?.role || "staff");
+
   const showBookkeepingStatus = await getShowInvoiceBookkeepingStatus();
 
   const { data: customers, error: custErr } = await supabase
@@ -236,6 +250,50 @@ export default async function InvoiceListPage({
       if (sp.pay && inv.payStatus !== sp.pay) return false;
       return true;
     });
+
+  const invoiceIds = invoices.map((inv: any) => String(inv.id)).filter(Boolean);
+  const invoiceIdsWithPayments = new Set<string>();
+  const invoiceIdsWithDeliveryNotes = new Set<string>();
+
+  if (invoiceIds.length > 0) {
+    const [{ data: payRows }, { data: dnRows }] = await Promise.all([
+      supabase.from("invoice_payments").select("invoice_id").in("invoice_id", invoiceIds),
+      supabase.from("delivery_notes").select("invoice_id").in("invoice_id", invoiceIds),
+    ]);
+
+    for (const row of payRows || []) {
+      if ((row as any).invoice_id) invoiceIdsWithPayments.add(String((row as any).invoice_id));
+    }
+    for (const row of dnRows || []) {
+      if ((row as any).invoice_id) invoiceIdsWithDeliveryNotes.add(String((row as any).invoice_id));
+    }
+  }
+
+  const deleteMetaById = new Map(
+    invoices.map((inv: any) => {
+      const assessment = assessInvoiceDeletableFromSets({
+        invoice: {
+          id: inv.id,
+          status: inv.status,
+          amount_paid: inv.paid ?? inv.amount_paid,
+        },
+        invoiceIdsWithPayments,
+        invoiceIdsWithDeliveryNotes,
+        actorRole,
+      });
+      return [
+        String(inv.id),
+        {
+          canDelete: assessment.canDelete,
+          message: assessment.canDelete
+            ? null
+            : formatInvoiceDeleteBlockedMessage(assessment.reasons),
+          isCancelled: String(inv.status || "").toLowerCase() === "cancelled",
+          isAdminDelete: assessment.adminOverride ?? false,
+        },
+      ] as const;
+    })
+  );
 
   const TEAL = "#2D7D71";
   const baseQuery = currentParams.toString();
@@ -390,6 +448,10 @@ export default async function InvoiceListPage({
                         remaining={inv.remaining}
                         payStatus={inv.payStatus}
                         hasQuotation={Boolean(inv.quotation_id)}
+                        canDelete={deleteMetaById.get(String(inv.id))?.canDelete ?? false}
+                        deleteBlockMessage={deleteMetaById.get(String(inv.id))?.message ?? null}
+                        isCancelled={deleteMetaById.get(String(inv.id))?.isCancelled ?? false}
+                        isAdminDelete={deleteMetaById.get(String(inv.id))?.isAdminDelete ?? false}
                       />
                     </td>
                   </tr>

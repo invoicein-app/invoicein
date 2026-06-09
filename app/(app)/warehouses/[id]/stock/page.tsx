@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import FormSubmitButton from "../../../components/form-submit-button";
+import { useSubmitGuard } from "../../../components/use-submit-guard";
 
 type Warehouse = {
   id: string;
@@ -111,6 +113,7 @@ export default function WarehouseStockPage() {
 
   const [adjOpen, setAdjOpen] = useState(false);
   const [adjBusy, setAdjBusy] = useState(false);
+  const adjGuard = useSubmitGuard(setAdjBusy);
   const [adjMsg, setAdjMsg] = useState("");
 
   const [adjProductId, setAdjProductId] = useState<string>("");
@@ -296,6 +299,7 @@ export default function WarehouseStockPage() {
   }, [warehouseId, ledgerLimit]);
 
   async function submitAdjustment() {
+    if (adjGuard.isBlocked()) return;
     setAdjMsg("");
 
     if (!canAdjust) {
@@ -311,7 +315,7 @@ export default function WarehouseStockPage() {
 
     const delta = adjDir === "in" ? qty : -qty;
 
-    setAdjBusy(true);
+    if (!adjGuard.tryBegin()) return;
     try {
       const res = await fetch(`/api/warehouses/${warehouseId}/stock-adjust`, {
         method: "POST",
@@ -337,7 +341,7 @@ export default function WarehouseStockPage() {
     } catch (e: any) {
       setAdjMsg(e?.message || "Gagal stock adjustment.");
     } finally {
-      setAdjBusy(false);
+      adjGuard.end();
     }
   }
 
@@ -652,9 +656,9 @@ export default function WarehouseStockPage() {
                   >
                     Batal
                   </button>
-                  <button onClick={submitAdjustment} style={btnPrimary()} disabled={adjBusy}>
-                    {adjBusy ? "Processing..." : "Post Adjustment"}
-                  </button>
+                  <FormSubmitButton onClick={submitAdjustment} busy={adjBusy} busyLabel="Memproses...">
+                    Post Adjustment
+                  </FormSubmitButton>
                 </div>
 
                 <div style={{ marginTop: 10, color: "#6b7280", fontSize: 12, fontWeight: 800 }}>

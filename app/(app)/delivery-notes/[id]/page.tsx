@@ -3,13 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 import {
   formPageBackLink,
-  formPageDangerButton,
-  formPageDangerButtonDisabled,
   formPageHeaderActions,
-  formPagePrimaryButton,
-  formPagePrimaryButtonDisabled,
   formPagePrimaryLink,
   formPageSoftLink,
 } from "../../components/app-action-buttons";
@@ -28,6 +26,8 @@ export default function DeliveryNoteViewPage() {
   const [msg, setMsg] = useState("");
   const [posting, setPosting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const postGuard = useSubmitGuard(setPosting);
+  const cancelGuard = useSubmitGuard(setCancelling);
 
   async function load() {
     setLoading(true);
@@ -62,6 +62,7 @@ export default function DeliveryNoteViewPage() {
   }, [id]);
 
   async function handlePost() {
+    if (postGuard.isBlocked()) return;
     if (!dn) return;
     if (String(dn.status || "draft").toLowerCase() === "posted") return;
 
@@ -70,7 +71,7 @@ export default function DeliveryNoteViewPage() {
     );
     if (!ok) return;
 
-    setPosting(true);
+    if (!postGuard.tryBegin()) return;
     try {
       const res = await fetch(`/api/delivery-notes/${dn.id}/post`, {
         method: "POST",
@@ -88,11 +89,12 @@ export default function DeliveryNoteViewPage() {
     } catch (e: any) {
       alert(e?.message || "Gagal post SJ.");
     } finally {
-      setPosting(false);
+      postGuard.end();
     }
   }
 
   async function handleCancel() {
+    if (cancelGuard.isBlocked()) return;
     if (!dn) return;
     const status = String(dn.status || "draft").toLowerCase();
     if (status === "cancelled") return;
@@ -102,7 +104,7 @@ export default function DeliveryNoteViewPage() {
     );
     if (!ok) return;
 
-    setCancelling(true);
+    if (!cancelGuard.tryBegin()) return;
     try {
       const res = await fetch(`/api/delivery-notes/${dn.id}/cancel`, {
         method: "POST",
@@ -120,7 +122,7 @@ export default function DeliveryNoteViewPage() {
     } catch (e: any) {
       alert(e?.message || "Gagal cancel SJ.");
     } finally {
-      setCancelling(false);
+      cancelGuard.end();
     }
   }
 
@@ -162,23 +164,26 @@ export default function DeliveryNoteViewPage() {
             Kembali
           </a>
 
-          <button
+          <FormSubmitButton
             type="button"
             onClick={handlePost}
-            disabled={posting || isPosted || isCancelled}
-            style={posting || isPosted || isCancelled ? formPagePrimaryButtonDisabled() : formPagePrimaryButton()}
+            disabled={isPosted || isCancelled}
+            busy={posting}
+            busyLabel="Posting..."
           >
-            {posting ? "Posting..." : "Post SJ"}
-          </button>
+            Post SJ
+          </FormSubmitButton>
 
-          <button
+          <FormSubmitButton
             type="button"
+            variant="danger"
             onClick={handleCancel}
-            disabled={cancelling || isCancelled}
-            style={cancelling || isCancelled ? formPageDangerButtonDisabled() : formPageDangerButton()}
+            disabled={isCancelled}
+            busy={cancelling}
+            busyLabel="Membatalkan..."
           >
-            {cancelling ? "Cancelling..." : "Cancel SJ"}
-          </button>
+            Cancel SJ
+          </FormSubmitButton>
 
           <a
             href={`/api/delivery-notes/pdf/${dn.id}`}

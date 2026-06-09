@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 import {
   formPageMutedButton,
-  formPagePrimaryButton,
-  formPagePrimaryButtonDisabled,
   formPageSoftLink,
 } from "../components/app-action-buttons";
 
@@ -16,6 +16,7 @@ type SjState =
 export default function SjButtonClient({ invoiceId }: { invoiceId: string }) {
   const [state, setState] = useState<SjState>({ loading: true });
   const [busy, setBusy] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setBusy);
 
   async function refresh() {
     setState({ loading: true });
@@ -49,7 +50,8 @@ export default function SjButtonClient({ invoiceId }: { invoiceId: string }) {
   }, [invoiceId]);
 
   async function createSj() {
-    setBusy(true);
+    if (isBlocked()) return;
+    if (!tryBegin()) return;
     try {
       const res = await fetch("/api/invoice/create-delivery-note", {
         method: "POST",
@@ -81,7 +83,7 @@ export default function SjButtonClient({ invoiceId }: { invoiceId: string }) {
     } catch (e: any) {
       alert(`Failed to fetch: ${e?.message || "unknown"}`);
     } finally {
-      setBusy(false);
+      end();
     }
   }
 
@@ -106,13 +108,13 @@ export default function SjButtonClient({ invoiceId }: { invoiceId: string }) {
   }
 
   return (
-    <button
+    <FormSubmitButton
       type="button"
       onClick={createSj}
-      disabled={busy}
-      style={busy ? formPagePrimaryButtonDisabled() : formPagePrimaryButton()}
+      busy={busy}
+      busyLabel="Membuat..."
     >
-      {busy ? "Membuat..." : "Buat SJ"}
-    </button>
+      Buat SJ
+    </FormSubmitButton>
   );
 }

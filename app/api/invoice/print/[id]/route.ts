@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { applyBankToOrgProfile, resolveInvoiceBankAccount } from "@/lib/company-bank-accounts";
 
 type OrgProfile = {
   id: string;
@@ -78,6 +79,16 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       .eq("id", inv.org_id)
       .maybeSingle();
     org = (orgData as any) || null;
+
+    if (org && inv.org_id) {
+      const bank = await resolveInvoiceBankAccount({
+        supabase: admin,
+        orgId: String(inv.org_id),
+        bankAccountId: (inv as any).bank_account_id,
+        orgLegacy: org,
+      });
+      org = applyBankToOrgProfile(org, bank);
+    }
   }
 
   const text = buildDotMatrixInvoiceText({

@@ -4,6 +4,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import FormSubmitButton from "../../../components/form-submit-button";
+import { useSubmitGuard } from "../../../components/use-submit-guard";
 
 type Vendor = {
   id: string;
@@ -23,6 +25,7 @@ export default function VendorEditPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [msg, setMsg] = useState("");
 
   const [vendorCode, setVendorCode] = useState("");
@@ -63,10 +66,11 @@ export default function VendorEditPage() {
   }, [id]);
 
   async function save() {
+    if (isBlocked()) return;
     setMsg("");
     if (!name.trim()) return setMsg("Vendor name wajib diisi.");
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch(`/api/vendors/${encodeURIComponent(id)}`, {
         method: "PATCH",
@@ -93,7 +97,7 @@ export default function VendorEditPage() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -108,9 +112,9 @@ export default function VendorEditPage() {
           <button onClick={() => router.push(`/vendors/${id}`)} style={btn()} disabled={saving}>
             Kembali
           </button>
-          <button onClick={save} disabled={saving || loading} style={btnPrimary()}>
-            {saving ? "Menyimpan..." : "Simpan"}
-          </button>
+          <FormSubmitButton busy={saving} busyLabel="Menyimpan..." disabled={loading} onClick={save}>
+            Simpan
+          </FormSubmitButton>
         </div>
       </div>
 
@@ -173,7 +177,4 @@ function input(): React.CSSProperties {
 }
 function btn(): React.CSSProperties {
   return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", color: "#111", fontWeight: 900 };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer", fontWeight: 900 };
 }

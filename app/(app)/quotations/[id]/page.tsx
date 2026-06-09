@@ -10,13 +10,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 import {
   formPageBackLink,
-  formPageDangerButton,
-  formPageDangerButtonDisabled,
   formPageHeaderActions,
-  formPagePrimaryButton,
-  formPagePrimaryButtonDisabled,
   formPageSoftLink,
 } from "../../components/app-action-buttons";
 import { APP_TEAL } from "../../components/app-ui-tokens";
@@ -89,6 +87,8 @@ export default function QuotationDetailPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [converting, setConverting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const convertGuard = useSubmitGuard(setConverting);
+  const deleteGuard = useSubmitGuard(setDeleting);
 
   // ✅ invoice_number fetched langsung dari supabase
   const [invoiceNumber, setInvoiceNumber] = useState<string | null>(null);
@@ -182,8 +182,9 @@ export default function QuotationDetailPage() {
   const locked = Boolean(q?.is_locked);
 
   async function convertToInvoice() {
+    if (convertGuard.isBlocked()) return;
     if (!q) return;
-    setConverting(true);
+    if (!convertGuard.tryBegin()) return;
     try {
       if (q.invoice_id) {
         router.push(`/invoice/${q.invoice_id}`);
@@ -191,7 +192,7 @@ export default function QuotationDetailPage() {
       }
       router.push(`/invoice/new?fromQuotationId=${q.id}`);
     } finally {
-      setConverting(false);
+      convertGuard.end();
     }
   }
 
@@ -205,9 +206,10 @@ export default function QuotationDetailPage() {
   const canDelete = q && !q.is_locked && !q.invoice_id;
 
   async function deleteQuotation() {
+    if (deleteGuard.isBlocked()) return;
     if (!q || !canDelete) return;
     if (!confirm("Hapus quotation ini? Item-itemnya juga akan ikut terhapus.")) return;
-    setDeleting(true);
+    if (!deleteGuard.tryBegin()) return;
     try {
       const res = await fetch(`/api/quotations/delete/${q.id}`, { method: "POST", credentials: "include" });
       const json = await res.json().catch(() => ({}));
@@ -216,7 +218,7 @@ export default function QuotationDetailPage() {
     } catch (e: any) {
       alert(e?.message || "Gagal delete.");
     } finally {
-      setDeleting(false);
+      deleteGuard.end();
     }
   }
 
@@ -253,23 +255,26 @@ export default function QuotationDetailPage() {
             </Link>
           ) : null}
 
-          <button
+          <FormSubmitButton
             type="button"
             onClick={convertToInvoice}
-            style={loading || converting ? formPagePrimaryButtonDisabled() : formPagePrimaryButton()}
-            disabled={loading || converting}
+            disabled={loading}
+            busy={converting}
+            busyLabel="Memproses..."
           >
-            {converting ? "Converting..." : q?.invoice_id ? "Buka Invoice" : "Convert → Invoice"}
-          </button>
+            {q?.invoice_id ? "Buka Invoice" : "Convert → Invoice"}
+          </FormSubmitButton>
 
-          <button
+          <FormSubmitButton
             type="button"
+            variant="danger"
             onClick={deleteQuotation}
-            disabled={!canDelete || deleting}
-            style={canDelete && !deleting ? formPageDangerButton() : formPageDangerButtonDisabled()}
+            disabled={!canDelete}
+            busy={deleting}
+            busyLabel="Menghapus..."
           >
-            {deleting ? "Menghapus..." : "Delete"}
-          </button>
+            Delete
+          </FormSubmitButton>
         </div>
       </div>
 

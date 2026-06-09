@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { applyBankToOrgProfile, resolveInvoiceBankAccount } from "@/lib/company-bank-accounts";
 
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet, pdf } from "@react-pdf/renderer";
@@ -106,6 +107,16 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       .eq("id", inv.org_id)
       .maybeSingle();
     org = (orgData as any) || null;
+
+    if (org && inv.org_id) {
+      const bank = await resolveInvoiceBankAccount({
+        supabase: admin,
+        orgId: String(inv.org_id),
+        bankAccountId: (inv as any).bank_account_id,
+        orgLegacy: org,
+      });
+      org = applyBankToOrgProfile(org, bank);
+    }
   }
 
   const logoSrc = String(org?.logo_url || "").trim();
@@ -284,6 +295,7 @@ function InvoiceDotMatrixPDF(props: {
   const bankName = safeText(org?.bank_name);
   const bankAcc = safeText(org?.bank_account);
   const bankAccName = safeText(org?.bank_account_name);
+  const bankBranch = safeText((org as any)?.bank_branch);
 
   const invNo = safeText(inv?.invoice_number) || "-";
   const invDate = fmtDateDM(inv?.invoice_date);
@@ -473,7 +485,8 @@ function InvoiceDotMatrixPDF(props: {
                       React.createElement(Text, { style: styles.payText }, "Pembayaran mohon ditransfer via rekening :"),
                       bankName ? React.createElement(Text, { style: styles.payText }, bankName) : null,
                       bankAcc ? React.createElement(Text, { style: styles.payText }, `NO. REKENING : ${bankAcc}`) : null,
-                      bankAccName ? React.createElement(Text, { style: styles.payText }, `ATAS NAMA : ${bankAccName}`) : null
+                      bankAccName ? React.createElement(Text, { style: styles.payText }, `ATAS NAMA : ${bankAccName}`) : null,
+                      bankBranch ? React.createElement(Text, { style: styles.payText }, `CABANG : ${bankBranch}`) : null
                     )
                   : React.createElement(View, { style: styles.payBox }),
 

@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { num, rupiah } from "@/lib/money";
+import FormSubmitButton from "../../../components/form-submit-button";
+import { useSubmitGuard } from "../../../components/use-submit-guard";
 
 type Product = {
   id: string;
@@ -59,6 +61,7 @@ export default function QuotationEditPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [msg, setMsg] = useState("");
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -256,6 +259,7 @@ export default function QuotationEditPage() {
   }
 
   async function save() {
+    if (isBlocked()) return;
     setMsg("");
 
     if (isLocked) return setMsg("Quotation ini sudah LOCKED, tidak bisa di-edit.");
@@ -263,7 +267,7 @@ export default function QuotationEditPage() {
     if (items.length === 0) return setMsg("Minimal 1 item.");
     if (items.some((it) => !it.name.trim())) return setMsg("Nama item tidak boleh kosong.");
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       const payload: any = {
         quotation_date: quotationDate,
@@ -305,7 +309,7 @@ export default function QuotationEditPage() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -322,13 +326,18 @@ export default function QuotationEditPage() {
         </div>
 
         <div className="app-form-page__header-actions" style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => router.push("/quotations")} style={btn()}>
+          <button onClick={() => router.push("/quotations")} disabled={saving} style={btn()}>
             Kembali
           </button>
 
-          <button onClick={save} disabled={saving || loading || isLocked} style={btnPrimary()}>
-            {saving ? "Menyimpan..." : isLocked ? "Locked" : "Simpan Perubahan"}
-          </button>
+          <FormSubmitButton
+            busy={saving}
+            busyLabel="Menyimpan..."
+            onClick={save}
+            disabled={loading || isLocked}
+          >
+            {isLocked ? "Locked" : "Simpan Perubahan"}
+          </FormSubmitButton>
         </div>
       </div>
 
@@ -587,9 +596,6 @@ function input(): React.CSSProperties {
 }
 function btn(): React.CSSProperties {
   return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", textDecoration: "none", color: "#111" };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer" };
 }
 function th(): React.CSSProperties {
   return { textAlign: "left", borderBottom: "1px solid #eee", padding: "8px 6px", color: "#666", fontWeight: 600 };

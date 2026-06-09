@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import AppNavLink from "@/app/components/app-nav-link";
 import { usePathname } from "next/navigation";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { APP_BORDER, APP_TEAL } from "../components/app-ui-tokens";
@@ -57,7 +57,7 @@ export default function ExpensesLayout({ children }: { children: ReactNode }) {
             const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
             const hovered = !active && hoverHref === t.href;
             return (
-              <Link
+              <AppNavLink
                 key={t.href}
                 href={t.href}
                 aria-current={active ? "page" : undefined}
@@ -66,7 +66,7 @@ export default function ExpensesLayout({ children }: { children: ReactNode }) {
                 onMouseLeave={() => setHoverHref(null)}
               >
                 {t.label}
-              </Link>
+              </AppNavLink>
             );
           })}
         </div>

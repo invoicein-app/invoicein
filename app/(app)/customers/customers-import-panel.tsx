@@ -8,6 +8,8 @@ import {
   type PaperIdRawRow,
 } from "@/lib/paper-id-customer-import";
 import { formPrimaryButton, tableActionSecondary } from "../components/app-action-buttons";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 import { ul } from "../components/unified-list-table";
 
 type PreviewRow = {
@@ -42,6 +44,7 @@ export default function CustomersImportPanel({ open, onClose, onImported }: Prop
   const [preview, setPreview] = useState<PreviewRow[]>([]);
   const [parseError, setParseError] = useState("");
   const [importing, setImporting] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setImporting);
   const [result, setResult] = useState<ImportApiResponse | null>(null);
 
   const readyCount = useMemo(
@@ -115,9 +118,10 @@ export default function CustomersImportPanel({ open, onClose, onImported }: Prop
 
   async function runImport() {
     if (!file) return;
-    setImporting(true);
+    if (isBlocked()) return;
     setParseError("");
     setResult(null);
+    if (!tryBegin()) return;
 
     try {
       const fd = new FormData();
@@ -140,7 +144,7 @@ export default function CustomersImportPanel({ open, onClose, onImported }: Prop
     } catch (e: unknown) {
       setParseError(e instanceof Error ? e.message : "Import gagal.");
     } finally {
-      setImporting(false);
+      end();
     }
   }
 
@@ -157,7 +161,7 @@ export default function CustomersImportPanel({ open, onClose, onImported }: Prop
               digabung otomatis. Hanya tipe <strong>Client</strong> dan <strong>Both</strong>.
             </p>
           </div>
-          <button type="button" onClick={handleClose} style={tableActionSecondary()}>
+          <button type="button" onClick={handleClose} disabled={importing} style={tableActionSecondary()}>
             Tutup
           </button>
         </div>
@@ -253,18 +257,14 @@ export default function CustomersImportPanel({ open, onClose, onImported }: Prop
               <button type="button" onClick={reset} style={tableActionSecondary()} disabled={importing}>
                 Reset
               </button>
-              <button
-                type="button"
+              <FormSubmitButton
+                busy={importing}
+                busyLabel="Mengimport…"
+                disabled={readyCount === 0}
                 onClick={runImport}
-                disabled={importing || readyCount === 0}
-                style={{
-                  ...formPrimaryButton(),
-                  opacity: importing || readyCount === 0 ? 0.6 : 1,
-                  cursor: importing || readyCount === 0 ? "not-allowed" : "pointer",
-                }}
               >
-                {importing ? "Mengimport…" : `Import ${readyCount} customer`}
-              </button>
+                {`Import ${readyCount} customer`}
+              </FormSubmitButton>
             </div>
           </>
         ) : null}

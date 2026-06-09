@@ -10,10 +10,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  formPagePrimaryButton,
-  formPagePrimaryButtonDisabled,
-} from "../components/app-action-buttons";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 
 export default function SentInvoiceButtonClient(props: {
   invoiceId: string;
@@ -25,12 +23,14 @@ export default function SentInvoiceButtonClient(props: {
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setLoading);
 
   const status = String(currentStatus || "").toLowerCase();
   const showLegacySend = status === "draft";
   const disabled = loading || !showLegacySend;
 
   async function onSend() {
+    if (isBlocked()) return;
     setMsg("");
 
     const ok = window.confirm(
@@ -39,7 +39,7 @@ export default function SentInvoiceButtonClient(props: {
     );
     if (!ok) return;
 
-    setLoading(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch(`/api/invoice/${invoiceId}/sent`, {
         method: "POST",
@@ -58,7 +58,7 @@ export default function SentInvoiceButtonClient(props: {
     } catch (e: any) {
       setMsg(e?.message || "Gagal send invoice.");
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
@@ -68,19 +68,20 @@ export default function SentInvoiceButtonClient(props: {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <button
+      <FormSubmitButton
         type="button"
         onClick={onSend}
-        disabled={disabled}
-        style={disabled ? formPagePrimaryButtonDisabled() : formPagePrimaryButton()}
+        disabled={!showLegacySend}
+        busy={loading}
+        busyLabel="Mengirim..."
         title={
           disabled
             ? "Invoice sudah tidak bisa di-send lagi"
             : "Kirim invoice"
         }
       >
-        {loading ? "Sending..." : "Send Invoice"}
-      </button>
+        Send Invoice
+      </FormSubmitButton>
 
       {msg ? (
         <div style={{ fontSize: 12, fontWeight: 800, color: "#b91c1c" }}>

@@ -15,10 +15,10 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   formPageBackLink,
   formPageHeaderActions,
-  formPageSaveButton,
-  formPageSaveButtonDisabled,
   tableActionSecondary,
 } from "../../../components/app-action-buttons";
+import FormSubmitButton from "../../../components/form-submit-button";
+import { useSubmitGuard } from "../../../components/use-submit-guard";
 import { APP_BORDER, APP_TEAL } from "../../../components/app-ui-tokens";
 type Warehouse = {
   id: string;
@@ -125,6 +125,7 @@ export default function POReceivePage() {
   const [notes, setNotes] = useState<string>("");
 
   const [lines, setLines] = useState<LineDraft[]>([]);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setPosting);
 
   const selectedWarehouse = useMemo(() => {
     return warehouses.find((w) => w.id === warehouseId) || null;
@@ -305,6 +306,7 @@ export default function POReceivePage() {
   }
 
   async function postReceive() {
+    if (isBlocked()) return;
     setMsg("");
 
     if (!po) return setMsg("PO tidak ditemukan.");
@@ -332,7 +334,7 @@ export default function POReceivePage() {
         .filter((x) => x.qty_received > 0),
     };
 
-    setPosting(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch(`/api/purchase-orders/${id}/receive`, {
         method: "POST",
@@ -348,14 +350,12 @@ export default function POReceivePage() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal post receive.");
     } finally {
-      setPosting(false);
+      end();
     }
   }
 
   const poNo = po?.po_number || "-";
   const vendor = po?.vendor_name || "-";
-
-  const postDisabled = !canPost || posting || loading;
 
   return (
     <div className="app-form-page" style={{ width: "100%", padding: 24, boxSizing: "border-box" }}>
@@ -374,14 +374,15 @@ export default function POReceivePage() {
           <Link href={`/purchase-orders/${id}`} style={formPageBackLink()}>
             Kembali
           </Link>
-          <button
+          <FormSubmitButton
             type="button"
             onClick={postReceive}
-            disabled={postDisabled}
-            style={postDisabled ? formPageSaveButtonDisabled() : formPageSaveButton()}
+            busy={posting}
+            busyLabel="Posting..."
+            disabled={!canPost || loading}
           >
-            {posting ? "Posting..." : "Post Receive"}
-          </button>
+            Post Receive
+          </FormSubmitButton>
         </div>
       </div>
       {msg ? <div style={errBox()}>{msg}</div> : null}

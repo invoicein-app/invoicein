@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 type Vendor = {
   id: string;
@@ -96,6 +98,7 @@ export default function PONewPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [msg, setMsg] = useState("");
 
   const [orgId, setOrgId] = useState<string>("");
@@ -389,6 +392,7 @@ export default function PONewPage() {
   }
 
   async function save() {
+    if (isBlocked()) return;
     setMsg("");
 
     if (!vendorId) return setMsg("Pilih vendor dulu ya.");
@@ -403,7 +407,7 @@ export default function PONewPage() {
     const missingKeyIdx = items.findIndex((it) => !String(it.item_key || "").trim());
     if (missingKeyIdx >= 0) return setMsg("Ada item yang belum punya key.");
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       const payload = {
         po_date: poDate,
@@ -442,7 +446,7 @@ export default function PONewPage() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan PO.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -457,12 +461,12 @@ export default function PONewPage() {
         </div>
 
         <div className="app-form-page__header-actions" style={{ display: "flex", gap: 8 }}>
-          <Link href="/purchase-orders" style={btn()}>
+          <Link href="/purchase-orders" style={{ ...btn(), pointerEvents: saving ? "none" : undefined, opacity: saving ? 0.55 : 1 }}>
             Kembali
           </Link>
-          <button onClick={save} disabled={saving || loading} style={btnPrimary()}>
-            {saving ? "Menyimpan..." : "Simpan PO"}
-          </button>
+          <FormSubmitButton busy={saving} busyLabel="Menyimpan..." onClick={save} disabled={loading}>
+            Simpan PO
+          </FormSubmitButton>
         </div>
       </div>
 
@@ -783,17 +787,6 @@ function btn(): React.CSSProperties {
     cursor: "pointer",
     textDecoration: "none",
     color: "#111",
-  };
-}
-
-function btnPrimary(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid #111",
-    background: "#111",
-    color: "white",
-    cursor: "pointer",
   };
 }
 

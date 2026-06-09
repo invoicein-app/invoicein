@@ -2,6 +2,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 function rupiah(n: number) {
   const safe = Number.isFinite(n) ? n : 0;
@@ -22,16 +24,18 @@ function formatRpInputDigitsOnly(rawDigits: string) {
 export default function InvoiceViewClient({ invoiceId }: { invoiceId: string }) {
   const [loading, setLoading] = useState(false);
   const [digits, setDigits] = useState("");
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setLoading);
 
   const parsed = useMemo(() => formatRpInputDigitsOnly(digits), [digits]);
 
   async function addPayment() {
+    if (isBlocked()) return;
     if (parsed.num <= 0) {
       alert("Nominal bayar harus > 0");
       return;
     }
 
-    setLoading(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch("/api/invoice/add-payment", {
         method: "POST",
@@ -64,7 +68,7 @@ export default function InvoiceViewClient({ invoiceId }: { invoiceId: string }) 
     } catch (e: any) {
       alert(`Failed to fetch: ${e?.message || "unknown"}`);
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
@@ -96,21 +100,14 @@ export default function InvoiceViewClient({ invoiceId }: { invoiceId: string }) 
           }}
         />
 
-        <button
+        <FormSubmitButton
+          type="button"
           onClick={addPayment}
-          disabled={loading}
-          style={{
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid #111",
-            background: "#111",
-            color: "white",
-            cursor: loading ? "not-allowed" : "pointer",
-            fontWeight: 900,
-          }}
+          busy={loading}
+          busyLabel="Menyimpan..."
         >
-          {loading ? "Menyimpan..." : "Tambah Pembayaran"}
-        </button>
+          Tambah Pembayaran
+        </FormSubmitButton>
       </div>
 
       <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>

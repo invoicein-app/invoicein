@@ -8,10 +8,10 @@ import { formPageClasses } from "../../components/form-page-classes";
 import {
   formPageBackLink,
   formPageHeaderActions,
-  formPageSaveButton,
-  formPageSaveButtonDisabled,
   tableActionSecondary,
 } from "../../components/app-action-buttons";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 import { APP_TEAL } from "../../components/app-ui-tokens";
 import { ProductItemAutocompleteInput } from "../../components/product-item-autocomplete-input";
 
@@ -63,6 +63,7 @@ export default function DeliveryNoteManualNewPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [msg, setMsg] = useState("");
 
   const [sjDate, setSjDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -146,8 +147,9 @@ export default function DeliveryNoteManualNewPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isBlocked()) return;
     setMsg("");
-    setSaving(true);
+    if (!tryBegin()) return;
 
     try {
       const payload = {
@@ -185,7 +187,7 @@ export default function DeliveryNoteManualNewPage() {
     } catch (err: unknown) {
       setMsg(err instanceof Error ? err.message : "Gagal menyimpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -207,17 +209,24 @@ export default function DeliveryNoteManualNewPage() {
           </p>
         </div>
         <div className={formPageClasses.headerActions} style={formPageHeaderActions()}>
-          <Link href="/delivery-notes" style={formPageBackLink()}>
+          <Link
+            href="/delivery-notes"
+            style={{
+              ...formPageBackLink(),
+              pointerEvents: saving ? "none" : undefined,
+              opacity: saving ? 0.55 : 1,
+            }}
+          >
             Kembali
           </Link>
-          <button
+          <FormSubmitButton
             type="submit"
             form="manual-delivery-note-form"
-            disabled={saving}
-            style={saving ? formPageSaveButtonDisabled() : formPageSaveButton()}
+            busy={saving}
+            busyLabel="Menyimpan..."
           >
-            {saving ? "Menyimpan..." : "Simpan Surat Jalan"}
-          </button>
+            Simpan Surat Jalan
+          </FormSubmitButton>
         </div>
       </div>
 

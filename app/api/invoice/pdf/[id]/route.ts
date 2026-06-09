@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { applyBankToOrgProfile, resolveInvoiceBankAccount } from "@/lib/company-bank-accounts";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -101,6 +102,16 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       .maybeSingle();
 
     org = (orgData as any) || null;
+
+    if (org && inv.org_id) {
+      const bank = await resolveInvoiceBankAccount({
+        supabase: admin,
+        orgId: String(inv.org_id),
+        bankAccountId: (inv as any).bank_account_id,
+        orgLegacy: org,
+      });
+      org = applyBankToOrgProfile(org, bank);
+    }
   }
 
   let pdfOpt: PdfOpt = {
@@ -266,8 +277,9 @@ function InvoicePDF(props: {
   const bankName = org?.bank_name || "";
   const bankAcc = org?.bank_account || "";
   const bankAccName = org?.bank_account_name || "";
+  const bankBranch = String((org as any)?.bank_branch || "").trim();
 
-  const hasBankInfo = Boolean(bankName || bankAcc || bankAccName);
+  const hasBankInfo = Boolean(bankName || bankAcc || bankAccName || bankBranch);
 
   const customerName = String(inv.customer_name || "-");
   const customerPhone = String(inv.customer_phone || "");
@@ -378,6 +390,14 @@ function InvoicePDF(props: {
                                 { style: styles.infoRow },
                                 React.createElement(Text, { style: styles.infoKey }, "Atas Nama"),
                                 React.createElement(Text, { style: styles.infoVal }, bankAccName)
+                              )
+                            : null,
+                          bankBranch
+                            ? React.createElement(
+                                View,
+                                { style: styles.infoRow },
+                                React.createElement(Text, { style: styles.infoKey }, "Cabang"),
+                                React.createElement(Text, { style: styles.infoVal }, bankBranch)
                               )
                             : null
                         )

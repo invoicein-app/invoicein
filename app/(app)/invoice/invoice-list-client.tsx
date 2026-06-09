@@ -3,6 +3,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 import TableEmptyState from "../components/table-empty-state";
 
 type InvoiceRow = {
@@ -60,6 +62,7 @@ export default function InvoiceListClient({ rows }: { rows: InvoiceRow[] }) {
   );
 
   const [loading, setLoading] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setLoading);
 
   // delete state
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -79,11 +82,12 @@ export default function InvoiceListClient({ rows }: { rows: InvoiceRow[] }) {
   }
 
   async function submitPay() {
+    if (isBlocked()) return;
     if (!target) return;
     if (!paidAt) return alert("Tanggal bayar wajib diisi.");
     if (!amountNum || amountNum <= 0) return alert("Nominal harus > 0.");
 
-    setLoading(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch(`/api/invoice/payments/${target.id}`, {
         method: "POST",
@@ -105,7 +109,7 @@ export default function InvoiceListClient({ rows }: { rows: InvoiceRow[] }) {
     } catch (e: any) {
       alert(`Failed to fetch: ${e?.message || "unknown"}`);
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
@@ -438,23 +442,15 @@ export default function InvoiceListClient({ rows }: { rows: InvoiceRow[] }) {
                   Batal
                 </button>
 
-                <button
+                <FormSubmitButton
                   type="button"
                   onClick={submitPay}
-                  disabled={loading}
-                  style={{
-                    height: 42,
-                    flex: 1,
-                    borderRadius: 10,
-                    border: "1px solid #111",
-                    background: "#111",
-                    color: "white",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    fontWeight: 900,
-                  }}
+                  busy={loading}
+                  busyLabel="Menyimpan..."
+                  style={{ height: 42, flex: 1, borderRadius: 10 }}
                 >
-                  {loading ? "Menyimpan..." : "Simpan"}
-                </button>
+                  Simpan
+                </FormSubmitButton>
               </div>
             </div>
           </div>

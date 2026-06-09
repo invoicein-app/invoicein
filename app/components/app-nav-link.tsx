@@ -1,0 +1,34 @@
+"use client";
+
+import Link from "next/link";
+import type { ComponentProps } from "react";
+import { useNavProgressOptional } from "./nav-progress-context";
+
+type Props = ComponentProps<typeof Link>;
+
+function hrefToString(href: Props["href"]): string {
+  if (typeof href === "string") return href;
+  if (typeof href === "object" && href !== null && "pathname" in href) {
+    return String(href.pathname || "");
+  }
+  return "";
+}
+
+/** Next.js Link that triggers global nav loading feedback on click. */
+export default function AppNavLink({ href, onClick, ...rest }: Props) {
+  const nav = useNavProgressOptional();
+  const hrefStr = hrefToString(href);
+
+  return (
+    <Link
+      href={href}
+      onClick={(e) => {
+        if (!e.defaultPrevented && hrefStr && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) {
+          nav?.startNavigation(hrefStr);
+        }
+        onClick?.(e);
+      }}
+      {...rest}
+    />
+  );
+}

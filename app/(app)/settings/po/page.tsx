@@ -4,6 +4,8 @@
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 export default function POSettingsPage() {
   const supabase = supabaseBrowser();
@@ -14,6 +16,7 @@ export default function POSettingsPage() {
 
   const [orgId, setOrgId] = useState("");
   const [showWarehouseName, setShowWarehouseName] = useState(true);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
 
   async function load() {
     setLoading(true);
@@ -72,7 +75,8 @@ export default function POSettingsPage() {
   }
 
   async function save() {
-    setSaving(true);
+    if (isBlocked()) return;
+    if (!tryBegin()) return;
     setMsg("");
     try {
       if (!orgId) throw new Error("Org belum kebaca.");
@@ -90,7 +94,7 @@ export default function POSettingsPage() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -111,9 +115,9 @@ export default function POSettingsPage() {
           <button onClick={load} style={btn()} disabled={loading || saving}>
             Refresh
           </button>
-          <button onClick={save} style={btnPrimary()} disabled={loading || saving}>
-            {saving ? "Menyimpan..." : "Simpan"}
-          </button>
+          <FormSubmitButton type="button" onClick={save} busy={saving} disabled={loading}>
+            Simpan
+          </FormSubmitButton>
         </div>
       </div>
 
@@ -157,7 +161,4 @@ function card(): React.CSSProperties {
 }
 function btn(): React.CSSProperties {
   return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", color: "#111", fontWeight: 900 };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer", fontWeight: 900 };
 }

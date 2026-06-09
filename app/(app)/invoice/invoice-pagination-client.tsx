@@ -141,11 +141,13 @@ export default function InvoicePaginationClient({
   );
 }
 
-function pagerLink(): CSSProperties {
+function pagerBase(): CSSProperties {
   return {
     padding: "6px 10px",
     borderRadius: 8,
-    border: "1px solid #e2e8f0",
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "#e2e8f0",
     textDecoration: "none",
     color: "#334155",
     background: "#fff",
@@ -157,9 +159,13 @@ function pagerLink(): CSSProperties {
   };
 }
 
+function pagerLink(): CSSProperties {
+  return pagerBase();
+}
+
 function pagerActive(): CSSProperties {
   return {
-    ...pagerLink(),
+    ...pagerBase(),
     background: TEAL,
     borderColor: TEAL,
     color: "#fff",
@@ -168,7 +174,7 @@ function pagerActive(): CSSProperties {
 
 function pagerDisabled(): CSSProperties {
   return {
-    ...pagerLink(),
+    ...pagerBase(),
     opacity: 0.45,
     pointerEvents: "none",
     cursor: "not-allowed",

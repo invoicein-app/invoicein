@@ -1,15 +1,9 @@
-// ✅ NEW FILE
-// invoiceku/app/invoice/cancel-invoice-button-client.tsx
-//
-// Client button: confirm + optional reason (prompt)
-// Calls POST /api/invoice/cancel
-// Then refresh
-
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { formPageDangerButton, formPageDangerButtonDisabled } from "../components/app-action-buttons";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 
 export default function CancelInvoiceButtonClient(props: {
   invoiceId: string;
@@ -18,9 +12,10 @@ export default function CancelInvoiceButtonClient(props: {
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setLoading);
 
   async function onCancel() {
-    if (loading) return;
+    if (props.disabled || isBlocked()) return;
 
     const label = props.invoiceNumber ? `Invoice ${props.invoiceNumber}` : `Invoice ${props.invoiceId.slice(0, 8)}…`;
     const ok = window.confirm(`Cancel ${label}?\n\nCatatan: setelah cancelled, invoice tetap tersimpan untuk audit.`);
@@ -28,7 +23,7 @@ export default function CancelInvoiceButtonClient(props: {
 
     const reason = window.prompt("Alasan cancel (optional):", "") || "";
 
-    setLoading(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch("/api/invoice/cancel", {
         method: "POST",
@@ -46,25 +41,25 @@ export default function CancelInvoiceButtonClient(props: {
         return;
       }
 
-      // refresh page so status updates
       router.refresh();
       alert("Invoice berhasil dicancelled.");
     } catch (e: any) {
       alert(e?.message || "Gagal cancel.");
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
   return (
-    <button
+    <FormSubmitButton
       type="button"
+      variant="danger"
       onClick={onCancel}
-      disabled={props.disabled || loading}
-      style={props.disabled || loading ? formPageDangerButtonDisabled() : formPageDangerButton()}
+      disabled={props.disabled}
+      busy={loading}
+      busyLabel="Membatalkan..."
     >
-      {loading ? "Cancelling..." : "Cancel"}
-    </button>
+      Cancel
+    </FormSubmitButton>
   );
 }
-

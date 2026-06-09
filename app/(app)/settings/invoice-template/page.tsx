@@ -6,6 +6,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 type TemplateKey =
   | "clean"
@@ -101,6 +103,8 @@ export default function InvoiceTemplateSettingsPage() {
     [selectedKey, activeKey, hasToggleChanges]
   );
 
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
+
   async function load() {
     setLoading(true);
     try {
@@ -170,8 +174,9 @@ export default function InvoiceTemplateSettingsPage() {
   async function save() {
     if (!orgId) return;
     if (!canEdit) return;
+    if (isBlocked()) return;
+    if (!tryBegin()) return;
 
-    setSaving(true);
     try {
       const payload = {
         organization_id: orgId,
@@ -188,7 +193,7 @@ export default function InvoiceTemplateSettingsPage() {
     } catch (err: any) {
       alert(err?.message || "Gagal simpan pengaturan invoice.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -204,14 +209,15 @@ export default function InvoiceTemplateSettingsPage() {
           </p>
         </div>
 
-        <button
+        <FormSubmitButton
+          type="button"
           onClick={save}
-          disabled={loading || saving || !canEdit || !hasChanges}
-          style={btnPrimary(loading || saving || !canEdit || !hasChanges)}
+          busy={saving}
+          disabled={loading || !canEdit || !hasChanges}
           title={!canEdit ? "Hanya admin yang bisa mengubah template" : "Simpan pilihan template"}
         >
-          {saving ? "Menyimpan..." : !hasChanges ? "Tersimpan" : "Simpan"}
-        </button>
+          {!hasChanges ? "Tersimpan" : "Simpan"}
+        </FormSubmitButton>
       </div>
 
       {!canEdit ? (
@@ -393,20 +399,6 @@ function header(): React.CSSProperties {
 }
 function h1(): React.CSSProperties { return { margin: 0, fontSize: 20, fontWeight: 1000, color: "#111827" }; }
 function sub(): React.CSSProperties { return { margin: "6px 0 0", color: "#6b7280", fontSize: 13, lineHeight: 1.4 }; }
-
-function btnPrimary(disabled: boolean): React.CSSProperties {
-  return {
-    padding: "10px 14px",
-    borderRadius: 12,
-    border: "1px solid #111827",
-    background: disabled ? "#9ca3af" : "#111827",
-    color: "white",
-    cursor: disabled ? "not-allowed" : "pointer",
-    fontWeight: 950,
-    whiteSpace: "nowrap",
-    minWidth: 110,
-  };
-}
 
 function warn(): React.CSSProperties {
   return { marginBottom: 12, borderRadius: 14, border: "1px solid #fde68a", background: "#fffbeb", padding: 12, color: "#92400e", fontSize: 13 };

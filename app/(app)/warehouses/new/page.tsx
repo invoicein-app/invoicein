@@ -5,14 +5,16 @@
 
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 export default function WarehouseNewPage() {
   const router = useRouter();
 
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [msg, setMsg] = useState("");
 
   // code read-only (biarkan kosong, nanti muncul setelah save / di detail)
@@ -24,12 +26,13 @@ export default function WarehouseNewPage() {
   const [isActive, setIsActive] = useState(true);
 
   async function save() {
+    if (isBlocked()) return;
     setMsg("");
 
     if (!name.trim()) return setMsg("Nama gudang wajib diisi.");
     if (!address.trim()) return setMsg("Alamat wajib diisi.");
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       const payload = {
         name: name.trim(),
@@ -54,7 +57,7 @@ export default function WarehouseNewPage() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan gudang.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -67,12 +70,12 @@ export default function WarehouseNewPage() {
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/warehouses" style={btn()}>
+          <button type="button" onClick={() => router.push("/warehouses")} disabled={saving} style={btn()}>
             Kembali
-          </Link>
-          <button onClick={save} disabled={saving} style={btnPrimary()}>
-            {saving ? "Menyimpan..." : "Simpan Gudang"}
           </button>
+          <FormSubmitButton busy={saving} busyLabel="Menyimpan..." onClick={save}>
+            Simpan Gudang
+          </FormSubmitButton>
         </div>
       </div>
 
@@ -135,9 +138,6 @@ function input(): React.CSSProperties {
 }
 function btn(): React.CSSProperties {
   return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", textDecoration: "none", color: "#111" };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer" };
 }
 function errBox(): React.CSSProperties {
   return { marginTop: 12, padding: 12, borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 900 };

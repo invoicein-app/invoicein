@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 
 const TEAL = "#2D7D71";
 const BORDER = "#e5e7eb";
@@ -21,6 +23,7 @@ export default function VendorCreateForm({ variant, onCancel, onSaved }: Props) 
   const [note, setNote] = useState("");
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
 
   useEffect(() => {
     let alive = true;
@@ -39,13 +42,14 @@ export default function VendorCreateForm({ variant, onCancel, onSaved }: Props) 
   }, []);
 
   async function save() {
+    if (isBlocked()) return;
     setMsg("");
     if (!name.trim()) return setMsg("Nama vendor wajib diisi.");
     if (!phone.trim()) return setMsg("Nomor telepon wajib diisi.");
     if (!email.trim()) return setMsg("Email wajib diisi.");
     if (!address.trim()) return setMsg("Alamat wajib diisi.");
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch("/api/vendors/create", {
         method: "POST",
@@ -70,7 +74,7 @@ export default function VendorCreateForm({ variant, onCancel, onSaved }: Props) 
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : "Gagal simpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -180,23 +184,9 @@ export default function VendorCreateForm({ variant, onCancel, onSaved }: Props) 
         >
           Batalkan
         </button>
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          style={{
-            padding: "14px 16px",
-            borderRadius: 8,
-            border: "none",
-            background: saving ? "#8fb3af" : TEAL,
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: saving ? "not-allowed" : "pointer",
-          }}
-        >
-          {saving ? "Menyimpan…" : "Simpan Data Vendor"}
-        </button>
+        <FormSubmitButton busy={saving} busyLabel="Menyimpan…" onClick={save} style={{ padding: "14px 16px", borderRadius: 8, fontSize: 15 }}>
+          Simpan Data Vendor
+        </FormSubmitButton>
       </div>
     ) : (
       <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 24, flexWrap: "wrap" }}>
@@ -217,23 +207,9 @@ export default function VendorCreateForm({ variant, onCancel, onSaved }: Props) 
         >
           Kembali
         </button>
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          style={{
-            padding: "12px 22px",
-            borderRadius: 8,
-            border: "none",
-            background: saving ? "#8fb3af" : TEAL,
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: saving ? "not-allowed" : "pointer",
-          }}
-        >
-          {saving ? "Menyimpan…" : "Simpan Data Vendor"}
-        </button>
+        <FormSubmitButton busy={saving} busyLabel="Menyimpan…" onClick={save} style={{ padding: "12px 22px", borderRadius: 8, fontSize: 15 }}>
+          Simpan Data Vendor
+        </FormSubmitButton>
       </div>
     );
 

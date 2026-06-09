@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 type Props = {
   orgId: string;
@@ -36,11 +38,13 @@ export default function PaymentConfirmationForm({ orgId, orgName, orgCode }: Pro
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSubmitting);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isBlocked()) return;
     setError("");
-    setSubmitting(true);
+    if (!tryBegin()) return;
     try {
       const res = await fetch("/api/subscription/confirm-payment", {
         method: "POST",
@@ -70,7 +74,7 @@ export default function PaymentConfirmationForm({ orgId, orgName, orgCode }: Pro
       setTransferDate("");
       setNote("");
     } finally {
-      setSubmitting(false);
+      end();
     }
   }
 
@@ -207,22 +211,21 @@ export default function PaymentConfirmationForm({ orgId, orgName, orgCode }: Pro
 
         {error ? <div style={{ fontSize: 14, color: "#b91c1c" }}>{error}</div> : null}
 
-        <button
+        <FormSubmitButton
           type="submit"
-          disabled={submitting}
+          busy={submitting}
+          busyLabel="Mengirim..."
           style={{
             padding: "14px 20px",
             borderRadius: 10,
             border: "none",
             background: "#0f172a",
-            color: "white",
-            fontWeight: 700,
             fontSize: 15,
-            cursor: submitting ? "not-allowed" : "pointer",
+            width: "100%",
           }}
         >
-          {submitting ? "Mengirim..." : "Kirim konfirmasi pembayaran"}
-        </button>
+          Kirim konfirmasi pembayaran
+        </FormSubmitButton>
       </form>
     </div>
   );

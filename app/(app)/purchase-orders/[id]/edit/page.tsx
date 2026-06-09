@@ -17,6 +17,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import FormSubmitButton from "../../../components/form-submit-button";
+import { useSubmitGuard } from "../../../components/use-submit-guard";
 
 type Vendor = {
   id: string;
@@ -90,6 +92,7 @@ export default function PurchaseOrderEditPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [msg, setMsg] = useState("");
 
   const [po, setPo] = useState<PO | null>(null);
@@ -301,6 +304,7 @@ export default function PurchaseOrderEditPage() {
   }, [warehouseId, warehouses]);
 
   async function save() {
+    if (isBlocked()) return;
     setMsg("");
 
     if (isCancelled) return setMsg("PO cancelled (readonly).");
@@ -309,7 +313,7 @@ export default function PurchaseOrderEditPage() {
     if (items.length === 0) return setMsg("Minimal 1 item.");
     if (items.some((it) => !it.name.trim())) return setMsg("Nama item tidak boleh kosong.");
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       // update header + snapshot + subtotal/total
       const { error: upErr } = await supabase
@@ -357,7 +361,7 @@ export default function PurchaseOrderEditPage() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan PO.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -373,12 +377,17 @@ export default function PurchaseOrderEditPage() {
         </div>
 
         <div className="app-form-page__header-actions" style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => router.push(`/purchase-orders/${id}`)} style={btn()}>
+          <button onClick={() => router.push(`/purchase-orders/${id}`)} disabled={saving} style={btn()}>
             Kembali
           </button>
-          <button onClick={save} disabled={saving || loading || isCancelled} style={btnPrimary()}>
-            {saving ? "Menyimpan..." : "Simpan Perubahan"}
-          </button>
+          <FormSubmitButton
+            busy={saving}
+            busyLabel="Menyimpan..."
+            onClick={save}
+            disabled={loading || isCancelled}
+          >
+            Simpan Perubahan
+          </FormSubmitButton>
         </div>
       </div>
 
@@ -627,9 +636,6 @@ function input(): React.CSSProperties {
 }
 function btn(): React.CSSProperties {
   return { padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", cursor: "pointer", textDecoration: "none", color: "#111" };
-}
-function btnPrimary(): React.CSSProperties {
-  return { padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", cursor: "pointer" };
 }
 function th(): React.CSSProperties {
   return { textAlign: "left", borderBottom: "1px solid #eee", padding: "8px 6px", color: "#666", fontWeight: 600 };

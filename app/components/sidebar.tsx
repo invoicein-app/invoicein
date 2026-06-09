@@ -1,11 +1,11 @@
 // app/components/sidebar.tsx — App nav (reference: teal pill active, icons, collapse)
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import AppLogo from "./app-logo";
+import AppNavLink from "./app-nav-link";
 
 const TEAL = "#1E7F75";
 const INACTIVE = "#949494";
@@ -141,7 +141,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
         }}
       >
         {!collapsed ? (
-          <Link
+          <AppNavLink
             href="/dashboard"
             onClick={closeIfMobile}
             style={{
@@ -159,16 +159,16 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
           >
             <AppLogo size={36} />
             Invoiceku
-          </Link>
+          </AppNavLink>
         ) : (
-          <Link
+          <AppNavLink
             href="/dashboard"
             onClick={closeIfMobile}
             style={{ display: "grid", placeItems: "center", textDecoration: "none" }}
             title="Invoiceku"
           >
             <AppLogo size={40} />
-          </Link>
+          </AppNavLink>
         )}
 
         <button
@@ -214,7 +214,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
           const isActive = pathname === it.href || pathname.startsWith(it.href + "/");
           const hovered = !isActive && hoverHref === it.href;
           return (
-            <Link
+            <AppNavLink
               key={it.href}
               href={it.href}
               title={collapsed ? it.label : undefined}
@@ -228,7 +228,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
                 <NavIcon id={it.icon} variant={isActive ? "active" : hovered ? "hover" : "idle"} />
               </span>
               {!collapsed ? <span>{it.label}</span> : null}
-            </Link>
+            </AppNavLink>
           );
         })}
       </nav>

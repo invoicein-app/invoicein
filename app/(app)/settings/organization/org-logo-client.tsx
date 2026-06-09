@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ButtonSpinner } from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 
 const TEAL = "#1D7A73";
 const PLACEHOLDER_BG = "#f3f4f6";
@@ -13,12 +15,14 @@ export default function OrgLogoClient({
   embedded?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setLoading);
 
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    if (isBlocked()) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setLoading(true);
+    if (!tryBegin()) return;
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -38,7 +42,7 @@ export default function OrgLogoClient({
       alert("Logo tersimpan ✅");
       window.location.reload();
     } finally {
-      setLoading(false);
+      end();
       e.target.value = "";
     }
   }
@@ -90,10 +94,19 @@ export default function OrgLogoClient({
               fontWeight: 700,
               fontSize: 14,
               cursor: loading ? "not-allowed" : "pointer",
-              display: "inline-block",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
-            {loading ? "Mengunggah…" : "Upload Logo"}
+            {loading ? (
+              <>
+                <ButtonSpinner color="#ffffff" />
+                Mengunggah…
+              </>
+            ) : (
+              "Upload Logo"
+            )}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/*"

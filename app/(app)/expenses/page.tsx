@@ -22,6 +22,8 @@ import {
   tableActionPrimary,
   tableActionSecondary,
 } from "../components/app-action-buttons";
+import FormSubmitButton from "../components/form-submit-button";
+import { useSubmitGuard } from "../components/use-submit-guard";
 import { formatRibuanInput, parseRibuanInput, rupiah } from "@/lib/money";
 import { monthKeyFromDate, monthStart } from "@/lib/invoice-totals";
 
@@ -83,6 +85,7 @@ export default function ExpensesPage() {
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState<ExpenseForm>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
 
   async function load() {
     setLoading(true);
@@ -151,8 +154,9 @@ export default function ExpensesPage() {
   }
 
   async function save() {
-    setSaving(true);
+    if (isBlocked()) return;
     setMsg("");
+    if (!tryBegin()) return;
     try {
       const payload = {
         expense_date: form.expense_date,
@@ -179,7 +183,7 @@ export default function ExpensesPage() {
       setSheetOpen(false);
       await load();
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -510,12 +514,12 @@ export default function ExpensesPage() {
                 />
               </label>
               <div className="app-modal-sheet__actions" style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button type="button" onClick={() => setSheetOpen(false)} style={tableActionSecondary()}>
+                <button type="button" onClick={() => setSheetOpen(false)} disabled={saving} style={tableActionSecondary()}>
                   Batal
                 </button>
-                <button type="button" onClick={save} disabled={saving} style={formPrimaryButton()}>
-                  {saving ? "Menyimpan..." : "Simpan"}
-                </button>
+                <FormSubmitButton busy={saving} busyLabel="Menyimpan..." onClick={save}>
+                  Simpan
+                </FormSubmitButton>
               </div>
             </div>
           </div>

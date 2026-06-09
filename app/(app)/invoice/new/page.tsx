@@ -7,15 +7,16 @@ import { formPageClasses as fpc } from "../../components/form-page-classes";
 import {
   formPageBackLink,
   formPageHeaderActions,
-  formPageSaveButton,
-  formPageSaveButtonDisabled,
 } from "../../components/app-action-buttons";
+import FormSubmitButton from "../../components/form-submit-button";
+import { useSubmitGuard } from "../../components/use-submit-guard";
 import { useSearchParams } from "next/navigation";
 import {
   buildItemSuggestions,
   type ItemSuggestion,
   type ManualSuggestionSource,
 } from "@/lib/invoice-item-suggestions";
+import { formatBankAccountLabel, type CompanyBankAccount } from "@/lib/company-bank-accounts";
 
 type Customer = {
   id: string;
@@ -144,6 +145,7 @@ function InvoiceNewInner() {
   const [loadingBalances, setLoadingBalances] = useState(false);
 
   const [saving, setSaving] = useState(false);
+  const { tryBegin, end, isBlocked } = useSubmitGuard(setSaving);
   const [prefilling, setPrefilling] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -162,6 +164,9 @@ function InvoiceNewInner() {
 
   const [warehouseId, setWarehouseId] = useState<string>("");
   const [inventoryEnabled, setInventoryEnabled] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState<CompanyBankAccount[]>([]);
+  const [bankAccountId, setBankAccountId] = useState<string>("");
+  const [loadingBankAccounts, setLoadingBankAccounts] = useState(true);
 
   const [note, setNote] = useState("");
 
@@ -263,6 +268,27 @@ function InvoiceNewInner() {
       setManualItems([]);
     } finally {
       setLoadingManualItems(false);
+    }
+  }
+
+  async function loadBankAccounts() {
+    setLoadingBankAccounts(true);
+    try {
+      const res = await fetch("/api/company-bank-accounts?active_only=1", { credentials: "include" });
+      const json = await res.json().catch(() => ({}));
+      const list = res.ok ? ((json.items || []) as CompanyBankAccount[]) : [];
+      setBankAccounts(list);
+
+      if (list.length === 1) {
+        setBankAccountId(list[0].id);
+      } else {
+        const def = list.find((x) => x.is_default);
+        if (def) setBankAccountId(def.id);
+      }
+    } catch {
+      setBankAccounts([]);
+    } finally {
+      setLoadingBankAccounts(false);
     }
   }
 
@@ -371,6 +397,7 @@ function InvoiceNewInner() {
     loadCustomers();
     loadProducts();
     loadManualItems();
+    loadBankAccounts();
     loadWarehouses();
   }, []);
 
@@ -859,6 +886,7 @@ function InvoiceNewInner() {
   }, [fromQuotationId, products.length]);
 
   async function save() {
+    if (isBlocked()) return;
     setMsg("");
 
     if (prefilling) {
@@ -904,7 +932,7 @@ function InvoiceNewInner() {
       }
     }
 
-    setSaving(true);
+    if (!tryBegin()) return;
     try {
       const payload = {
         invoice_date: invoiceDate,
@@ -918,6 +946,7 @@ function InvoiceNewInner() {
         note: note || "",
 
         warehouse_id: inventoryEnabled ? warehouseId || null : null,
+        bank_account_id: bankAccountId || null,
 
         discount_type: discountType,
         discount_value:
@@ -952,7 +981,7 @@ function InvoiceNewInner() {
     } catch (e: any) {
       setMsg(e?.message || "Gagal simpan.");
     } finally {
-      setSaving(false);
+      end();
     }
   }
 
@@ -1088,6 +1117,36 @@ function InvoiceNewInner() {
                 )}
               </label>
             ) : null}
+
+            <label style={label()}>
+              Rekening Pembayaran
+              <select
+                value={bankAccountId}
+                onChange={(e) => setBankAccountId(e.target.value)}
+                style={input()}
+              >
+                <option value="">Default perusahaan</option>
+                {bankAccounts.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {formatBankAccountLabel(b)}
+                  </option>
+                ))}
+              </select>
+              {loadingBankAccounts ? (
+                <small style={{ color: "#666" }}>Loading rekening...</small>
+              ) : bankAccounts.length === 0 ? (
+                <small style={{ color: "#666" }}>
+                  Belum ada rekening aktif.{" "}
+                  <a href="/settings/bank-accounts" style={{ color: "#1D7A73" }}>
+                    Tambah di Pengaturan
+                  </a>
+                </small>
+              ) : (
+                <small style={{ color: "#666" }}>
+                  Rekening ini ditampilkan di PDF invoice. Kosongkan untuk memakai rekening default.
+                </small>
+              )}
+            </label>
 
             <label style={label()}>
               Catatan
@@ -1419,14 +1478,14 @@ function InvoiceNewInner() {
         {msg ? (
           <p style={{ color: "#b00", margin: "0 auto 0 0", alignSelf: "center", fontSize: 14 }}>{msg}</p>
         ) : null}
-        <button
-          type="button"
+        <FormSubmitButton
+          busy={saving}
+          busyLabel="Menyimpan..."
           onClick={save}
-          disabled={saving || prefilling}
-          style={saving || prefilling ? formPageSaveButtonDisabled() : formPageSaveButton()}
+          disabled={prefilling}
         >
-          {saving ? "Menyimpan..." : "Simpan Invoice"}
-        </button>
+          Simpan Invoice
+        </FormSubmitButton>
       </div>
     </div>
   );

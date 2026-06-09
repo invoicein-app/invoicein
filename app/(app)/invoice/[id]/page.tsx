@@ -9,10 +9,13 @@ import PdfButtonClient from "../pdf-button-client";
 import SjButtonClient from "../sj-button-client";
 import DotmatrixButtonClient from "../dotmatrix-button-client";
 import CancelInvoiceButtonClient from "../cancel-invoice-button-client";
+import DeleteInvoiceButtonClient from "../delete-invoice-button-client";
+import { assessInvoiceDeletable, formatInvoiceDeleteBlockedMessage } from "@/lib/invoice-delete";
 import SentInvoiceButtonClient from "../sent-invoice-button-client";
 import { formPageHeaderActions } from "../../components/app-action-buttons";
 import { APP_TEAL } from "../../components/app-ui-tokens";
 import TableEmptyState from "../../components/table-empty-state";
+import { resolveInvoiceBankAccount } from "@/lib/company-bank-accounts";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -81,6 +84,16 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     );
   }
 
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  const actorRole = String(membership?.role || "staff");
+
   const { data: invoice, error: invErr } = await supabase
     .from("invoices")
     .select(
@@ -100,6 +113,8 @@ export default async function InvoiceViewPage({ params }: PageProps) {
       amount_paid,
       quotation_id,
       warehouse_id,
+      bank_account_id,
+      org_id,
       sent_at
     `
     )
@@ -120,6 +135,38 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     .select("id, name, item_key, unit, qty, price, sort_order")
     .eq("invoice_id", id)
     .order("sort_order", { ascending: true });
+
+  let paymentBank: {
+    bank_name: string;
+    account_number: string;
+    account_holder_name: string;
+    branch: string | null;
+  } | null = null;
+
+  const orgId = String((invoice as any).org_id || "").trim();
+  if (orgId) {
+    const { data: orgRow } = await supabase
+      .from("organizations")
+      .select("bank_name, bank_account, bank_account_name")
+      .eq("id", orgId)
+      .maybeSingle();
+
+    const resolved = await resolveInvoiceBankAccount({
+      supabase,
+      orgId,
+      bankAccountId: (invoice as any).bank_account_id,
+      orgLegacy: orgRow || undefined,
+    });
+
+    if (resolved) {
+      paymentBank = {
+        bank_name: resolved.bank_name,
+        account_number: resolved.account_number,
+        account_holder_name: resolved.account_holder_name,
+        branch: resolved.branch,
+      };
+    }
+  }
 
   const subtotal =
     (items || []).reduce(
@@ -174,6 +221,30 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     docStatus !== "paid" &&
     docStatus !== "cancelled";
 
+  const orgIdForDelete = String((invoice as any).org_id || "").trim();
+  let canDelete = false;
+  let deleteBlockMessage: string | null = null;
+  let deleteAdminOverride = false;
+
+  if (orgIdForDelete) {
+    const deleteAssessment = await assessInvoiceDeletable({
+      supabase,
+      orgId: orgIdForDelete,
+      invoice: {
+        id,
+        status: (invoice as any).status,
+        amount_paid: amountPaid,
+        quotation_id: (invoice as any).quotation_id,
+      },
+      actorRole,
+    });
+    canDelete = deleteAssessment.canDelete;
+    deleteAdminOverride = deleteAssessment.adminOverride ?? false;
+    deleteBlockMessage = deleteAssessment.canDelete
+      ? null
+      : formatInvoiceDeleteBlockedMessage(deleteAssessment.reasons);
+  }
+
   return (
     <div className="app-form-page app-detail-page" style={pageWrap()}>
       <div className="app-form-page__header" style={headerRow()}>
@@ -217,8 +288,33 @@ export default async function InvoiceViewPage({ params }: PageProps) {
             invoiceNumber={(invoice as any).invoice_number || null}
             disabled={!canCancel}
           />
+          <DeleteInvoiceButtonClient
+            invoiceId={id}
+            invoiceNumber={(invoice as any).invoice_number || null}
+            canDelete={canDelete}
+            blockMessage={deleteBlockMessage}
+            isCancelled={docStatus === "cancelled"}
+            isAdminDelete={deleteAdminOverride}
+          />
         </div>
       </div>
+
+      {!canDelete && deleteBlockMessage && docStatus !== "cancelled" ? (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid #e2e8f0",
+            background: "#f8fafc",
+            color: "#475569",
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >
+          {deleteBlockMessage}
+        </div>
+      ) : null}
 
       <div className="app-form-page__summary-row" style={summaryRow()}>
         <div style={summaryCard()}>
@@ -268,6 +364,32 @@ export default async function InvoiceViewPage({ params }: PageProps) {
             <div style={noteText()}>{(invoice as any).note || "-"}</div>
           </div>
         </div>
+
+        {paymentBank ? (
+          <div style={card()}>
+            <div style={sectionTitle()}>Rekening Pembayaran</div>
+            <div style={cardBody()}>
+              <div className="app-form-page__info-row" style={infoRow()}>
+                <span style={infoK()}>Bank</span>
+                <span style={infoV()}>{paymentBank.bank_name || "-"}</span>
+              </div>
+              <div className="app-form-page__info-row" style={infoRow()}>
+                <span style={infoK()}>No. Rekening</span>
+                <span style={infoV()}>{paymentBank.account_number || "-"}</span>
+              </div>
+              <div className="app-form-page__info-row" style={infoRow()}>
+                <span style={infoK()}>Atas Nama</span>
+                <span style={infoV()}>{paymentBank.account_holder_name || "-"}</span>
+              </div>
+              {paymentBank.branch ? (
+                <div className="app-form-page__info-row" style={infoRow()}>
+                  <span style={infoK()}>Cabang</span>
+                  <span style={infoV()}>{paymentBank.branch}</span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div style={section()}>

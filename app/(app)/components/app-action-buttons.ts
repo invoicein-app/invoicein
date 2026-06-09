@@ -264,3 +264,7 @@ export function toolbarButtonOutline(): CSSProperties {
 export function formPrimaryButton(): CSSProperties {
   return formPageSaveButton();
 }
+
+export function formPrimaryButtonDisabled(): CSSProperties {
+  return formPageSaveButtonDisabled();
+}
