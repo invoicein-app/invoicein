@@ -13,6 +13,8 @@ import {
   assessInvoiceDeletableFromSets,
   formatInvoiceDeleteBlockedMessage,
 } from "@/lib/invoice-delete";
+import { calcInvoiceTotals } from "@/lib/invoice-totals";
+import { getUiPayStatus } from "@/lib/invoice-list-utils";
 
 type SearchParams = {
   inv?: string;
@@ -36,49 +38,6 @@ function rupiah(n: number) {
 function parseIntSafe(v: string | undefined, fallback: number) {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
-}
-
-function clampPct(v: any) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(100, n));
-}
-
-function calcTotals(inv: any) {
-  const items = inv.invoice_items || [];
-  const subtotal =
-    items.reduce(
-      (acc: number, it: any) =>
-        acc + Number(it.qty || 0) * Number(it.price || 0),
-      0
-    ) || 0;
-
-  const discPct = clampPct(inv.discount_value);
-  const discount = subtotal * (discPct / 100);
-
-  const afterDisc = Math.max(0, subtotal - discount);
-
-  const taxPct = clampPct(inv.tax_value);
-  const tax = afterDisc * (taxPct / 100);
-
-  const grandTotal = Math.max(0, afterDisc + tax);
-  const paid = Math.max(0, Number(inv.amount_paid || 0));
-  const remaining = Math.max(0, grandTotal - paid);
-
-  return { subtotal, grandTotal, paid, remaining };
-}
-
-function getUiPayStatus(rawStatus: any, grandTotal: number, amountPaid: number) {
-  const status = String(rawStatus || "").toLowerCase();
-
-  if (status === "cancelled") return "CANCELLED";
-  if (status === "draft") return "DRAFT";
-  if (status === "paid") return "PAID";
-
-  if (grandTotal <= 0) return "UNPAID";
-  if (amountPaid >= grandTotal) return "PAID";
-  if (amountPaid > 0) return "PARTIAL";
-  return "UNPAID";
 }
 
 function badgeStyle(status: string) {
@@ -242,7 +201,7 @@ export default async function InvoiceListPage({
 
   const invoices = (invoicesRaw || [])
     .map((inv: any) => {
-      const t = calcTotals(inv);
+      const t = calcInvoiceTotals(inv);
       const payStatus = getUiPayStatus(inv.status, t.grandTotal, t.paid);
       return { ...inv, ...t, payStatus };
     })

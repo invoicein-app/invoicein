@@ -179,6 +179,23 @@ export function formPageSoftLink(): CSSProperties {
   return formPageBackLink();
 }
 
+/** Teks link sekunder di header form — hindari misclick di area input utama. */
+export function formPageSecondaryTextLink(): CSSProperties {
+  return {
+    padding: "6px 2px",
+    fontSize: 13,
+    fontWeight: 600,
+    color: "#64748b",
+    textDecoration: "underline",
+    textUnderlineOffset: 3,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+    display: "inline-flex",
+    alignItems: "center",
+  };
+}
+
 /** CTA utama hijau untuk link (Download PDF, GRN, Convert). */
 export function formPagePrimaryLink(): CSSProperties {
   return {

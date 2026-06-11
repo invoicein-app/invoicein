@@ -8,6 +8,7 @@ import { formPageClasses as fpc } from "../../components/form-page-classes";
 import {
   formPageBackLink,
   formPageHeaderActions,
+  tableActionSecondary,
 } from "../../components/app-action-buttons";
 import FormSubmitButton from "../../components/form-submit-button";
 import { useSubmitGuard } from "../../components/use-submit-guard";
@@ -18,6 +19,7 @@ import {
   type ManualSuggestionSource,
 } from "@/lib/invoice-item-suggestions";
 import { formatBankAccountLabel, type CompanyBankAccount } from "@/lib/company-bank-accounts";
+import InvoiceFormItemsTotalsSummary from "../invoice-form-items-totals-summary";
 
 type Customer = {
   id: string;
@@ -55,6 +57,7 @@ type Item = {
   product_id: string;
   name: string;
   item_key: string;
+  unit: string;
   qty: number;
   price: number;
   qtyText: string;
@@ -79,6 +82,7 @@ type PrefillData = {
   items: Array<{
     product_id: string | null;
     name: string;
+    unit?: string | null;
     qty: number;
     price: number;
     sort_order: number;
@@ -186,6 +190,7 @@ function InvoiceNewInner() {
       product_id: "",
       name: "",
       item_key: "",
+      unit: "",
       qty: 1,
       qtyText: "1",
       price: 0,
@@ -514,6 +519,7 @@ function InvoiceNewInner() {
           product_id: "",
           name: "",
           item_key: "",
+          unit: "",
           qty: 1,
           qtyText: "1",
           price: 0,
@@ -551,6 +557,7 @@ function InvoiceNewInner() {
         product_id: "",
         name: "",
         item_key: "",
+        unit: "",
         qty: 1,
         qtyText: "1",
         price: 0,
@@ -706,6 +713,7 @@ function InvoiceNewInner() {
               product_id: p.id,
               name: String(p.name || ""),
               item_key: itemKey,
+              unit: String(p.unit || "").trim(),
               price: priceN,
               priceText: priceN ? formatThousandsID(priceN) : "",
               priceManual: false,
@@ -758,6 +766,7 @@ function InvoiceNewInner() {
               product_id: "",
               name: displayName,
               item_key: itemKey,
+              unit: String(m.unit || "").trim(),
               price: priceN,
               priceText: priceN ? formatThousandsID(priceN) : "",
               priceManual: false,
@@ -823,6 +832,7 @@ function InvoiceNewInner() {
               product_id: x.product_id || "",
               name: String(x.name || ""),
               item_key: "",
+              unit: String(x.unit || "").trim(),
               qty: Math.max(0, num(x.qty || 0)),
               qtyText: formatQtyInput(Math.max(0, num(x.qty || 0))) || String(Math.max(0, num(x.qty || 0)) || ""),
               price: Math.max(0, Math.floor(num(x.price || 0))),
@@ -834,6 +844,7 @@ function InvoiceNewInner() {
                 product_id: "",
                 name: "",
                 item_key: "",
+                unit: "",
                 qty: 1,
                 qtyText: "1",
                 price: 0,
@@ -862,6 +873,7 @@ function InvoiceNewInner() {
           ...it,
           name: prod.name,
           item_key: productToItemKey(prod),
+          unit: String(prod.unit || it.unit || "").trim(),
         };
       });
 
@@ -954,6 +966,7 @@ function InvoiceNewInner() {
           product_id: it.product_id || null,
           name: String(it.name || "").trim(),
           item_key: String(it.item_key || "").trim() || toKey(String(it.name || "").trim()),
+          unit: String(it.unit || "").trim() || null,
           qty: Math.max(0, parseQtyInput(it.qtyText) || num(it.qty)),
           price: Math.max(0, Math.floor(num(it.price))),
         })),
@@ -1222,13 +1235,16 @@ function InvoiceNewInner() {
       </div>
 
       <div style={{ marginTop: 12, ...card() }}>
-        <div className={fpc.sectionHead} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className={fpc.sectionHead}>
           <h3 style={{ margin: 0 }}>Items</h3>
-          <div className={fpc.sectionActions} style={{ display: "flex", gap: 8 }}>
-            <a href="/products" style={btn()}>
-              + Kelola Barang
-            </a>
-          </div>
+          <a
+            href="/products"
+            className="invoice-form-manage-products"
+            style={{ ...tableActionSecondary(), marginTop: 8 }}
+            title="Buka halaman Master Barang"
+          >
+            Kelola Barang
+          </a>
         </div>
 
         <div className={fpc.tableScroll} style={{ marginTop: 10, overflowX: "auto", overflowY: "visible", position: "relative" }}>
@@ -1238,6 +1254,7 @@ function InvoiceNewInner() {
                 <th style={th()}>Barang</th>
                 <th style={th()}>Key</th>
                 <th style={th()}>Qty</th>
+                <th style={th()}>Satuan</th>
                 <th style={th()}>Harga</th>
                 <th style={th()}>Total</th>
                 <th style={th()}>Aksi</th>
@@ -1375,6 +1392,7 @@ function InvoiceNewInner() {
                                 </div>
                                 <div style={{ fontSize: 12, color: "#6b7280" }}>
                                   key: <span style={{ fontFamily: "monospace" }}>{m.item_key}</span>
+                                  {m.unit ? ` • satuan: ${m.unit}` : ""}
                                   {cachedPrice && cachedPrice > 0
                                     ? ` • harga terakhir: Rp ${cachedPrice.toLocaleString("id-ID")}`
                                     : ""}
@@ -1411,6 +1429,17 @@ function InvoiceNewInner() {
                         onBlur={() => onBlurQty(i)}
                         placeholder="Qty (contoh: 1.5)"
                         style={input()}
+                      />
+                    </td>
+
+                    <td className="inv-form-item-unit" data-label="Satuan" style={td()}>
+                      <input
+                        value={it.unit || ""}
+                        onChange={(e) => setItem(i, { unit: e.target.value })}
+                        placeholder="pcs, m³, ..."
+                        style={input()}
+                        disabled={Boolean(it.product_id)}
+                        title={it.product_id ? "Satuan mengikuti Master Barang" : "Isi satuan item manual"}
                       />
                     </td>
 
@@ -1454,7 +1483,7 @@ function InvoiceNewInner() {
           </table>
 
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
-            <button onClick={addItem} style={btn()}>
+            <button type="button" onClick={addItem} style={tableActionSecondary()}>
               + Tambah Item
             </button>
           </div>
@@ -1467,6 +1496,13 @@ function InvoiceNewInner() {
               : "Tanpa fitur inventory, item boleh diketik manual. Pilih dari daftar barang hanya jika ingin link ke master."}
           </p>
         </div>
+
+        <InvoiceFormItemsTotalsSummary
+          subtotal={calc.sub}
+          discount={calc.disc}
+          tax={calc.tax}
+          total={calc.total}
+        />
       </div>
 
       <div className="app-form-page__submit-row" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>

@@ -28,6 +28,11 @@ type ProductRow = {
   unit?: string | null;
 };
 
+function normalizeUnitText(raw: unknown): string | null {
+  const s = String(raw ?? "").trim();
+  return s || null;
+}
+
 export function normalizeInvoiceItemInput(raw: unknown): NormalizedInvoiceItem {
   const r = raw as Record<string, unknown>;
   const product_id = String(r?.product_id || "").trim() || null;
@@ -42,7 +47,7 @@ export function normalizeInvoiceItemInput(raw: unknown): NormalizedInvoiceItem {
     item_key,
     qty: Math.max(0, num(r?.qty)),
     price: Math.max(0, Math.floor(num(r?.price))),
-    unit: null,
+    unit: normalizeUnitText(r?.unit),
   };
 }
 
@@ -115,12 +120,12 @@ export function validateInvoiceItems(args: {
         it.unit = String(p.unit || "").trim() || null;
       } else {
         it.product_id = null;
-        it.unit = null;
+        it.unit = normalizeUnitText(it.unit);
         it.item_key = invoiceItemToKey(it.name) || null;
       }
     } else {
       it.product_id = null;
-      it.unit = null;
+      it.unit = normalizeUnitText(it.unit);
       it.item_key = invoiceItemToKey(it.name) || null;
     }
   }

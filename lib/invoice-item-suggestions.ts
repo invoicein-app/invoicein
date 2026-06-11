@@ -11,6 +11,7 @@ export type ProductSuggestionSource = {
 export type ManualSuggestionSource = {
   item_key: string;
   display_name: string;
+  unit?: string | null;
 };
 
 export type ProductItemSuggestion = {
@@ -26,6 +27,7 @@ export type ManualItemSuggestion = {
   kind: "manual";
   item_key: string;
   display_name: string;
+  unit: string | null;
 };
 
 export type ItemSuggestion = ProductItemSuggestion | ManualItemSuggestion;
@@ -87,6 +89,7 @@ export function buildItemSuggestions(args: {
         kind: "manual",
         item_key: String(m.item_key),
         display_name: String(m.display_name),
+        unit: String(m.unit || "").trim() || null,
       })
     );
 

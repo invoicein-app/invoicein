@@ -316,6 +316,7 @@ export async function POST(req: Request) {
       product_id: it.product_id,
       name: it.name,
       item_key: it.item_key,
+      unit: it.unit,
     })),
   });
 

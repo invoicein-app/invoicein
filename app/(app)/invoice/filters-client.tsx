@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import InvoiceExportClient from "./invoice-export-client";
 
 const TEAL = "#2D7D71";
 const BORDER = "#E2E8F0";
@@ -242,24 +243,34 @@ export default function InvoiceFiltersClient({
           </span>
         </div>
 
-        <button
-          type="button"
-          className="invoice-filters-reset"
-          onClick={() => router.push(pathname)}
+        <div
           style={{
             marginLeft: "auto",
-            padding: "8px 12px",
-            borderRadius: 8,
-            border: `1px solid ${BORDER}`,
-            background: "#fff",
-            color: "#64748b",
-            fontWeight: 700,
-            fontSize: 13,
-            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
           }}
         >
-          Reset filter
-        </button>
+          <InvoiceExportClient />
+          <button
+            type="button"
+            className="invoice-filters-reset"
+            onClick={() => router.push(pathname)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: `1px solid ${BORDER}`,
+              background: "#fff",
+              color: "#64748b",
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            Reset filter
+          </button>
+        </div>
       </div>
     </div>
   );

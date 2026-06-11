@@ -19,6 +19,7 @@ import {
   type ManualSuggestionSource,
 } from "@/lib/invoice-item-suggestions";
 import { formatBankAccountLabel, type CompanyBankAccount } from "@/lib/company-bank-accounts";
+import InvoiceFormItemsTotalsSummary from "../../invoice-form-items-totals-summary";
 
 type Product = {
   id: string;
@@ -35,6 +36,7 @@ type ManualItem = ManualSuggestionSource & {
 type Item = {
   id: string;
   name: string;
+  unit?: string;
   qty: number;
   price: number;
   sort_order: number;
@@ -126,6 +128,7 @@ export default function InvoiceEditPage() {
     setItems(
       ((itemData || []) as any[]).map((row) => ({
         ...row,
+        unit: String(row.unit || "").trim(),
         openSug: false,
       }))
     );
@@ -274,6 +277,7 @@ export default function InvoiceEditPage() {
       product_id: p.id,
       name: String(p.name || ""),
       item_key: itemKey,
+      unit: String(p.unit || "").trim(),
       price: priceN,
       openSug: false,
     });
@@ -310,6 +314,7 @@ export default function InvoiceEditPage() {
       product_id: "",
       name: displayName,
       item_key: itemKey,
+      unit: String(m.unit || "").trim(),
       price: priceN,
       openSug: false,
     });
@@ -348,6 +353,7 @@ export default function InvoiceEditPage() {
       {
         id: `new-${Date.now()}`,
         name: "",
+        unit: "",
         qty: 1,
         price: 0,
         sort_order: prev.length,
@@ -395,6 +401,7 @@ export default function InvoiceEditPage() {
             product_id: String(it.product_id || "").trim(),
             name: it.name,
             item_key: String(it.item_key || "").trim(),
+            unit: String(it.unit || "").trim() || null,
             qty: Number(it.qty || 0),
             price: Number(it.price || 0),
             sort_order: idx,
@@ -610,6 +617,7 @@ export default function InvoiceEditPage() {
               <tr>
                 <th style={th()}>Nama</th>
                 <th style={th()}>Qty</th>
+                <th style={th()}>Satuan</th>
                 <th style={th()}>Harga</th>
                 <th style={th()}>Total</th>
                 <th style={th()}>Aksi</th>
@@ -695,6 +703,7 @@ export default function InvoiceEditPage() {
                               </div>
                               <div style={{ fontSize: 12, color: "#6b7280" }}>
                                 key: {m.item_key}
+                                {m.unit ? ` • satuan: ${m.unit}` : ""}
                                 {cachedPrice && cachedPrice > 0
                                   ? ` • Rp ${cachedPrice.toLocaleString("id-ID")}`
                                   : ""}
@@ -718,6 +727,16 @@ export default function InvoiceEditPage() {
                       onChange={(e) => patchItem(i, { qty: Number(e.target.value || 0) })}
                       style={input()}
                       disabled={!isEditable}
+                    />
+                  </td>
+                  <td className="inv-form-item-unit" data-label="Satuan" style={td()}>
+                    <input
+                      value={it.unit || ""}
+                      onChange={(e) => patchItem(i, { unit: e.target.value })}
+                      placeholder="pcs, m³, ..."
+                      style={input()}
+                      disabled={!isEditable || Boolean(it.product_id)}
+                      title={it.product_id ? "Satuan mengikuti Master Barang" : "Isi satuan item manual"}
                     />
                   </td>
                   <td className="inv-form-item-price" data-label="Harga" style={td()}>
@@ -749,6 +768,13 @@ export default function InvoiceEditPage() {
             </button>
           </div>
         </div>
+
+        <InvoiceFormItemsTotalsSummary
+          subtotal={calc.sub}
+          discount={calc.disc}
+          tax={calc.tax}
+          total={calc.total}
+        />
       </div>
 
       <div className="app-form-page__submit-row" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>

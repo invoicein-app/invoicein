@@ -4,6 +4,7 @@ import { invoiceItemToKey } from "@/lib/invoice-items";
 export type OrgManualItem = {
   item_key: string;
   display_name: string;
+  unit: string | null;
   last_used_at?: string | null;
 };
 
@@ -11,6 +12,7 @@ type ManualLineInput = {
   product_id?: string | null;
   name?: string | null;
   item_key?: string | null;
+  unit?: string | null;
 };
 
 export async function upsertOrgManualItemsFromLines(args: {
@@ -21,7 +23,7 @@ export async function upsertOrgManualItemsFromLines(args: {
   const { supabase, orgId, lines } = args;
   const now = new Date().toISOString();
 
-  const byKey = new Map<string, string>();
+  const byKey = new Map<string, { display_name: string; unit: string | null }>();
 
   for (const line of lines) {
     if (String(line.product_id || "").trim()) continue;
@@ -33,15 +35,22 @@ export async function upsertOrgManualItemsFromLines(args: {
       invoiceItemToKey(String(line.item_key || "").trim() || displayName);
     if (!itemKey) continue;
 
-    byKey.set(itemKey, displayName);
+    const unit = String(line.unit || "").trim() || null;
+    const prev = byKey.get(itemKey);
+
+    byKey.set(itemKey, {
+      display_name: displayName,
+      unit: unit || prev?.unit || null,
+    });
   }
 
   if (byKey.size === 0) return;
 
-  const rows = [...byKey.entries()].map(([item_key, display_name]) => ({
+  const rows = [...byKey.entries()].map(([item_key, { display_name, unit }]) => ({
     org_id: orgId,
     item_key,
     display_name,
+    unit,
     last_used_at: now,
     updated_at: now,
   }));
@@ -67,7 +76,7 @@ export async function searchOrgManualItems(args: {
 
   let query = supabase
     .from("org_manual_items")
-    .select("item_key, display_name, last_used_at")
+    .select("item_key, display_name, unit, last_used_at")
     .eq("org_id", orgId)
     .order("last_used_at", { ascending: false })
     .limit(limit);
@@ -86,6 +95,7 @@ export async function searchOrgManualItems(args: {
   return (data || []).map((row: any) => ({
     item_key: String(row.item_key || ""),
     display_name: String(row.display_name || ""),
+    unit: String(row.unit || "").trim() || null,
     last_used_at: row.last_used_at ?? null,
   }));
 }

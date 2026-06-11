@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { requireApiContext } from "@/lib/api-context";
+import { requireApiContext, asText } from "@/lib/api-context";
 
 export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: string }> }) {
   const { invoiceId } = await ctx.params;
@@ -33,11 +33,32 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
 
   const { data: items, error: itemsErr } = await admin
     .from("invoice_items")
-    .select("name, qty, sort_order")
+    .select("name, qty, sort_order, product_id, item_key, unit")
     .eq("invoice_id", invoiceId)
     .order("sort_order", { ascending: true });
 
   if (itemsErr) return NextResponse.json({ error: itemsErr.message }, { status: 400 });
+
+  const productIds = [
+    ...new Set((items || []).map((it: { product_id?: string | null }) => asText(it.product_id)).filter(Boolean)),
+  ];
+
+  let productUnitMap = new Map<string, string | null>();
+  if (productIds.length > 0) {
+    const { data: products, error: prodErr } = await admin
+      .from("products")
+      .select("id, unit")
+      .in("id", productIds);
+
+    if (prodErr) return NextResponse.json({ error: prodErr.message }, { status: 400 });
+
+    productUnitMap = new Map(
+      (products || []).map((p: { id: string; unit: string | null }) => [
+        String(p.id),
+        asText(p.unit) || null,
+      ])
+    );
+  }
 
   // 4) insert delivery note
   // NOTE:
@@ -65,12 +86,21 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
 
   // 5) insert delivery note items
   if ((items || []).length) {
-    const payload = (items || []).map((it: any, i: number) => ({
-      delivery_note_id: dn.id,
-      name: String(it.name || ""),
-      qty: Number(it.qty || 0),
-      sort_order: it.sort_order ?? i,
-    }));
+    const payload = (items || []).map((it: any, i: number) => {
+      const productId = asText(it.product_id) || null;
+      const unitFromInvoice = asText(it.unit) || null;
+      const unitFromProduct = productId ? productUnitMap.get(productId) || null : null;
+
+      return {
+        delivery_note_id: dn.id,
+        name: String(it.name || ""),
+        qty: Number(it.qty || 0),
+        sort_order: it.sort_order ?? i,
+        unit: unitFromInvoice || unitFromProduct || null,
+        product_id: productId,
+        item_key: asText(it.item_key) || null,
+      };
+    });
 
     const { error: dnItemsErr } = await admin.from("delivery_note_items").insert(payload);
     if (dnItemsErr) return NextResponse.json({ error: dnItemsErr.message }, { status: 400 });
