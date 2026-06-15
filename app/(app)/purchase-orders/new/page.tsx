@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import FormSubmitButton from "../../components/form-submit-button";
 import { useSubmitGuard } from "../../components/use-submit-guard";
+import { productMatchesItemSearch } from "@/lib/item-search";
 
 type Vendor = {
   id: string;
@@ -353,15 +354,9 @@ export default function PONewPage() {
   }, [warehouseId, warehouses, orgId]);
 
   function getSuggestionsFor(raw: string) {
-    const s = String(raw || "").trim().toLowerCase();
     const list = products || [];
-    if (!s) return list.slice(0, 10);
-
-    return list
-      .filter((p) =>
-        `${p.name} ${p.sku || ""} ${p.unit || ""}`.toLowerCase().includes(s)
-      )
-      .slice(0, 10);
+    if (!String(raw || "").trim()) return list.slice(0, 10);
+    return list.filter((p) => productMatchesItemSearch(p, raw)).slice(0, 10);
   }
 
   function getStockHint(itemKey: string) {

@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import FormSubmitButton from "../../../components/form-submit-button";
 import { useSubmitGuard } from "../../../components/use-submit-guard";
+import { matchesItemSearch } from "@/lib/item-search";
 
 type Warehouse = {
   id: string;
@@ -674,26 +675,22 @@ export default function WarehouseStockPage() {
 }
 
 function filteredBalances(rows: BalanceRow[], q: string, onlyHasStock: boolean) {
-  const s = q.trim().toLowerCase();
   let list = rows || [];
 
   if (onlyHasStock) list = list.filter((r) => num(r.on_hand) > 0);
 
-  if (!s) return list;
+  if (!String(q || "").trim()) return list;
 
-  return list.filter((r) => {
-    const blob = `${r.item_key || ""} ${r.item_name || ""}`.toLowerCase();
-    return blob.includes(s);
-  });
+  return list.filter((r) =>
+    matchesItemSearch(`${r.item_key || ""} ${r.item_name || ""}`, q)
+  );
 }
 
 function filteredLedger(rows: LedgerRow[], q: string) {
-  const s = q.trim().toLowerCase();
-  if (!s) return rows;
-  return (rows || []).filter((r) => {
-    const blob = `${r.product_name || ""} ${r.ref_type || ""} ${r.ref_id || ""}`.toLowerCase();
-    return blob.includes(s);
-  });
+  if (!String(q || "").trim()) return rows;
+  return (rows || []).filter((r) =>
+    matchesItemSearch(`${r.product_name || ""} ${r.ref_type || ""} ${r.ref_id || ""}`, q)
+  );
 }
 
 function card(): React.CSSProperties {

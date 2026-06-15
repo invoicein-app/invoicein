@@ -72,7 +72,7 @@ export async function searchOrgManualItems(args: {
 }): Promise<OrgManualItem[]> {
   const { supabase, orgId } = args;
   const limit = Math.min(50, Math.max(1, Math.floor(args.limit ?? 20)));
-  const q = String(args.query || "").trim();
+  const q = String(args.query || "").trim().replace(/\s+/g, " ");
 
   let query = supabase
     .from("org_manual_items")
@@ -82,7 +82,8 @@ export async function searchOrgManualItems(args: {
     .limit(limit);
 
   if (q) {
-    query = query.ilike("display_name", `%${q.replace(/[%_]/g, "")}%`);
+    const escaped = q.replace(/[%_]/g, "");
+    query = query.ilike("display_name", `%${escaped}%`);
   }
 
   const { data, error } = await query;

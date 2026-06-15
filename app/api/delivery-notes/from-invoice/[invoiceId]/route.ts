@@ -1,20 +1,17 @@
-// app/api/delivery-notes/from-invoice/[invoiceId]/route.ts
-// FULL REPLACE (fix: driver_name NOT NULL, invoice gak punya shipping_address)
-
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireApiContext, asText } from "@/lib/api-context";
+import { createAndFinalizeDeliveryNote, rollbackDeliveryNoteCreate } from "@/lib/delivery-note-post";
 
 export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: string }> }) {
   const { invoiceId } = await ctx.params;
 
   const auth = await requireApiContext({ requireWrite: true });
   if (!auth.ok) return auth.response;
-  const { supabase: supabaseUser, user } = auth.ctx;
+  const { supabase: supabaseUser, user, orgId, actorRole } = auth.ctx;
 
-  // RLS gate: pastikan invoice ini bisa diakses user
   const { data: invGate, error: invGateErr } = await supabaseUser
     .from("invoices")
     .select("id, org_id")
@@ -24,10 +21,11 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
   if (invGateErr) return NextResponse.json({ error: invGateErr.message }, { status: 403 });
   if (!invGate) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  // 3) service role (buat insert SJ + items)
-  const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
-  // ambil invoice + items
   const { data: inv, error: invErr } = await admin.from("invoices").select("*").eq("id", invoiceId).single();
   if (invErr || !inv) return NextResponse.json({ error: invErr?.message || "Invoice not found" }, { status: 400 });
 
@@ -60,10 +58,6 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
     );
   }
 
-  // 4) insert delivery note
-  // NOTE:
-  // - schema kamu: delivery_notes.driver_name NOT NULL -> jangan null, pakai "" dulu biar fleksibel
-  // - invoice table kamu gak ada shipping_address -> pakai customer_address
   const { data: dn, error: dnErr } = await admin
     .from("delivery_notes")
     .insert({
@@ -73,8 +67,9 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
       customer_phone: String(inv.customer_phone || "").trim() || null,
       sj_date: new Date().toISOString().slice(0, 10),
       shipping_address: (inv.customer_address || "").toString(),
-      driver_name: "", // ✅ FIX: jangan null kalau kolom NOT NULL
-      note: "", // biar aman kalau nanti kamu bikin NOT NULL juga
+      driver_name: "",
+      note: "",
+      warehouse_id: inv.warehouse_id || null,
       created_by: user.id,
     })
     .select("id, sj_number")
@@ -84,7 +79,6 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
     return NextResponse.json({ error: dnErr?.message || "Failed create delivery note" }, { status: 400 });
   }
 
-  // 5) insert delivery note items
   if ((items || []).length) {
     const payload = (items || []).map((it: any, i: number) => {
       const productId = asText(it.product_id) || null;
@@ -103,14 +97,39 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
     });
 
     const { error: dnItemsErr } = await admin.from("delivery_note_items").insert(payload);
-    if (dnItemsErr) return NextResponse.json({ error: dnItemsErr.message }, { status: 400 });
+    if (dnItemsErr) {
+      await rollbackDeliveryNoteCreate(admin, dn.id);
+      return NextResponse.json({ error: dnItemsErr.message }, { status: 400 });
+    }
   }
-await admin
-  .from("invoices")
-  .update({
-    delivery_note_id: dn.id,
-    sj_number: dn.sj_number,
-  })
-  .eq("id", invoiceId);
-  return NextResponse.json({ id: dn.id, sj_number: dn.sj_number }, { status: 200 });
+
+  const finalize = await createAndFinalizeDeliveryNote({
+    supabase: supabaseUser,
+    admin,
+    orgId,
+    userId: user.id,
+    actorRole,
+    deliveryNoteId: dn.id,
+    invoiceId,
+  });
+
+  if (!finalize.ok) {
+    return NextResponse.json({ error: finalize.error }, { status: finalize.status });
+  }
+
+  const { data: finalizedDn } = await supabaseUser
+    .from("delivery_notes")
+    .select("id, sj_number, status")
+    .eq("id", dn.id)
+    .maybeSingle();
+
+  return NextResponse.json(
+    {
+      id: dn.id,
+      sj_number: finalizedDn?.sj_number || dn.sj_number,
+      status: finalizedDn?.status || "posted",
+      stock_moved: finalize.stock_moved,
+    },
+    { status: 200 }
+  );
 }

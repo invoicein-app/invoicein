@@ -5,6 +5,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import AppLogo from "@/app/components/app-logo";
+import {
+  isSignUpExistingEmail,
+  isSignUpNewAccount,
+  hasSignUpSession,
+  SIGNUP_CONFIRM_EMAIL_MESSAGE,
+  SIGNUP_EXISTING_EMAIL_MESSAGE,
+} from "@/lib/auth-signup";
+import { formatAuthErrorMessage } from "@/lib/auth-error-messages";
 
 const TEAL = "#2D7D71";
 const TEAL_MINT = "#E6F4F1";
@@ -24,6 +32,7 @@ export default function OwnerAdminLoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string>("");
+  const [showExistingEmailHelp, setShowExistingEmailHelp] = useState(false);
 
   const canSubmit = email.trim().length > 3 && password.length >= 6;
 
@@ -32,18 +41,37 @@ export default function OwnerAdminLoginPage() {
     if (!canSubmit) return;
 
     setMsg("");
+    setShowExistingEmailHelp(false);
     setLoading(true);
 
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email: email.trim(),
+        const trimmedEmail = email.trim();
+        const { data, error } = await supabase.auth.signUp({
+          email: trimmedEmail,
           password,
         });
+
+        if (isSignUpExistingEmail(data, error)) {
+          setShowExistingEmailHelp(true);
+          setMode("login");
+          return;
+        }
+
         if (error) throw error;
 
+        if (!isSignUpNewAccount(data) && !hasSignUpSession(data)) {
+          throw new Error("Pendaftaran tidak berhasil. Silakan coba lagi.");
+        }
+
+        if (hasSignUpSession(data)) {
+          await fetch("/api/init-org", { method: "POST" });
+          window.location.href = "/dashboard";
+          return;
+        }
+
         const { error: loginErr } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: trimmedEmail,
           password,
         });
         if (!loginErr) {
@@ -52,7 +80,7 @@ export default function OwnerAdminLoginPage() {
           return;
         }
 
-        setMsg("Daftar berhasil. Silakan login untuk mengaktifkan organisasi dan trial.");
+        setMsg(SIGNUP_CONFIRM_EMAIL_MESSAGE);
         setMode("login");
         return;
       }
@@ -67,7 +95,7 @@ export default function OwnerAdminLoginPage() {
 
       window.location.href = "/dashboard";
     } catch (err: any) {
-      setMsg(err?.message || "Terjadi error.");
+      setMsg(formatAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -175,7 +203,10 @@ export default function OwnerAdminLoginPage() {
             <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
               <button
                 type="button"
-                onClick={() => setMode("login")}
+                onClick={() => {
+                  setMode("login");
+                  setShowExistingEmailHelp(false);
+                }}
                 style={{
                   flex: 1,
                   padding: "10px 12px",
@@ -192,7 +223,11 @@ export default function OwnerAdminLoginPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setMode("signup")}
+                onClick={() => {
+                  setMode("signup");
+                  setShowExistingEmailHelp(false);
+                  setMsg("");
+                }}
                 style={{
                   flex: 1,
                   padding: "10px 12px",
@@ -291,17 +326,81 @@ export default function OwnerAdminLoginPage() {
               ) : null}
             </form>
 
-            {msg ? (
+            {showExistingEmailHelp ? (
               <div
                 style={{
                   marginTop: 16,
-                  background: "#fef2f2",
-                  border: "1px solid #fecaca",
-                  color: "#991b1b",
+                  background: "#fff7ed",
+                  border: "1px solid #fed7aa",
+                  color: "#9a3412",
                   padding: 12,
                   borderRadius: 10,
                   fontSize: 13,
                   fontWeight: 600,
+                  lineHeight: 1.5,
+                }}
+              >
+                <p style={{ margin: 0 }}>{SIGNUP_EXISTING_EMAIL_MESSAGE}</p>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 10,
+                    marginTop: 12,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowExistingEmailHelp(false);
+                      setMode("login");
+                    }}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                      border: `1px solid ${TEAL}`,
+                      background: TEAL,
+                      color: "#fff",
+                      fontWeight: 800,
+                      fontSize: 13,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Masuk
+                  </button>
+                  <Link
+                    href="/forgot-password"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                      border: `1px solid ${TEAL}`,
+                      background: "#fff",
+                      color: TEAL,
+                      fontWeight: 800,
+                      fontSize: 13,
+                      textDecoration: "none",
+                    }}
+                  >
+                    Lupa password
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+
+            {msg ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  background: msg.includes("berhasil") ? "#ecfdf5" : "#fef2f2",
+                  border: msg.includes("berhasil") ? "1px solid #a7f3d0" : "1px solid #fecaca",
+                  color: msg.includes("berhasil") ? "#065f46" : "#991b1b",
+                  padding: 12,
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  lineHeight: 1.5,
                 }}
               >
                 {msg}
@@ -313,7 +412,11 @@ export default function OwnerAdminLoginPage() {
                 Belum memiliki akun aktif?{" "}
                 <button
                   type="button"
-                  onClick={() => setMode("signup")}
+                  onClick={() => {
+                  setMode("signup");
+                  setShowExistingEmailHelp(false);
+                  setMsg("");
+                }}
                   style={{ background: "none", border: "none", padding: 0, color: TEAL, fontWeight: 800, cursor: "pointer", fontSize: 14 }}
                 >
                   Daftar sekarang
@@ -324,7 +427,10 @@ export default function OwnerAdminLoginPage() {
                 Sudah punya akun?{" "}
                 <button
                   type="button"
-                  onClick={() => setMode("login")}
+                  onClick={() => {
+                  setMode("login");
+                  setShowExistingEmailHelp(false);
+                }}
                   style={{ background: "none", border: "none", padding: 0, color: TEAL, fontWeight: 800, cursor: "pointer", fontSize: 14 }}
                 >
                   Masuk

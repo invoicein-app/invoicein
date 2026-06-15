@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { makeInternalEmail } from "@/lib/auth/internal-email";
+import { formatAuthErrorMessage } from "@/lib/auth-error-messages";
 import AppLogo from "@/app/components/app-logo";
 
 const TEAL = "#2D7D71";
@@ -55,7 +56,7 @@ export default function StaffLoginPage() {
 
       window.location.href = "/dashboard";
     } catch (err: any) {
-      setMsg(err?.message || "Gagal login staff.");
+      setMsg(formatAuthErrorMessage(err, "Gagal login staff."));
     } finally {
       setLoading(false);
     }

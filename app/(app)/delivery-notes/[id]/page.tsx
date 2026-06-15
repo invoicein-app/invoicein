@@ -13,6 +13,11 @@ import {
 } from "../../components/app-action-buttons";
 import { APP_TEAL } from "../../components/app-ui-tokens";
 import TableEmptyState from "../../components/table-empty-state";
+import {
+  deliveryNoteStatusBadge,
+  deliveryNoteStatusLabel,
+  isLegacyDraftDeliveryNote,
+} from "@/lib/delivery-note-status";
 
 export default function DeliveryNoteViewPage() {
   const supabase = supabaseBrowser();
@@ -67,7 +72,7 @@ export default function DeliveryNoteViewPage() {
     if (String(dn.status || "draft").toLowerCase() === "posted") return;
 
     const ok = window.confirm(
-      `Post surat jalan ${dn.sj_number || ""}?\n\nKalau setting organisasi memakai delivery_note_posted, stok akan berkurang saat ini.`
+      `Selesaikan surat jalan lama ${dn.sj_number || ""}?\n\nIni untuk data draft sebelumnya. Kalau setting organisasi memakai delivery_note_posted, stok akan berkurang saat ini.`
     );
     if (!ok) return;
 
@@ -130,10 +135,11 @@ export default function DeliveryNoteViewPage() {
   if (msg) return <div style={{ padding: 18, color: "#b00" }}>{msg}</div>;
   if (!dn) return <div style={{ padding: 18 }}>SJ tidak ditemukan.</div>;
 
-  const dnStatus = String(dn.status || "draft").toUpperCase();
   const statusLower = String(dn.status || "draft").toLowerCase();
   const isPosted = statusLower === "posted";
   const isCancelled = statusLower === "cancelled";
+  const isLegacyDraft = isLegacyDraftDeliveryNote(dn.status);
+  const statusBadge = deliveryNoteStatusBadge(dn.status);
   const customerLabel =
     String(dn.customer_name || "").trim() || dn.invoices?.customer_name || "-";
   const invoiceLabel = dn.invoice_id
@@ -153,8 +159,18 @@ export default function DeliveryNoteViewPage() {
             {invoiceLabel}
           </p>
           <div style={{ marginTop: 8 }}>
-            <span style={badge(isCancelled ? "cancelled" : isPosted ? "posted" : "draft")}>
-              {dnStatus}
+            <span
+              style={{
+                padding: "4px 10px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 800,
+                background: statusBadge.bg,
+                border: `1px solid ${statusBadge.border}`,
+                color: statusBadge.color,
+              }}
+            >
+              {deliveryNoteStatusLabel(dn.status)}
             </span>
           </div>
         </div>
@@ -164,15 +180,17 @@ export default function DeliveryNoteViewPage() {
             Kembali
           </a>
 
-          <FormSubmitButton
-            type="button"
-            onClick={handlePost}
-            disabled={isPosted || isCancelled}
-            busy={posting}
-            busyLabel="Posting..."
-          >
-            Post SJ
-          </FormSubmitButton>
+          {isLegacyDraft ? (
+            <FormSubmitButton
+              type="button"
+              onClick={handlePost}
+              disabled={isCancelled}
+              busy={posting}
+              busyLabel="Menyelesaikan..."
+            >
+              Selesaikan SJ (draft lama)
+            </FormSubmitButton>
+          ) : null}
 
           <FormSubmitButton
             type="button"
@@ -298,37 +316,4 @@ function td(): React.CSSProperties {
 }
 function tdMono(): React.CSSProperties {
   return { borderBottom: "1px solid #f2f2f2", padding: "8px 6px", fontFamily: "monospace", fontSize: 12 };
-}
-function badge(kind: "draft" | "posted" | "cancelled"): React.CSSProperties {
-  if (kind === "posted") {
-    return {
-      padding: "4px 10px",
-      borderRadius: 999,
-      fontSize: 12,
-      fontWeight: 800,
-      background: "#ecfdf5",
-      border: "1px solid #6ee7b7",
-      color: "#065f46",
-    };
-  }
-  if (kind === "cancelled") {
-    return {
-      padding: "4px 10px",
-      borderRadius: 999,
-      fontSize: 12,
-      fontWeight: 800,
-      background: "#fef2f2",
-      border: "1px solid #fca5a5",
-      color: "#991b1b",
-    };
-  }
-  return {
-    padding: "4px 10px",
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: 800,
-    background: "#f3f4f6",
-    border: "1px solid #d1d5db",
-    color: "#374151",
-  };
 }

@@ -114,7 +114,7 @@ export default function SjButtonClient({ invoiceId }: { invoiceId: string }) {
       busy={busy}
       busyLabel="Membuat..."
     >
-      Buat SJ
+      Buat Surat Jalan
     </FormSubmitButton>
   );
 }

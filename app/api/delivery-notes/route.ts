@@ -7,6 +7,7 @@ import { coerceDateOrToday } from "@/lib/document-numbering";
 import { asText, requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createDeliveryNoteBodySchema } from "@/lib/validations/delivery-note";
+import { createAndFinalizeDeliveryNote, rollbackDeliveryNoteCreate } from "@/lib/delivery-note-post";
 
 function isUuid(v: unknown) {
   const s = String(v || "").trim();
@@ -127,7 +128,6 @@ export async function POST(req: NextRequest) {
     driver_name: driver_name || "",
     note: note || "",
     warehouse_id: warehouse_id && isUuid(warehouse_id) ? warehouse_id : null,
-    status: "draft",
     created_by: user.id,
   };
 
@@ -154,9 +154,29 @@ export async function POST(req: NextRequest) {
 
   const { error: itemsErr } = await admin.from("delivery_note_items").insert(itemPayload);
   if (itemsErr) {
-    await admin.from("delivery_notes").delete().eq("id", deliveryNoteId);
+    await rollbackDeliveryNoteCreate(admin, deliveryNoteId);
     return NextResponse.json({ error: itemsErr.message }, { status: 400 });
   }
+
+  const finalize = await createAndFinalizeDeliveryNote({
+    supabase,
+    admin,
+    orgId,
+    userId: user.id,
+    actorRole,
+    deliveryNoteId,
+    invoiceId: linkedInvoiceId,
+  });
+
+  if (!finalize.ok) {
+    return NextResponse.json({ error: finalize.error }, { status: finalize.status });
+  }
+
+  const { data: finalizedDn } = await supabase
+    .from("delivery_notes")
+    .select("id, sj_number, sj_date, status")
+    .eq("id", deliveryNoteId)
+    .maybeSingle();
 
   await logActivity({
     org_id: orgId,
@@ -165,13 +185,20 @@ export async function POST(req: NextRequest) {
     action: "delivery_note.create_manual",
     entity_type: "delivery_note",
     entity_id: deliveryNoteId,
-    summary: `Buat Surat Jalan manual ${createdDn.sj_number || deliveryNoteId} untuk ${customer_name}`,
-    meta: { delivery_note_id: deliveryNoteId, invoice_id: linkedInvoiceId },
+    summary: `Buat Surat Jalan ${finalizedDn?.sj_number || deliveryNoteId} untuk ${customer_name}`,
+    meta: {
+      delivery_note_id: deliveryNoteId,
+      invoice_id: linkedInvoiceId,
+      status: finalizedDn?.status || "posted",
+      stock_moved: finalize.stock_moved,
+    },
   });
 
   return NextResponse.json({
     ok: true,
     id: deliveryNoteId,
-    delivery_note: createdDn,
+    delivery_note: finalizedDn || createdDn,
+    status: finalizedDn?.status || "posted",
+    stock_moved: finalize.stock_moved,
   });
 }

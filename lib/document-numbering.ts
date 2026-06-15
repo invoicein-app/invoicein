@@ -38,7 +38,7 @@ function formatDateForNumber(dateLike: string) {
   return `${y}${m}${d}`;
 }
 
-function padSequence(seq: number) {
+export function padSequence(seq: number) {
   return String(seq).padStart(4, "0");
 }
 
@@ -64,7 +64,7 @@ function createNumberingAdminClient() {
   });
 }
 
-function formatDocumentNumber(args: {
+export function formatDocumentNumber(args: {
   prefix: string;
   publicCode: string | null;
   documentDate: string;

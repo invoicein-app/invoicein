@@ -1,0 +1,354 @@
+REKENING GIRO
+K C P K A S P O N D O K C H A N D R A
+SURYA VENEER CV
+WARU
+TAMBAKREJO RT003RW006
+JL NANAS V/511
+SIDOARJO 61256
+INDONESIA
+NO. REKENING : 2168908666
+HALAMAN :
+PERIODE : MEI 2026
+MATA UANG : IDR
+C A T A T A N :
+A p a b i l a n a s a b a h t i d a k m e l a k u k a n s a n g g a h a n a t a s L a p o r a n M u t a s i
+R e k e n i n g i n i s a m p a i d e n g a n a k h i r b u l a n b e r i k u t n y a , n a s a b a h d i a n g g a p
+t e l a h m e n y e t u j u i s e g a l a d a t a y a n g t e r c a n t u m p a d a L a p o r a n M u t a s i
+R e k e n i n g i n i .
+• B C A b e r h a k s e t i a p s a a t m e l a k u k a n k o r e k s i a p a b i l a a d a k e s a l a h a n p a d a
+L a p o r a n M u t a s i R e k e n i n g .
+•
+TANGGAL KETERANGAN CBG MUTASI SALDO
+1 /5
+01/05 SALDO AWAL 69,235,060.75
+01/05 BI-FAST DB BIF TRANSFER KE
+009
+MOCHAMAD HUDORI
+KBB
+1,950,000.00 DB 67,285,060.75
+01/05 BI-FAST DB BIF BIAYA TXN KE
+009
+MOCHAMAD HUDORI
+KBB
+2,500.00 DB
+01/05 BI-FAST DB BIF TRANSFER KE
+002
+RUDI HARIYANTO
+KBB
+850,000.00 DB
+01/05 BI-FAST DB BIF BIAYA TXN KE
+002
+RUDI HARIYANTO
+KBB
+2,500.00 DB
+01/05 BI-FAST DB BIF TRANSFER KE
+008
+YULI SULISTYOWATI
+KBB
+1,225,000.00 DB
+01/05 BI-FAST DB BIF BIAYA TXN KE
+008
+YULI SULISTYOWATI
+KBB
+2,500.00 DB 65,202,560.75
+07/05 TRSF E-BANKING CR 0705/FTSCY/WS95271
+62219095.00
+ACHMAD FAISAL
+62,219,095.00 127,421,655.75
+09/05 BI-FAST DB BIF TRANSFER KE
+009
+MOCHAMAD HUDORI
+KBB
+1,120,000.00 DB
+09/05 BI-FAST DB BIF BIAYA TXN KE
+009
+MOCHAMAD HUDORI
+KBB
+2,500.00 DB
+09/05 BI-FAST DB BIF TRANSFER KE
+002
+RUDI HARIYANTO
+KBB
+720,000.00 DB 125,579,155.75
+Bersambung ke halaman berikut
+
+-- 1 of 5 --
+
+REKENING GIRO
+K C P K A S P O N D O K C H A N D R A
+SURYA VENEER CV
+WARU
+TAMBAKREJO RT003RW006
+JL NANAS V/511
+SIDOARJO 61256
+INDONESIA
+NO. REKENING : 2168908666
+HALAMAN :
+PERIODE : MEI 2026
+MATA UANG : IDR
+C A T A T A N :
+A p a b i l a n a s a b a h t i d a k m e l a k u k a n s a n g g a h a n a t a s L a p o r a n M u t a s i
+R e k e n i n g i n i s a m p a i d e n g a n a k h i r b u l a n b e r i k u t n y a , n a s a b a h d i a n g g a p
+t e l a h m e n y e t u j u i s e g a l a d a t a y a n g t e r c a n t u m p a d a L a p o r a n M u t a s i
+R e k e n i n g i n i .
+• B C A b e r h a k s e t i a p s a a t m e l a k u k a n k o r e k s i a p a b i l a a d a k e s a l a h a n p a d a
+L a p o r a n M u t a s i R e k e n i n g .
+•
+TANGGAL KETERANGAN CBG MUTASI SALDO
+2 /5
+09/05 BI-FAST DB BIF BIAYA TXN KE
+002
+RUDI HARIYANTO
+KBB
+2,500.00 DB 125,576,655.75
+09/05 BI-FAST DB BIF TRANSFER KE
+008
+YULI SULISTYOWATI
+KBB
+870,000.00 DB
+09/05 BI-FAST DB BIF BIAYA TXN KE
+008
+YULI SULISTYOWATI
+KBB
+2,500.00 DB
+09/05 BYR VIA E-BANKING 09/05 95051
+PENERIMAAN NEGARA
+042083732631151
+2,260,198.00 DB 122,443,957.75
+14/05 TRSF E-BANKING CR 1405/FTSCY/WS95031
+8981100.00
+DARMAWAN ATMO
+8,981,100.00 131,425,057.75
+16/05 TRSF E-BANKING DB 1605/FTSCY/WS95051
+10000000.00
+EDWIN SURYA DARMAW
+10,000,000.00 DB
+16/05 TRSF E-BANKING DB 1605/FTSCY/WS95051
+600000.00
+DEWI INDAHWATI
+600,000.00 DB
+16/05 BI-FAST DB BIF TRANSFER KE
+009
+MOCHAMAD HUDORI
+KBB
+950,000.00 DB
+16/05 BI-FAST DB BIF BIAYA TXN KE
+009
+MOCHAMAD HUDORI
+KBB
+2,500.00 DB
+16/05 BI-FAST DB BIF TRANSFER KE
+008
+YULI SULISTYOWATI
+KBB
+725,000.00 DB 119,147,557.75
+Bersambung ke halaman berikut
+
+-- 2 of 5 --
+
+REKENING GIRO
+K C P K A S P O N D O K C H A N D R A
+SURYA VENEER CV
+WARU
+TAMBAKREJO RT003RW006
+JL NANAS V/511
+SIDOARJO 61256
+INDONESIA
+NO. REKENING : 2168908666
+HALAMAN :
+PERIODE : MEI 2026
+MATA UANG : IDR
+C A T A T A N :
+A p a b i l a n a s a b a h t i d a k m e l a k u k a n s a n g g a h a n a t a s L a p o r a n M u t a s i
+R e k e n i n g i n i s a m p a i d e n g a n a k h i r b u l a n b e r i k u t n y a , n a s a b a h d i a n g g a p
+t e l a h m e n y e t u j u i s e g a l a d a t a y a n g t e r c a n t u m p a d a L a p o r a n M u t a s i
+R e k e n i n g i n i .
+• B C A b e r h a k s e t i a p s a a t m e l a k u k a n k o r e k s i a p a b i l a a d a k e s a l a h a n p a d a
+L a p o r a n M u t a s i R e k e n i n g .
+•
+TANGGAL KETERANGAN CBG MUTASI SALDO
+3 /5
+16/05 BI-FAST DB BIF BIAYA TXN KE
+008
+YULI SULISTYOWATI
+KBB
+2,500.00 DB 119,145,057.75
+16/05 BI-FAST DB BIF TRANSFER KE
+002
+RUDI HARIYANTO
+KBB
+600,000.00 DB
+16/05 BI-FAST DB BIF BIAYA TXN KE
+002
+RUDI HARIYANTO
+KBB
+2,500.00 DB 118,542,557.75
+18/05 SETORAN TUNAI 0287 138,175,250.00 256,717,807.75
+19/05 TRSF E-BANKING CR 1905/FTSCY/WS95031
+3535000.00
+Darni
+DARMAWAN ATMO
+3,535,000.00 260,252,807.75
+20/05 BI-FAST DB BIF TRANSFER KE
+009
+HERI AGUS TINUS SA
+KBB
+68,215,000.00 DB
+20/05 BI-FAST DB BIF BIAYA TXN KE
+009
+HERI AGUS TINUS SA
+KBB
+2,500.00 DB
+20/05 BI-FAST DB BIF TRANSFER KE
+002
+DIVISI KOMERSIAL K
+KBB
+20,000,000.00 DB
+20/05 BI-FAST DB BIF BIAYA TXN KE
+002
+DIVISI KOMERSIAL K
+KBB
+2,500.00 DB 172,032,807.75
+22/05 TRSF E-BANKING CR 2205/FTSCY/WS95271
+50000000.00
+cicil. jati
+KHUZAENI
+50,000,000.00 222,032,807.75
+Bersambung ke halaman berikut
+
+-- 3 of 5 --
+
+REKENING GIRO
+K C P K A S P O N D O K C H A N D R A
+SURYA VENEER CV
+WARU
+TAMBAKREJO RT003RW006
+JL NANAS V/511
+SIDOARJO 61256
+INDONESIA
+NO. REKENING : 2168908666
+HALAMAN :
+PERIODE : MEI 2026
+MATA UANG : IDR
+C A T A T A N :
+A p a b i l a n a s a b a h t i d a k m e l a k u k a n s a n g g a h a n a t a s L a p o r a n M u t a s i
+R e k e n i n g i n i s a m p a i d e n g a n a k h i r b u l a n b e r i k u t n y a , n a s a b a h d i a n g g a p
+t e l a h m e n y e t u j u i s e g a l a d a t a y a n g t e r c a n t u m p a d a L a p o r a n M u t a s i
+R e k e n i n g i n i .
+• B C A b e r h a k s e t i a p s a a t m e l a k u k a n k o r e k s i a p a b i l a a d a k e s a l a h a n p a d a
+L a p o r a n M u t a s i R e k e n i n g .
+•
+TANGGAL KETERANGAN CBG MUTASI SALDO
+4 /5
+23/05 BI-FAST DB BIF TRANSFER KE
+009
+MOCHAMAD HUDORI
+KBB
+1,120,000.00 DB 220,912,807.75
+23/05 BI-FAST DB BIF BIAYA TXN KE
+009
+MOCHAMAD HUDORI
+KBB
+2,500.00 DB
+23/05 BI-FAST DB BIF TRANSFER KE
+008
+YULI SULISTYOWATI
+KBB
+870,000.00 DB
+23/05 BI-FAST DB BIF BIAYA TXN KE
+008
+YULI SULISTYOWATI
+KBB
+2,500.00 DB
+23/05 BI-FAST DB BIF TRANSFER KE
+002
+RUDI HARIYANTO
+KBB
+720,000.00 DB
+23/05 BI-FAST DB BIF BIAYA TXN KE
+002
+RUDI HARIYANTO
+KBB
+2,500.00 DB 219,315,307.75
+26/05 TRSF E-BANKING DB 2605/FTSCY/WS95051
+72694380.00
+PHE CAROLINE YULIA
+72,694,380.00 DB
+26/05 TRSF E-BANKING DB 2605/FTSCY/WS95051
+2000000.00
+EDWIN SURYA DARMAW
+2,000,000.00 DB
+26/05 TRSF E-BANKING CR 2605/FTSCY/WS95011
+18602600.00
+Kayu solid
+ALVIN PRASETIASASM
+18,602,600.00 163,223,527.75
+28/05 BI-FAST DB BIF TRANSFER KE
+002
+IGNATIUS DARMAWAN
+KBB
+40,000,000.00 DB 123,223,527.75
+Bersambung ke halaman berikut
+
+-- 4 of 5 --
+
+REKENING GIRO
+K C P K A S P O N D O K C H A N D R A
+SURYA VENEER CV
+WARU
+TAMBAKREJO RT003RW006
+JL NANAS V/511
+SIDOARJO 61256
+INDONESIA
+NO. REKENING : 2168908666
+HALAMAN :
+PERIODE : MEI 2026
+MATA UANG : IDR
+C A T A T A N :
+A p a b i l a n a s a b a h t i d a k m e l a k u k a n s a n g g a h a n a t a s L a p o r a n M u t a s i
+R e k e n i n g i n i s a m p a i d e n g a n a k h i r b u l a n b e r i k u t n y a , n a s a b a h d i a n g g a p
+t e l a h m e n y e t u j u i s e g a l a d a t a y a n g t e r c a n t u m p a d a L a p o r a n M u t a s i
+R e k e n i n g i n i .
+• B C A b e r h a k s e t i a p s a a t m e l a k u k a n k o r e k s i a p a b i l a a d a k e s a l a h a n p a d a
+L a p o r a n M u t a s i R e k e n i n g .
+•
+TANGGAL KETERANGAN CBG MUTASI SALDO
+5 /5
+28/05 BI-FAST DB BIF BIAYA TXN KE
+002
+IGNATIUS DARMAWAN
+KBB
+2,500.00 DB 123,221,027.75
+28/05 BI-FAST DB BIF TRANSFER KE
+002
+IGNATIUS DARMAWAN
+KBB
+25,333,000.00 DB
+28/05 BI-FAST DB BIF BIAYA TXN KE
+002
+IGNATIUS DARMAWAN
+KBB
+2,500.00 DB
+28/05 BI-FAST CR BIF TRANSFER DR
+008
+KHUZAENI
+21,608,750.00
+28/05 TRSF E-BANKING CR 2805/FTSCY/WS95031
+2792100.00
+DARMAWAN ATMO
+2,792,100.00 122,286,377.75
+29/05 TRSF E-BANKING DB 2905/FTSCY/WS95051
+910000.00
+2 minggu
+GERMAND YOSUA HERM
+910,000.00 DB 121,376,377.75
+31/05 BIAYA ADM 30,000.00 DB
+31/05 BUNGA 29,534.80
+31/05 PAJAK BUNGA 5,906.96 DB 121,370,005.59
+SALDO AWAL : 69,235,060.75
+MUTASI CR : 305,943,429.80 9
+MUTASI DB : 253,808,484.96 40
+SALDO AKHIR : 121,370,005.59
+
+-- 5 of 5 --
+

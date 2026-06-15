@@ -78,7 +78,8 @@ export default async function DeliveryNotesListPage({
         <div style={{ minWidth: 0 }}>
           <h1 style={listPageTitle}>Surat Jalan</h1>
           <div style={listPageSubtitle}>
-            Dari invoice atau manual — posting SJ dapat memicu stok sesuai pengaturan organisasi
+            Dari invoice atau manual — langsung tercatat setelah disimpan. Stok berkurang otomatis jika
+            pengaturan organisasi memakai trigger Surat Jalan.
           </div>
         </div>
         <div className="app-list-page__header-actions" style={listPageHeaderActions}>

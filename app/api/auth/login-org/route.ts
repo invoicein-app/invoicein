@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { loginOrgBodySchema } from "@/lib/validations/auth";
+import { formatAuthErrorMessage } from "@/lib/auth-error-messages";
 
 function normalizeUsername(raw: string) {
   return String(raw || "")
@@ -65,7 +66,10 @@ export async function POST(req: NextRequest) {
   });
 
   if (error || !data.session) {
-    return NextResponse.json({ error: error?.message || "Login gagal" }, { status: 401 });
+    return NextResponse.json(
+      { error: formatAuthErrorMessage(error, "Login gagal") },
+      { status: 401 }
+    );
   }
 
   return NextResponse.json({ ok: true }, { status: 200 });

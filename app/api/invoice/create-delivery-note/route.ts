@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { requireApiContext, asText } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createDeliveryNoteFromInvoiceBodySchema } from "@/lib/validations/delivery-note";
+import { createAndFinalizeDeliveryNote, rollbackDeliveryNoteCreate } from "@/lib/delivery-note-post";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     const auth = await requireApiContext({ requireWrite: true });
     if (!auth.ok) return auth.response;
 
-    const { supabase, user, orgId } = auth.ctx;
+    const { supabase, user, orgId, actorRole } = auth.ctx;
 
     const { data: inv, error: invErr } = await supabase
       .from("invoices")
@@ -129,7 +130,6 @@ export async function POST(req: NextRequest) {
       shipping_address: inv.customer_address || "",
       driver_name: "",
       note: "",
-      status: "draft",
       created_by: user.id,
     };
 
@@ -211,6 +211,7 @@ export async function POST(req: NextRequest) {
         .insert(payload);
 
       if (dnItemsErr) {
+        await rollbackDeliveryNoteCreate(admin, deliveryNoteId);
         return NextResponse.json(
           { error: dnItemsErr.message, detail: dnItemsErr },
           { status: 400 }
@@ -218,8 +219,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const finalize = await createAndFinalizeDeliveryNote({
+      supabase,
+      admin,
+      orgId,
+      userId: user.id,
+      actorRole,
+      deliveryNoteId,
+      invoiceId,
+    });
+
+    if (!finalize.ok) {
+      return NextResponse.json({ error: finalize.error }, { status: finalize.status });
+    }
+
+    const { data: finalizedDn } = await supabase
+      .from("delivery_notes")
+      .select("id, sj_number, status")
+      .eq("id", deliveryNoteId)
+      .maybeSingle();
+
     return NextResponse.json(
-      { id: deliveryNoteId, already_exists: false },
+      {
+        id: deliveryNoteId,
+        already_exists: false,
+        sj_number: finalizedDn?.sj_number || null,
+        status: finalizedDn?.status || "posted",
+        stock_moved: finalize.stock_moved,
+      },
       { status: 200 }
     );
   } catch (e: any) {

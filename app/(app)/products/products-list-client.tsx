@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/money";
+import { productMatchesItemSearch } from "@/lib/item-search";
 import ProductForm, { type ProductRow } from "./product-form";
 import { tableActionDanger, tableActionSecondary } from "../components/app-action-buttons";
 import TableEmptyState from "../components/table-empty-state";
@@ -60,12 +61,9 @@ export default function ProductsListClient({
   }
 
   const filtered = useMemo(() => {
-    const qq = q.trim().toLowerCase();
+    const qq = q.trim();
     if (!qq) return rows;
-    return rows.filter((r) => {
-      const hay = `${r.name || ""} ${r.sku || ""} ${r.unit || ""}`.toLowerCase();
-      return hay.includes(qq);
-    });
+    return rows.filter((r) => productMatchesItemSearch(r, qq));
   }, [rows, q]);
 
   const totalRows = filtered.length;

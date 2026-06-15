@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { tableActionSecondary } from "../components/app-action-buttons";
 import TableEmptyState from "../components/table-empty-state";
+import { deliveryNoteStatusBadge } from "@/lib/delivery-note-status";
 
 export type DeliveryNoteRow = {
   id: string;
@@ -20,10 +21,7 @@ function formatTanggalIndo(iso: string | null | undefined) {
 }
 
 function badgeStyle(status: string | null | undefined) {
-  const s = String(status || "").toLowerCase();
-  if (s === "posted") return { bg: "#ecfdf5", border: "#6ee7b7", color: "#065f46", label: "POSTED" };
-  if (s === "cancelled") return { bg: "#fef2f2", border: "#fca5a5", color: "#991b1b", label: "CANCELLED" };
-  return { bg: "#f3f4f6", border: "#d1d5db", color: "#374151", label: "DRAFT" };
+  return deliveryNoteStatusBadge(status);
 }
 
 export default function DeliveryNotesListTable({ rows }: { rows: DeliveryNoteRow[] }) {

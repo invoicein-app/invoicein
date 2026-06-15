@@ -1,4 +1,11 @@
 import { invoiceItemToKey } from "@/lib/invoice-items";
+import {
+  buildManualItemSearchHaystack,
+  buildProductSearchHaystack,
+  itemSearchRelevance,
+  manualItemMatchesItemSearch,
+  productMatchesItemSearch,
+} from "@/lib/item-search";
 
 export type ProductSuggestionSource = {
   id: string;
@@ -32,10 +39,6 @@ export type ManualItemSuggestion = {
 
 export type ItemSuggestion = ProductItemSuggestion | ManualItemSuggestion;
 
-function productSearchText(p: ProductSuggestionSource): string {
-  return `${p.name} ${p.sku || ""} ${p.unit || ""}`.toLowerCase();
-}
-
 function productItemKey(p: ProductSuggestionSource): string {
   const sku = String(p.sku || "").trim();
   if (sku) return invoiceItemToKey(sku);
@@ -50,10 +53,24 @@ export function buildItemSuggestions(args: {
   limit?: number;
 }): ItemSuggestion[] {
   const limit = Math.max(1, Math.floor(args.limit ?? 10));
-  const q = String(args.query || "").trim().toLowerCase();
+  const query = String(args.query || "");
 
   const productMatches = (args.products || [])
-    .filter((p) => !q || productSearchText(p).includes(q))
+    .filter((p) => productMatchesItemSearch(p, query))
+    .sort((a, b) => {
+      const relA = itemSearchRelevance({
+        haystack: buildProductSearchHaystack(a),
+        query,
+        primaryText: a.name,
+      });
+      const relB = itemSearchRelevance({
+        haystack: buildProductSearchHaystack(b),
+        query,
+        primaryText: b.name,
+      });
+      if (relA !== relB) return relA - relB;
+      return String(a.name || "").localeCompare(String(b.name || ""), "id");
+    })
     .slice(0, limit)
     .map(
       (p): ProductItemSuggestion => ({
@@ -80,8 +97,21 @@ export function buildItemSuggestions(args: {
       const name = String(m.display_name || "").trim();
       if (!key || !name) return false;
       if (productKeys.has(key)) return false;
-      if (!q) return true;
-      return `${name} ${key}`.toLowerCase().includes(q);
+      return manualItemMatchesItemSearch(m, query);
+    })
+    .sort((a, b) => {
+      const relA = itemSearchRelevance({
+        haystack: buildManualItemSearchHaystack(a),
+        query,
+        primaryText: a.display_name,
+      });
+      const relB = itemSearchRelevance({
+        haystack: buildManualItemSearchHaystack(b),
+        query,
+        primaryText: b.display_name,
+      });
+      if (relA !== relB) return relA - relB;
+      return String(a.display_name || "").localeCompare(String(b.display_name || ""), "id");
     })
     .slice(0, limit)
     .map(

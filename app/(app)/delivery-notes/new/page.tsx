@@ -14,6 +14,7 @@ import FormSubmitButton from "../../components/form-submit-button";
 import { useSubmitGuard } from "../../components/use-submit-guard";
 import { APP_TEAL } from "../../components/app-ui-tokens";
 import { ProductItemAutocompleteInput } from "../../components/product-item-autocomplete-input";
+import { productMatchesItemSearch } from "@/lib/item-search";
 
 type Customer = { id: string; name: string; phone: string; address: string };
 type Warehouse = { id: string; name: string | null };
@@ -122,12 +123,9 @@ export default function DeliveryNoteManualNewPage() {
   }
 
   function getSuggestionsFor(raw: string) {
-    const s = String(raw || "").trim().toLowerCase();
     const list = products || [];
-    if (!s) return list.slice(0, 10);
-    return list
-      .filter((p) => `${p.name} ${p.sku || ""} ${p.unit || ""}`.toLowerCase().includes(s))
-      .slice(0, 10);
+    if (!String(raw || "").trim()) return list.slice(0, 10);
+    return list.filter((p) => productMatchesItemSearch(p, raw)).slice(0, 10);
   }
 
   function pickSuggestion(rowIdx: number, p: Product) {
@@ -204,8 +202,8 @@ export default function DeliveryNoteManualNewPage() {
         <div style={{ minWidth: 0 }}>
           <h1 style={{ margin: 0, fontSize: 26 }}>Buat Surat Jalan Manual</h1>
           <p style={{ marginTop: 8, color: "#64748b", maxWidth: 560 }}>
-            Untuk pengiriman tanpa invoice (sampel, pengganti, kirim dulu invoice belakangan, dll). Nomor SJ
-            dibuat otomatis setelah disimpan.
+            Untuk pengiriman tanpa invoice (sampel, pengganti, kirim dulu invoice belakangan, dll). Setelah
+            disimpan, Surat Jalan langsung tercatat beserta nomornya.
           </p>
         </div>
         <div className={formPageClasses.headerActions} style={formPageHeaderActions()}>
