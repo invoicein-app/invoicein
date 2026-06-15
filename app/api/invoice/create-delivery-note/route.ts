@@ -189,6 +189,15 @@ export async function POST(req: NextRequest) {
       deliveryNoteId = lastDn.id;
     }
 
+    if (!deliveryNoteId) {
+      return NextResponse.json(
+        { error: "SJ dibuat, tapi gagal ambil id" },
+        { status: 500 }
+      );
+    }
+
+    const resolvedDeliveryNoteId = deliveryNoteId;
+
     if ((items || []).length) {
       const payload = (items || []).map((it: any, i: number) => {
         const productId = asText(it.product_id) || null;
@@ -196,7 +205,7 @@ export async function POST(req: NextRequest) {
         const unitFromProduct = productId ? productUnitMap.get(productId) || null : null;
 
         return {
-          delivery_note_id: deliveryNoteId,
+          delivery_note_id: resolvedDeliveryNoteId,
           name: it.name,
           qty: it.qty,
           sort_order: it.sort_order ?? i,
@@ -211,7 +220,7 @@ export async function POST(req: NextRequest) {
         .insert(payload);
 
       if (dnItemsErr) {
-        await rollbackDeliveryNoteCreate(admin, deliveryNoteId);
+        await rollbackDeliveryNoteCreate(admin, resolvedDeliveryNoteId);
         return NextResponse.json(
           { error: dnItemsErr.message, detail: dnItemsErr },
           { status: 400 }
@@ -225,7 +234,7 @@ export async function POST(req: NextRequest) {
       orgId,
       userId: user.id,
       actorRole,
-      deliveryNoteId,
+      deliveryNoteId: resolvedDeliveryNoteId,
       invoiceId,
     });
 
@@ -236,12 +245,12 @@ export async function POST(req: NextRequest) {
     const { data: finalizedDn } = await supabase
       .from("delivery_notes")
       .select("id, sj_number, status")
-      .eq("id", deliveryNoteId)
+      .eq("id", resolvedDeliveryNoteId)
       .maybeSingle();
 
     return NextResponse.json(
       {
-        id: deliveryNoteId,
+        id: resolvedDeliveryNoteId,
         already_exists: false,
         sj_number: finalizedDn?.sj_number || null,
         status: finalizedDn?.status || "posted",
