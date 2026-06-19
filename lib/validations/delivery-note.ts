@@ -43,4 +43,6 @@ export type CreateDeliveryNoteBody = z.infer<typeof createDeliveryNoteBodySchema
 
 export const createDeliveryNoteFromInvoiceBodySchema = z.object({
   invoiceId: z.string().uuid("invoiceId tidak valid"),
+  sj_date: isoDateOptionalSchema.optional(),
+  note: z.string().optional().default(""),
 });

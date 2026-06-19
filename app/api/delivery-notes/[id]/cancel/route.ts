@@ -151,11 +151,46 @@ export async function POST(
     );
   }
 
-  // trigger = delivery_note_posted => reversal stok
+  // trigger = delivery_note_posted => reversal stok bila pernah keluar
   if (!warehouseId) {
+    const { error: upErr } = await supabase
+      .from("delivery_notes")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+      })
+      .eq("id", deliveryNoteId)
+      .eq("org_id", orgId);
+
+    if (upErr) {
+      return NextResponse.json({ error: upErr.message }, { status: 400 });
+    }
+
+    await logActivity({
+      org_id: orgId,
+      actor_user_id: user.id,
+      actor_role: actorRole,
+      action: "delivery_note.cancel",
+      entity_type: "delivery_note",
+      entity_id: deliveryNoteId,
+      summary: `Cancel delivery note ${String((dn as any).sj_number || deliveryNoteId)}`,
+      meta: {
+        delivery_note_id: deliveryNoteId,
+        sj_number: (dn as any).sj_number || null,
+        previous_status: dnStatus,
+        stock_issue_trigger: stockIssueTrigger,
+        stock_reversed: false,
+        reason: "no warehouse on delivery note",
+      },
+    });
+
     return NextResponse.json(
-      { error: "warehouse_id surat jalan kosong, tidak bisa reversal stok." },
-      { status: 400 }
+      {
+        ok: true,
+        status: "cancelled",
+        stock_reversed: false,
+      },
+      { status: 200 }
     );
   }
 
@@ -171,9 +206,44 @@ export async function POST(
   }
 
   if (!outLedgers || outLedgers.length === 0) {
+    const { error: upErr } = await supabase
+      .from("delivery_notes")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+      })
+      .eq("id", deliveryNoteId)
+      .eq("org_id", orgId);
+
+    if (upErr) {
+      return NextResponse.json({ error: upErr.message }, { status: 400 });
+    }
+
+    await logActivity({
+      org_id: orgId,
+      actor_user_id: user.id,
+      actor_role: actorRole,
+      action: "delivery_note.cancel",
+      entity_type: "delivery_note",
+      entity_id: deliveryNoteId,
+      summary: `Cancel delivery note ${String((dn as any).sj_number || deliveryNoteId)}`,
+      meta: {
+        delivery_note_id: deliveryNoteId,
+        sj_number: (dn as any).sj_number || null,
+        previous_status: dnStatus,
+        stock_issue_trigger: stockIssueTrigger,
+        stock_reversed: false,
+        reason: "no stock movement found",
+      },
+    });
+
     return NextResponse.json(
-      { error: "Stock movement DELIVERY_NOTE untuk SJ ini tidak ditemukan." },
-      { status: 400 }
+      {
+        ok: true,
+        status: "cancelled",
+        stock_reversed: false,
+      },
+      { status: 200 }
     );
   }
 

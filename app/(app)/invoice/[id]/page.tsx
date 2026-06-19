@@ -12,10 +12,12 @@ import CancelInvoiceButtonClient from "../cancel-invoice-button-client";
 import DeleteInvoiceButtonClient from "../delete-invoice-button-client";
 import { assessInvoiceDeletable, formatInvoiceDeleteBlockedMessage } from "@/lib/invoice-delete";
 import SentInvoiceButtonClient from "../sent-invoice-button-client";
-import { formPageHeaderActions } from "../../components/app-action-buttons";
+import { formPageHeaderActions, formPageSoftLink } from "../../components/app-action-buttons";
 import { APP_TEAL } from "../../components/app-ui-tokens";
 import TableEmptyState from "../../components/table-empty-state";
 import { resolveInvoiceBankAccount } from "@/lib/company-bank-accounts";
+import { canEditInvoice } from "@/lib/invoice-finalize";
+import Link from "next/link";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -216,6 +218,7 @@ export default async function InvoiceViewPage({ params }: PageProps) {
     discountType === "percent" ? `Diskon (${discPct}%)` : "Diskon";
 
   const docStatus = String((invoice as any).status || "").toLowerCase();
+  const canEdit = canEditInvoice({ status: docStatus, amountPaid }).allowed;
   const canCancel =
     amountPaid <= 0 &&
     docStatus !== "paid" &&
@@ -276,6 +279,11 @@ export default async function InvoiceViewPage({ params }: PageProps) {
 
         <div className="app-form-page__header-actions" style={formPageHeaderActions()}>
           <BackButton />
+          {canEdit ? (
+            <Link href={`/invoice/edit/${id}`} style={formPageSoftLink()} title="Ubah invoice">
+              Ubah
+            </Link>
+          ) : null}
           <PdfButtonClient href={`/api/invoice/pdf/${id}`} />
           <DotmatrixButtonClient href={`/api/invoice/pdf-dotmatrix/${id}`} />
           <SentInvoiceButtonClient
@@ -457,7 +465,7 @@ export default async function InvoiceViewPage({ params }: PageProps) {
           <div style={cardBody()}>
             <p style={sectionDesc()}>Buat atau buka surat jalan untuk pengiriman invoice ini.</p>
             <div style={sjButtonWrap()}>
-              <SjButtonClient invoiceId={id} />
+              <SjButtonClient invoiceId={id} invoiceDate={invoice.invoice_date} />
             </div>
           </div>
         </div>

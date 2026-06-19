@@ -58,6 +58,7 @@ function pickSafeHeader(raw: Record<string, any>) {
   const h = raw || {};
 
   const safe: Record<string, any> = {
+    customer_id: h.customer_id,
     customer_name: h.customer_name,
     customer_phone: h.customer_phone,
     customer_address: h.customer_address,
@@ -75,7 +76,7 @@ function pickSafeHeader(raw: Record<string, any>) {
     if (safe[k] == null || String(safe[k]).trim() === "") safe[k] = "";
   }
 
-  for (const k of ["due_date", "warehouse_id", "bank_account_id"] as const) {
+  for (const k of ["due_date", "warehouse_id", "bank_account_id", "customer_id"] as const) {
     if (safe[k] != null && String(safe[k]).trim() === "") safe[k] = null;
   }
 

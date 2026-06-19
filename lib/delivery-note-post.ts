@@ -26,6 +26,64 @@ type DeliveryNoteRow = {
   warehouse_id: string | null;
 };
 
+async function markDeliveryNotePosted(args: {
+  supabase: SupabaseClient;
+  orgId: string;
+  deliveryNoteId: string;
+  dnRow: DeliveryNoteRow;
+  actorUserId: string;
+  actorRole: string;
+  stockIssueTrigger: string;
+  stockMoved: boolean;
+  reason: string;
+  warehouseId?: string;
+  itemsCount?: number;
+  allowNegativeStock?: boolean;
+}): Promise<PostDeliveryNoteResult> {
+  const { error: upErr } = await args.supabase
+    .from("delivery_notes")
+    .update({
+      status: "posted",
+      posted_at: new Date().toISOString(),
+    })
+    .eq("id", args.deliveryNoteId)
+    .eq("org_id", args.orgId);
+
+  if (upErr) {
+    return { ok: false, error: upErr.message, status: 400 };
+  }
+
+  await logActivity({
+    org_id: args.orgId,
+    actor_user_id: args.actorUserId,
+    actor_role: args.actorRole,
+    action: "delivery_note.post",
+    entity_type: "delivery_note",
+    entity_id: args.deliveryNoteId,
+    summary: `Post delivery note ${String(args.dnRow.sj_number || args.deliveryNoteId)}`,
+    meta: {
+      delivery_note_id: args.deliveryNoteId,
+      sj_number: args.dnRow.sj_number || null,
+      stock_issue_trigger: args.stockIssueTrigger,
+      stock_movement: args.stockMoved ? "applied" : "skipped",
+      reason: args.reason,
+      warehouse_id: args.warehouseId || null,
+      stock_moved: args.stockMoved,
+      items_count: args.itemsCount,
+      allow_negative_stock: args.allowNegativeStock,
+    },
+  });
+
+  return {
+    ok: true,
+    status: "posted",
+    stock_moved: args.stockMoved,
+    reason: args.reason,
+    warehouse_id: args.warehouseId,
+    items_count: args.itemsCount,
+  };
+}
+
 export async function postDeliveryNote(args: {
   supabase: SupabaseClient;
   orgId: string;
@@ -91,50 +149,31 @@ export async function postDeliveryNote(args: {
   }
 
   if (stockIssueTrigger !== "delivery_note_posted") {
-    const { error: upErr } = await supabase
-      .from("delivery_notes")
-      .update({
-        status: "posted",
-        posted_at: new Date().toISOString(),
-      })
-      .eq("id", deliveryNoteId)
-      .eq("org_id", orgId);
-
-    if (upErr) {
-      return { ok: false, error: upErr.message, status: 400 };
-    }
-
-    await logActivity({
-      org_id: orgId,
-      actor_user_id: actorUserId,
-      actor_role: actorRole,
-      action: "delivery_note.post",
-      entity_type: "delivery_note",
-      entity_id: deliveryNoteId,
-      summary: `Post delivery note ${String(dnRow.sj_number || deliveryNoteId)}`,
-      meta: {
-        delivery_note_id: deliveryNoteId,
-        sj_number: dnRow.sj_number || null,
-        stock_issue_trigger: stockIssueTrigger,
-        stock_movement: "skipped",
-        reason: "trigger is not delivery_note_posted",
-      },
-    });
-
-    return {
-      ok: true,
-      status: "posted",
-      stock_moved: false,
+    return await markDeliveryNotePosted({
+      supabase,
+      orgId,
+      deliveryNoteId,
+      dnRow,
+      actorUserId,
+      actorRole,
+      stockIssueTrigger,
+      stockMoved: false,
       reason: "stock_issue_trigger is not delivery_note_posted",
-    };
+    });
   }
 
   if (!warehouseId) {
-    return {
-      ok: false,
-      error: "warehouse_id pada surat jalan wajib diisi untuk trigger stok delivery_note_posted.",
-      status: 400,
-    };
+    return await markDeliveryNotePosted({
+      supabase,
+      orgId,
+      deliveryNoteId,
+      dnRow,
+      actorUserId,
+      actorRole,
+      stockIssueTrigger,
+      stockMoved: false,
+      reason: "warehouse_id empty",
+    });
   }
 
   const { data: existingLedger, error: existingLedgerErr } = await supabase

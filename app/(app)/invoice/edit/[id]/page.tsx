@@ -8,7 +8,7 @@ import {
 import FormSubmitButton from "../../../components/form-submit-button";
 import { useSubmitGuard } from "../../../components/use-submit-guard";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { num, rupiah } from "@/lib/money";
@@ -27,6 +27,13 @@ type Product = {
   sku: string | null;
   unit: string | null;
   price: number | null;
+};
+
+type Customer = {
+  id: string;
+  name: string;
+  phone: string | null;
+  address: string | null;
 };
 
 type ManualItem = ManualSuggestionSource & {
@@ -62,6 +69,12 @@ function productToItemKey(p: Pick<Product, "sku" | "name">) {
   return toKey(String(p.name || ""));
 }
 
+function toDateInputValue(value: unknown): string {
+  const s = String(value ?? "").trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return s;
+}
+
 function digitsOnly(raw: string) {
   const clean = String(raw ?? "").replace(/\D/g, "").replace(/^0+/, "");
   return clean === "" ? 0 : Number(clean);
@@ -75,6 +88,9 @@ export default function InvoiceEditPage() {
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerId, setCustomerId] = useState("");
+  const [loadingCust, setLoadingCust] = useState(true);
   const [manualItems, setManualItems] = useState<ManualItem[]>([]);
   const [inventoryEnabled, setInventoryEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -87,6 +103,7 @@ export default function InvoiceEditPage() {
   const [bankAccounts, setBankAccounts] = useState<CompanyBankAccount[]>([]);
   const [bankAccountId, setBankAccountId] = useState<string>("");
   const [loadingBankAccounts, setLoadingBankAccounts] = useState(true);
+  const prevCustomerIdRef = useRef<string | null>(null);
 
   const currentStatus = String(inv?.status || "").toLowerCase();
   const amountPaid = Math.max(0, Number(inv?.amount_paid || 0));
@@ -122,8 +139,12 @@ export default function InvoiceEditPage() {
 
     invData.discount_value = Number(invData.discount_value ?? 0);
     invData.tax_value = Number(invData.tax_value ?? 0);
+    invData.invoice_date = toDateInputValue(invData.invoice_date);
+    invData.due_date = toDateInputValue(invData.due_date);
 
     setInv(invData);
+    prevCustomerIdRef.current = null;
+    setCustomerId(String(invData.customer_id || "").trim());
     setBankAccountId(String(invData.bank_account_id || ""));
     setItems(
       ((itemData || []) as any[]).map((row) => ({
@@ -133,6 +154,21 @@ export default function InvoiceEditPage() {
       }))
     );
     setLoading(false);
+  }
+
+  async function loadCustomers() {
+    setLoadingCust(true);
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id,name,phone,address")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setCustomers([]);
+    } else {
+      setCustomers((data || []) as Customer[]);
+    }
+    setLoadingCust(false);
   }
 
   async function loadProducts() {
@@ -205,11 +241,44 @@ export default function InvoiceEditPage() {
   useEffect(() => {
     if (!id) return;
     load();
+    loadCustomers();
     loadProducts();
     loadManualItems();
     loadBankAccounts();
     loadInventorySetting();
   }, [id]);
+
+  useEffect(() => {
+    const prev = prevCustomerIdRef.current;
+    prevCustomerIdRef.current = customerId;
+
+    // Initial load: keep invoice-stored customer fields until user changes selection.
+    if (prev === null) return;
+
+    if (!customerId) {
+      if (prev) {
+        setInv((p: any) => (p ? { ...p, customer_id: null } : p));
+      }
+      return;
+    }
+
+    if (prev === customerId) return;
+
+    const c = customers.find((x) => x.id === customerId);
+    if (!c) return;
+
+    setInv((p: any) =>
+      p
+        ? {
+            ...p,
+            customer_id: customerId,
+            customer_name: c.name,
+            customer_phone: c.phone || "",
+            customer_address: c.address || "",
+          }
+        : p
+    );
+  }, [customerId, customers]);
 
   function getSuggestionsFor(raw: string): ItemSuggestion[] {
     return buildItemSuggestions({
@@ -222,8 +291,8 @@ export default function InvoiceEditPage() {
   }
 
   async function applyManualLatestPrice(rowIdx: number, name: string) {
-    const customerId = String(inv?.customer_id || "").trim();
-    if (!customerId) return;
+    const linkedCustomerId = String(customerId || inv?.customer_id || "").trim();
+    if (!linkedCustomerId) return;
 
     const itemKey = toKey(name);
     if (!itemKey) return;
@@ -238,7 +307,7 @@ export default function InvoiceEditPage() {
     }
 
     try {
-      const qs = new URLSearchParams({ customer_id: customerId, item_key: itemKey });
+      const qs = new URLSearchParams({ customer_id: linkedCustomerId, item_key: itemKey });
       const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
         credentials: "include",
       });
@@ -256,11 +325,11 @@ export default function InvoiceEditPage() {
   async function pickProductSuggestion(rowIdx: number, p: Product) {
     const itemKey = productToItemKey(p);
     let priceN = Math.max(0, Math.floor(Number(p.price || 0)));
-    const customerId = String(inv?.customer_id || "").trim();
+    const linkedCustomerId = String(customerId || inv?.customer_id || "").trim();
 
-    if (customerId) {
+    if (linkedCustomerId) {
       try {
-        const qs = new URLSearchParams({ customer_id: customerId, product_id: p.id });
+        const qs = new URLSearchParams({ customer_id: linkedCustomerId, product_id: p.id });
         const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
           credentials: "include",
         });
@@ -287,15 +356,15 @@ export default function InvoiceEditPage() {
     const displayName = String(m.display_name || "").trim();
     const itemKey = String(m.item_key || "").trim() || toKey(displayName);
     let priceN = 0;
-    const customerId = String(inv?.customer_id || "").trim();
+    const linkedCustomerId = String(customerId || inv?.customer_id || "").trim();
 
-    if (customerId && itemKey) {
+    if (linkedCustomerId && itemKey) {
       const cached = latestManualPriceMap[itemKey];
       if (cached != null && cached > 0) {
         priceN = cached;
       } else {
         try {
-          const qs = new URLSearchParams({ customer_id: customerId, item_key: itemKey });
+          const qs = new URLSearchParams({ customer_id: linkedCustomerId, item_key: itemKey });
           const res = await fetch(`/api/customer-item-latest-prices?${qs.toString()}`, {
             credentials: "include",
           });
@@ -386,6 +455,7 @@ export default function InvoiceEditPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           header: {
+            customer_id: customerId || null,
             invoice_date: inv.invoice_date,
             due_date: inv.due_date,
             customer_name: inv.customer_name,
@@ -502,7 +572,35 @@ export default function InvoiceEditPage() {
             </label>
 
             <label style={label()}>
-              Nama Customer
+              Pilih Customer (optional)
+              <select
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+                style={input()}
+                disabled={!isEditable}
+              >
+                <option value="">- manual -</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.phone || "-"})
+                  </option>
+                ))}
+              </select>
+              {loadingCust ? (
+                <small style={{ color: "#666" }}>Loading customer...</small>
+              ) : customerId ? (
+                <small style={{ color: "#666" }}>
+                  Harga barang mengikuti harga terakhir untuk customer ini (bisa diubah manual).
+                </small>
+              ) : (
+                <small style={{ color: "#666" }}>
+                  Pilih customer dari daftar agar field nama/alamat/HP terisi otomatis.
+                </small>
+              )}
+            </label>
+
+            <label style={label()}>
+              Nama Customer (wajib)
               <input
                 value={inv.customer_name || ""}
                 onChange={(e) => patchInv({ customer_name: e.target.value })}
@@ -522,7 +620,7 @@ export default function InvoiceEditPage() {
             </label>
 
             <label style={label()}>
-              Alamat
+              Alamat Customer
               <textarea
                 value={inv.customer_address || ""}
                 onChange={(e) => patchInv({ customer_address: e.target.value })}

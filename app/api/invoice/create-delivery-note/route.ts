@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireApiContext, asText } from "@/lib/api-context";
+import { coerceDateOrToday } from "@/lib/document-numbering";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createDeliveryNoteFromInvoiceBodySchema } from "@/lib/validations/delivery-note";
 import { createAndFinalizeDeliveryNote, rollbackDeliveryNoteCreate } from "@/lib/delivery-note-post";
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     const parsedBody = await parseJsonBody(req, createDeliveryNoteFromInvoiceBodySchema);
     if (!parsedBody.ok) return parsedBody.response;
-    const { invoiceId } = parsedBody.data;
+    const { invoiceId, sj_date, note } = parsedBody.data;
 
     const auth = await requireApiContext({ requireWrite: true });
     if (!auth.ok) return auth.response;
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     const { data: inv, error: invErr } = await supabase
       .from("invoices")
       .select(
-        "id, org_id, customer_address, customer_name, customer_phone, warehouse_id, status, invoice_number"
+        "id, org_id, customer_address, customer_name, customer_phone, warehouse_id, status, invoice_number, invoice_date"
       )
       .eq("id", invoiceId)
       .eq("org_id", orgId)
@@ -120,16 +121,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const sjDate = coerceDateOrToday(sj_date || (inv as { invoice_date?: string | null }).invoice_date);
+
     const insertPayload = {
       org_id: orgId,
       invoice_id: invoiceId,
       customer_name: asText((inv as any).customer_name) || "",
       customer_phone: asText((inv as any).customer_phone) || null,
-      sj_date: new Date().toISOString().slice(0, 10),
+      sj_date: sjDate,
       warehouse_id: inv.warehouse_id || null,
       shipping_address: inv.customer_address || "",
       driver_name: "",
-      note: "",
+      note: String(note || "").trim(),
       created_by: user.id,
     };
 
@@ -244,7 +247,7 @@ export async function POST(req: NextRequest) {
 
     const { data: finalizedDn } = await supabase
       .from("delivery_notes")
-      .select("id, sj_number, status")
+      .select("id, sj_number, sj_date, status")
       .eq("id", resolvedDeliveryNoteId)
       .maybeSingle();
 
@@ -253,6 +256,7 @@ export async function POST(req: NextRequest) {
         id: resolvedDeliveryNoteId,
         already_exists: false,
         sj_number: finalizedDn?.sj_number || null,
+        sj_date: finalizedDn?.sj_date || sjDate,
         status: finalizedDn?.status || "posted",
         stock_moved: finalize.stock_moved,
       },
