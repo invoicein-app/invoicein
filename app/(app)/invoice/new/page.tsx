@@ -1068,7 +1068,7 @@ function InvoiceNewInner() {
                 onChange={setCustomerId}
                 loading={loadingCust}
                 inputStyle={input()}
-                placeholder="Ketik nama / no HP customer..."
+                placeholder="Ketik nama customer..."
               />
               {loadingCust ? (
                 <small style={{ color: "#666" }}>Loading customer...</small>

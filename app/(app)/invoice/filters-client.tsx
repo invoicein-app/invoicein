@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import InvoiceExportClient from "./invoice-export-client";
+import CustomerPicker from "../components/customer-picker";
 
 const TEAL = "#2D7D71";
 const BORDER = "#E2E8F0";
@@ -76,6 +77,19 @@ export default function InvoiceFiltersClient({
   const inputStyle: React.CSSProperties = {
     width: "100%",
     padding: "10px 40px 10px 14px",
+    borderRadius: 8,
+    border: `1px solid ${BORDER}`,
+    outline: "none",
+    boxSizing: "border-box",
+    fontSize: 14,
+    color: "#0f172a",
+    fontWeight: 700,
+    background: "#fff",
+  };
+
+  const filterInputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px 12px",
     borderRadius: 8,
     border: `1px solid ${BORDER}`,
     outline: "none",
@@ -179,14 +193,17 @@ export default function InvoiceFiltersClient({
       >
         <span style={{ fontSize: 14, fontWeight: 800, color: "#333" }}>Filter</span>
 
-        <select value={custId} onChange={(e) => setCustId(e.target.value)} style={selectStyle}>
-          <option value="">Semua Pelanggan</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <div style={{ position: "relative", flex: "1 1 200px", minWidth: 200, maxWidth: 280 }}>
+          <CustomerPicker
+            customers={customers}
+            value={custId}
+            onChange={setCustId}
+            inputStyle={filterInputStyle}
+            placeholder="Ketik nama pelanggan..."
+            emptyLabel="Semua Pelanggan"
+            emptyHint="Tampilkan invoice semua customer"
+          />
+        </div>
 
         <select value={pay} onChange={(e) => setPay(e.target.value)} style={selectStyle}>
           <option value="">Semua Status</option>

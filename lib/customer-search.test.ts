@@ -13,8 +13,8 @@ describe("customerMatchesSearch", () => {
     expect(customerMatchesSearch(sample[0], "SUSAN")).toBe(true);
   });
 
-  it("matches phone digits", () => {
-    expect(customerMatchesSearch(sample[1], "811111")).toBe(true);
+  it("does not match phone when searching by digits", () => {
+    expect(customerMatchesSearch(sample[1], "811111")).toBe(false);
   });
 
   it("returns all when query empty via filter helper", () => {

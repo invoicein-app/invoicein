@@ -581,7 +581,7 @@ export default function InvoiceEditPage() {
                 loading={loadingCust}
                 disabled={!isEditable}
                 inputStyle={input()}
-                placeholder="Ketik nama / no HP customer..."
+                placeholder="Ketik nama customer..."
               />
               {loadingCust ? (
                 <small style={{ color: "#666" }}>Loading customer...</small>

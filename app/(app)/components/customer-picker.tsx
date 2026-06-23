@@ -19,6 +19,9 @@ type Props = {
   loading?: boolean;
   inputStyle?: CSSProperties;
   placeholder?: string;
+  emptyLabel?: string;
+  emptyHint?: string;
+  showClearOption?: boolean;
 };
 
 function dropdownBox(): CSSProperties {
@@ -59,7 +62,10 @@ export default function CustomerPicker({
   disabled = false,
   loading = false,
   inputStyle,
-  placeholder = "Ketik nama / no HP customer...",
+  placeholder = "Ketik nama customer...",
+  emptyLabel = "- manual -",
+  emptyHint = "Isi nama customer sendiri di bawah",
+  showClearOption = true,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -139,17 +145,19 @@ export default function CustomerPicker({
 
       {open && !disabled && !loading ? (
         <div style={dropdownBox()} role="listbox">
-          <button
-            type="button"
-            onMouseDown={(ev) => ev.preventDefault()}
-            onClick={pickManual}
-            style={optionBtn(!value)}
-          >
-            <span style={{ fontWeight: 700 }}>- manual -</span>
-            <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-              Isi nama customer sendiri di bawah
-            </div>
-          </button>
+          {showClearOption ? (
+            <button
+              type="button"
+              onMouseDown={(ev) => ev.preventDefault()}
+              onClick={pickManual}
+              style={optionBtn(!value)}
+            >
+              <span style={{ fontWeight: 700 }}>{emptyLabel}</span>
+              {emptyHint ? (
+                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{emptyHint}</div>
+              ) : null}
+            </button>
+          ) : null}
 
           {suggestions.length === 0 ? (
             <div style={{ padding: "12px", fontSize: 13, color: "#6b7280" }}>
@@ -167,9 +175,6 @@ export default function CustomerPicker({
                 style={optionBtn(c.id === value)}
               >
                 <div style={{ fontWeight: 700 }}>{c.name}</div>
-                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-                  {[c.phone, c.address].filter(Boolean).join(" • ") || "-"}
-                </div>
               </button>
             ))
           )}

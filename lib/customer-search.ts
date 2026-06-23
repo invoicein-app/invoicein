@@ -7,9 +7,7 @@ export type CustomerSearchSource = {
 };
 
 export function buildCustomerSearchHaystack(customer: CustomerSearchSource): string {
-  return normalizeItemSearchText(
-    `${customer.name || ""} ${customer.phone || ""} ${customer.address || ""}`
-  );
+  return normalizeItemSearchText(customer.name || "");
 }
 
 export function customerMatchesSearch(customer: CustomerSearchSource, query: string): boolean {
@@ -27,8 +25,5 @@ export function filterCustomersForSearch<T extends CustomerSearchSource>(
 }
 
 export function formatCustomerPickerLabel(customer: CustomerSearchSource): string {
-  const name = String(customer.name || "").trim();
-  const phone = String(customer.phone || "").trim();
-  if (!name) return phone || "";
-  return phone ? `${name} (${phone})` : name;
+  return String(customer.name || "").trim();
 }
