@@ -20,6 +20,7 @@ import {
 } from "@/lib/invoice-item-suggestions";
 import { formatBankAccountLabel, type CompanyBankAccount } from "@/lib/company-bank-accounts";
 import InvoiceFormItemsTotalsSummary from "../../invoice-form-items-totals-summary";
+import CustomerPicker from "../../../components/customer-picker";
 
 type Product = {
   id: string;
@@ -573,19 +574,15 @@ export default function InvoiceEditPage() {
 
             <label style={label()}>
               Pilih Customer (optional)
-              <select
+              <CustomerPicker
+                customers={customers}
                 value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                style={input()}
+                onChange={setCustomerId}
+                loading={loadingCust}
                 disabled={!isEditable}
-              >
-                <option value="">- manual -</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.phone || "-"})
-                  </option>
-                ))}
-              </select>
+                inputStyle={input()}
+                placeholder="Ketik nama / no HP customer..."
+              />
               {loadingCust ? (
                 <small style={{ color: "#666" }}>Loading customer...</small>
               ) : customerId ? (
@@ -594,7 +591,7 @@ export default function InvoiceEditPage() {
                 </small>
               ) : (
                 <small style={{ color: "#666" }}>
-                  Pilih customer dari daftar agar field nama/alamat/HP terisi otomatis.
+                  Ketik untuk cari customer, atau pilih manual lalu isi nama di bawah.
                 </small>
               )}
             </label>

@@ -20,6 +20,7 @@ import {
 } from "@/lib/invoice-item-suggestions";
 import { formatBankAccountLabel, type CompanyBankAccount } from "@/lib/company-bank-accounts";
 import InvoiceFormItemsTotalsSummary from "../invoice-form-items-totals-summary";
+import CustomerPicker from "../../components/customer-picker";
 
 type Customer = {
   id: string;
@@ -1061,14 +1062,14 @@ function InvoiceNewInner() {
 
             <label style={label()}>
               Pilih Customer (optional)
-              <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={input()}>
-                <option value="">- manual -</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.phone})
-                  </option>
-                ))}
-              </select>
+              <CustomerPicker
+                customers={customers}
+                value={customerId}
+                onChange={setCustomerId}
+                loading={loadingCust}
+                inputStyle={input()}
+                placeholder="Ketik nama / no HP customer..."
+              />
               {loadingCust ? (
                 <small style={{ color: "#666" }}>Loading customer...</small>
               ) : customerId ? (
@@ -1077,7 +1078,7 @@ function InvoiceNewInner() {
                 </small>
               ) : (
                 <small style={{ color: "#666" }}>
-                  Pilih customer dari daftar agar harga terakhir per buyer otomatis terisi.
+                  Ketik untuk cari customer, atau pilih manual lalu isi nama di bawah.
                 </small>
               )}
             </label>
