@@ -407,7 +407,7 @@ export async function createAndFinalizeDeliveryNote(args: {
   invoiceId?: string | null;
 }): Promise<PostDeliveryNoteResult> {
   const postResult = await postDeliveryNote({
-    supabase: args.supabase,
+    supabase: args.admin,
     orgId: args.orgId,
     deliveryNoteId: args.deliveryNoteId,
     actorUserId: args.userId,
@@ -420,7 +420,7 @@ export async function createAndFinalizeDeliveryNote(args: {
   }
 
   if (args.invoiceId) {
-    const { data: dnRow } = await args.supabase
+    const { data: dnRow } = await args.admin
       .from("delivery_notes")
       .select("sj_number")
       .eq("id", args.deliveryNoteId)
