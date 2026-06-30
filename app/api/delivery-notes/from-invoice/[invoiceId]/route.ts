@@ -58,7 +58,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
     );
   }
 
-  const { data: dn, error: dnErr } = await admin
+  const { data: dn, error: dnErr } = await supabaseUser
     .from("delivery_notes")
     .insert({
       org_id: invGate.org_id,
@@ -98,7 +98,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
 
     const { error: dnItemsErr } = await admin.from("delivery_note_items").insert(payload);
     if (dnItemsErr) {
-      await rollbackDeliveryNoteCreate(admin, dn.id);
+      await rollbackDeliveryNoteCreate(supabaseUser, dn.id);
       return NextResponse.json({ error: dnItemsErr.message }, { status: 400 });
     }
   }

@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
       created_by: user.id,
     };
 
-    const { data: createdDnRow, error: dnInsertErr } = await admin
+    const { data: createdDnRow, error: dnInsertErr } = await supabase
       .from("delivery_notes")
       .insert(insertPayload)
       .select("id")
@@ -238,7 +238,7 @@ export async function POST(req: NextRequest) {
       const { error: dnItemsErr } = await admin.from("delivery_note_items").insert(payload);
 
       if (dnItemsErr) {
-        await rollbackDeliveryNoteCreate(admin, deliveryNoteId);
+        await rollbackDeliveryNoteCreate(supabase, deliveryNoteId);
         return NextResponse.json({ error: dnItemsErr.message, detail: dnItemsErr }, { status: 400 });
       }
     }

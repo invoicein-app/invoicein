@@ -407,7 +407,7 @@ export async function createAndFinalizeDeliveryNote(args: {
   invoiceId?: string | null;
 }): Promise<PostDeliveryNoteResult> {
   const postResult = await postDeliveryNote({
-    supabase: args.admin,
+    supabase: args.supabase,
     orgId: args.orgId,
     deliveryNoteId: args.deliveryNoteId,
     actorUserId: args.userId,
@@ -415,7 +415,7 @@ export async function createAndFinalizeDeliveryNote(args: {
   });
 
   if (!postResult.ok) {
-    await rollbackDeliveryNoteCreate(args.admin, args.deliveryNoteId);
+    await rollbackDeliveryNoteCreate(args.supabase, args.deliveryNoteId);
     return postResult;
   }
 
