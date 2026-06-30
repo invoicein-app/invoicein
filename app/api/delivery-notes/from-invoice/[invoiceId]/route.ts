@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireApiContext, asText } from "@/lib/api-context";
 import { createAndFinalizeDeliveryNote, rollbackDeliveryNoteCreate } from "@/lib/delivery-note-post";
+import { insertDeliveryNoteWithAllocatedNumber } from "@/lib/delivery-note-numbering";
 
 export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: string }> }) {
   const { invoiceId } = await ctx.params;
@@ -58,21 +59,37 @@ export async function POST(_req: Request, ctx: { params: Promise<{ invoiceId: st
     );
   }
 
-  const { data: dn, error: dnErr } = await supabaseUser
-    .from("delivery_notes")
-    .insert({
+  const sjDate = new Date().toISOString().slice(0, 10);
+
+  const inserted = await insertDeliveryNoteWithAllocatedNumber({
+    supabase: supabaseUser,
+    admin,
+    orgId: String(invGate.org_id),
+    sjDate,
+    payload: {
       org_id: invGate.org_id,
       invoice_id: invoiceId,
       customer_name: String(inv.customer_name || "").trim(),
       customer_phone: String(inv.customer_phone || "").trim() || null,
-      sj_date: new Date().toISOString().slice(0, 10),
       shipping_address: (inv.customer_address || "").toString(),
       driver_name: "",
       note: "",
       warehouse_id: inv.warehouse_id || null,
       created_by: user.id,
-    })
+    },
+  });
+
+  if (inserted.error || !inserted.data?.id) {
+    return NextResponse.json(
+      { error: String((inserted.error as { message?: string } | null)?.message || "Failed create delivery note") },
+      { status: 400 }
+    );
+  }
+
+  const { data: dn, error: dnErr } = await supabaseUser
+    .from("delivery_notes")
     .select("id, sj_number")
+    .eq("id", inserted.data.id)
     .single();
 
   if (dnErr || !dn) {

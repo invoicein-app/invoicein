@@ -8,6 +8,7 @@ import { asText, requireApiContext } from "@/lib/api-context";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createDeliveryNoteBodySchema } from "@/lib/validations/delivery-note";
 import { createAndFinalizeDeliveryNote, rollbackDeliveryNoteCreate } from "@/lib/delivery-note-post";
+import { insertDeliveryNoteWithAllocatedNumber } from "@/lib/delivery-note-numbering";
 
 function isUuid(v: unknown) {
   const s = String(v || "").trim();
@@ -123,7 +124,6 @@ export async function POST(req: NextRequest) {
     customer_id: customer_id && isUuid(customer_id) ? customer_id : null,
     customer_name,
     customer_phone,
-    sj_date,
     shipping_address,
     driver_name: driver_name || "",
     note: note || "",
@@ -131,17 +131,30 @@ export async function POST(req: NextRequest) {
     created_by: user.id,
   };
 
-  const { data: createdDn, error: dnErr } = await supabase
-    .from("delivery_notes")
-    .insert(insertPayload)
-    .select("id, sj_number, sj_date, status")
-    .single();
+  const inserted = await insertDeliveryNoteWithAllocatedNumber({
+    supabase,
+    admin,
+    orgId,
+    sjDate: sj_date,
+    payload: insertPayload,
+  });
 
-  if (dnErr) {
-    return NextResponse.json({ error: dnErr.message }, { status: 400 });
+  if (inserted.error || !inserted.data?.id) {
+    const msg = String((inserted.error as { message?: string } | null)?.message || "Gagal buat surat jalan.");
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 
-  const deliveryNoteId = String(createdDn.id);
+  const deliveryNoteId = String(inserted.data.id);
+  const { data: createdDn, error: createdDnErr } = await supabase
+    .from("delivery_notes")
+    .select("id, sj_number, sj_date, status")
+    .eq("id", deliveryNoteId)
+    .single();
+
+  if (createdDnErr || !createdDn) {
+    await rollbackDeliveryNoteCreate(supabase, deliveryNoteId);
+    return NextResponse.json({ error: createdDnErr?.message || "SJ dibuat, tapi gagal ambil data." }, { status: 500 });
+  }
   const itemPayload = items.map((it) => ({
     delivery_note_id: deliveryNoteId,
     name: it.name,
@@ -154,7 +167,7 @@ export async function POST(req: NextRequest) {
 
   const { error: itemsErr } = await admin.from("delivery_note_items").insert(itemPayload);
   if (itemsErr) {
-    await rollbackDeliveryNoteCreate(admin, deliveryNoteId);
+    await rollbackDeliveryNoteCreate(supabase, deliveryNoteId);
     return NextResponse.json({ error: itemsErr.message }, { status: 400 });
   }
 

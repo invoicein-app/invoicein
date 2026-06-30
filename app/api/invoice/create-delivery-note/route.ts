@@ -15,11 +15,12 @@ import {
   loadInvoiceItemsForDeliveryNote,
   type InvoiceItemForDn,
 } from "@/lib/delivery-note-from-invoice";
+import {
+  insertDeliveryNoteWithAllocatedNumber,
+  isInvoiceDeliveryNoteDuplicateError,
+  isSjNumberDuplicateError,
+} from "@/lib/delivery-note-numbering";
 import { normalizeDeliveryNoteStatus } from "@/lib/delivery-note-status";
-
-function isDuplicateKeyError(err: unknown) {
-  return String((err as { code?: string })?.code || "") === "23505";
-}
 
 async function completeDeliveryNoteFromInvoice(args: {
   supabase: SupabaseClient;
@@ -166,7 +167,6 @@ export async function POST(req: NextRequest) {
       invoice_id: invoiceId,
       customer_name: asText((inv as { customer_name?: string | null }).customer_name) || "",
       customer_phone: asText((inv as { customer_phone?: string | null }).customer_phone) || null,
-      sj_date: sjDate,
       warehouse_id: inv.warehouse_id || null,
       shipping_address: inv.customer_address || "",
       driver_name: "",
@@ -174,16 +174,22 @@ export async function POST(req: NextRequest) {
       created_by: user.id,
     };
 
-    const { data: createdDnRow, error: dnInsertErr } = await supabase
-      .from("delivery_notes")
-      .insert(insertPayload)
-      .select("id")
-      .maybeSingle();
+    const inserted = await insertDeliveryNoteWithAllocatedNumber({
+      supabase,
+      admin,
+      orgId,
+      sjDate,
+      payload: insertPayload,
+    });
+
+    const createdDnRow = inserted.data;
+    const dnInsertErr = inserted.error;
 
     let deliveryNoteId: string | null = createdDnRow?.id ? String(createdDnRow.id) : null;
 
     if (dnInsertErr) {
-      if (isDuplicateKeyError(dnInsertErr)) {
+      const dupCode = String((dnInsertErr as { code?: string }).code || "") === "23505";
+      if (dupCode && isInvoiceDeliveryNoteDuplicateError(dnInsertErr)) {
         const raced = await findDeliveryNoteForInvoiceWithRetry(admin, orgId, invoiceId);
         if (!raced.ok) {
           return NextResponse.json({ error: raced.error }, { status: 400 });
@@ -219,7 +225,17 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      return NextResponse.json({ error: dnInsertErr.message, detail: dnInsertErr }, { status: 400 });
+      if (dupCode && isSjNumberDuplicateError(dnInsertErr)) {
+        return NextResponse.json(
+          {
+            error:
+              "Nomor surat jalan bentrok karena ada SJ lain dengan tanggal/nomor serupa. Coba lagi, atau hubungi admin untuk cek nomor SJ duplikat.",
+          },
+          { status: 409 }
+        );
+      }
+
+      return NextResponse.json({ error: (dnInsertErr as { message?: string }).message, detail: dnInsertErr }, { status: 400 });
     }
 
     if (!deliveryNoteId) {
