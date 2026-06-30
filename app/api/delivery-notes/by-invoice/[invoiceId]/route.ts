@@ -1,9 +1,18 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireApiContext } from "@/lib/api-context";
 import { findDeliveryNoteForInvoice } from "@/lib/delivery-note-from-invoice";
+
+function createAdminClient(): SupabaseClient | null {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) return null;
+
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
 
 export async function GET(
   _req: Request,
@@ -13,19 +22,12 @@ export async function GET(
 
   const auth = await requireApiContext();
   if (!auth.ok) return auth.response;
-  const { orgId } = auth.ctx;
+  const { supabase, orgId } = auth.ctx;
 
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return NextResponse.json({ error: "Service role tidak tersedia." }, { status: 500 });
-  }
+  const admin = createAdminClient();
+  const client = admin ?? supabase;
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
-
-  const found = await findDeliveryNoteForInvoice(admin, orgId, invoiceId);
+  const found = await findDeliveryNoteForInvoice(client, orgId, invoiceId);
   if (!found.ok) {
     return NextResponse.json({ error: found.error }, { status: 400 });
   }
@@ -34,7 +36,7 @@ export async function GET(
     return NextResponse.json({ ok: true, exists: false });
   }
 
-  const { data, error } = await admin
+  const { data, error } = await client
     .from("delivery_notes")
     .select("id, sj_number, sj_date, status, invoice_id")
     .eq("id", found.dn.id)

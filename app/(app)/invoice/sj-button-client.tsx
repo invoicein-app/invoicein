@@ -10,6 +10,7 @@ import {
   formPageSoftLink,
 } from "../components/app-action-buttons";
 import { deliveryNoteStatusBadge, normalizeDeliveryNoteStatus } from "@/lib/delivery-note-status";
+import { formatApiErrorMessage } from "@/lib/api-error-messages";
 
 type DeliveryNoteSummary = {
   id: string;
@@ -166,10 +167,14 @@ export default function SjButtonClient({
       }
 
       if (!res.ok) {
+        if (res.status === 401) {
+          setErrorMsg("Sesi login sudah habis. Silakan logout lalu login lagi.");
+          return;
+        }
         if (res.status === 409) {
           await refresh();
         }
-        setErrorMsg(json?.error || `Gagal membuat Surat Jalan (${res.status}).`);
+        setErrorMsg(formatApiErrorMessage(json?.error) || `Gagal membuat Surat Jalan (${res.status}).`);
         return;
       }
 
@@ -187,7 +192,7 @@ export default function SjButtonClient({
       window.location.href = `/delivery-notes/${id}`;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Gagal membuat Surat Jalan.";
-      setErrorMsg(msg);
+      setErrorMsg(formatApiErrorMessage(msg));
     } finally {
       end();
     }
