@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireApiContext, asText } from "@/lib/api-context";
 import { coerceDateOrToday } from "@/lib/document-numbering";
 import { parseJsonBody } from "@/lib/validations/parse-request";
@@ -22,8 +22,8 @@ function isDuplicateKeyError(err: unknown) {
 }
 
 async function completeDeliveryNoteFromInvoice(args: {
-  supabase: ReturnType<typeof createClient>;
-  admin: ReturnType<typeof createClient>;
+  supabase: SupabaseClient;
+  admin: SupabaseClient;
   orgId: string;
   userId: string;
   actorRole: string;
