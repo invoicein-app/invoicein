@@ -2,13 +2,15 @@
 
 import {
   createContext,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 type NavProgressContextValue = {
   startNavigation: (href: string) => void;
@@ -17,30 +19,42 @@ type NavProgressContextValue = {
 
 const NavProgressContext = createContext<NavProgressContextValue | null>(null);
 
-export function normalizeNavPath(href: string): string {
-  const raw = String(href || "").trim();
-  if (!raw) return "/";
-  if (raw.startsWith("http://") || raw.startsWith("https://")) {
-    try {
-      return new URL(raw).pathname;
-    } catch {
-      return raw.split("?")[0].split("#")[0] || "/";
-    }
+/** Normalize href for comparison (pathname + sorted query, no hash). */
+export function normalizeComparableHref(href: string): string {
+  const raw = String(href || "").trim() || "/";
+  try {
+    const url = raw.startsWith("http://") || raw.startsWith("https://")
+      ? new URL(raw)
+      : new URL(raw.startsWith("/") ? raw : `/${raw}`, "http://local");
+    const params = new URLSearchParams(url.searchParams);
+    const q = params.toString();
+    return `${url.pathname}${q ? `?${q}` : ""}`;
+  } catch {
+    return raw.split("#")[0];
   }
-  return raw.split("?")[0].split("#")[0] || "/";
-}
-
-function pathsMatch(current: string, target: string): boolean {
-  return normalizeNavPath(current) === normalizeNavPath(target);
 }
 
 export function NavProgressProvider({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<NavProgressContext.Provider value={null}>{children}</NavProgressContext.Provider>}>
+      <NavProgressProviderInner>{children}</NavProgressProviderInner>
+    </Suspense>
+  );
+}
+
+function NavProgressProviderInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  const currentHref = useMemo(() => {
+    const q = searchParams.toString();
+    return q ? `${pathname}?${q}` : pathname;
+  }, [pathname, searchParams]);
 
   useEffect(() => {
     setPendingHref(null);
-  }, [pathname]);
+  }, [currentHref]);
 
   useEffect(() => {
     if (!pendingHref) return;
@@ -50,10 +64,10 @@ export function NavProgressProvider({ children }: { children: ReactNode }) {
 
   const startNavigation = useCallback(
     (href: string) => {
-      if (pathsMatch(pathname, href)) return;
+      if (normalizeComparableHref(currentHref) === normalizeComparableHref(href)) return;
       setPendingHref(href);
     },
-    [pathname]
+    [currentHref]
   );
 
   const value: NavProgressContextValue = {

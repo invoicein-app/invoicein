@@ -1,9 +1,11 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { logActivity } from "@/lib/log-activity";
 import { requireApiContext, num, asText, type ApiSupabase } from "@/lib/api-context";
 import { canEditInvoice, deriveInvoiceStatusAfterEdit, resyncInvoiceStockAfterEdit } from "@/lib/invoice-finalize";
+import { resyncDeliveryNoteFromInvoiceAfterEdit } from "@/lib/delivery-note-sync-from-invoice";
 import { upsertCustomerLatestPrices } from "@/lib/customer-item-latest-price";
 import { upsertOrgManualItemsFromLines } from "@/lib/org-manual-items";
 import {
@@ -271,6 +273,25 @@ export async function PATCH(
     }
   }
 
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+
+    const dnSync = await resyncDeliveryNoteFromInvoiceAfterEdit({
+      supabase,
+      admin,
+      orgId,
+      invoiceId: id,
+    });
+
+    if (!dnSync.ok) {
+      return NextResponse.json({ error: dnSync.error }, { status: 400 });
+    }
+  }
+
   const customerIdForPrices = String(
     safeHeader.customer_id ?? updatedInvoice.customer_id ?? before.customer_id ?? ""
   ).trim();
@@ -377,6 +398,7 @@ export async function DELETE(
     summary: `Delete invoice ${before.invoice_number || id}`,
     meta: {
       before,
+      deleted_delivery_note_ids: deleted.deletedDeliveryNoteIds,
     },
   });
 

@@ -1,9 +1,10 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo } from "react";
+import AppNavLink from "@/app/components/app-nav-link";
+import { useAppRouter } from "@/app/components/use-app-router";
+import { useNavProgressOptional } from "@/app/components/nav-progress-context";
 
 const TEAL = "#2D7D71";
 
@@ -52,13 +53,22 @@ export default function ListPaginationClient({
   pageSize,
   baseQuery,
 }: Props) {
-  const router = useRouter();
+  const { push } = useAppRouter();
+  const nav = useNavProgressOptional();
+  const isNavigating = Boolean(nav?.isNavigating);
   const pages = useMemo(() => visiblePages(page, totalPages), [page, totalPages]);
   const start = totalRows === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, totalRows);
 
   function onPageSizeChange(ps: string) {
-    router.push(buildHref(basePath, baseQuery, { ps, p: "1" }));
+    push(buildHref(basePath, baseQuery, { ps, p: "1" }));
+  }
+
+  function pagerNavStyle(active = false, disabled = false): CSSProperties {
+    if (disabled || isNavigating) {
+      return { ...(active ? pagerActive() : pagerLink()), opacity: 0.45, pointerEvents: "none", cursor: "not-allowed" };
+    }
+    return active ? pagerActive() : pagerLink();
   }
 
   return (
@@ -80,6 +90,7 @@ export default function ListPaginationClient({
           <select
             value={String(pageSize)}
             onChange={(e) => onPageSizeChange(e.target.value)}
+            disabled={isNavigating}
             style={{
               margin: "0 6px",
               padding: "4px 8px",
@@ -106,9 +117,9 @@ export default function ListPaginationClient({
         {page <= 1 ? (
           <span style={pagerDisabled()}>&lt; Prev</span>
         ) : (
-          <Link href={buildHref(basePath, baseQuery, { p: String(page - 1) })} style={pagerLink()}>
+          <AppNavLink href={buildHref(basePath, baseQuery, { p: String(page - 1) })} style={pagerNavStyle()}>
             &lt; Prev
-          </Link>
+          </AppNavLink>
         )}
 
         {pages.map((p, i) =>
@@ -117,22 +128,22 @@ export default function ListPaginationClient({
               …
             </span>
           ) : (
-            <Link
+            <AppNavLink
               key={p}
               href={buildHref(basePath, baseQuery, { p: String(p) })}
-              style={p === page ? pagerActive() : pagerLink()}
+              style={pagerNavStyle(p === page)}
             >
               {p}
-            </Link>
+            </AppNavLink>
           )
         )}
 
         {page >= totalPages ? (
           <span style={pagerDisabled()}>Next &gt;</span>
         ) : (
-          <Link href={buildHref(basePath, baseQuery, { p: String(page + 1) })} style={pagerLink()}>
+          <AppNavLink href={buildHref(basePath, baseQuery, { p: String(page + 1) })} style={pagerNavStyle()}>
             Next &gt;
-          </Link>
+          </AppNavLink>
         )}
       </nav>
     </div>

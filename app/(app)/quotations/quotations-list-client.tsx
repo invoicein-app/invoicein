@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/app/components/use-app-router";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
 import QuotationsListTable from "./quotations-list-table";
@@ -42,7 +42,7 @@ export default function QuotationsListClient({
   searchQuery,
   baseQuery,
 }: Props) {
-  const router = useRouter();
+  const router = useAppRouter();
   const [convertingId, setConvertingId] = useState("");
 
   const fromIdx = totalRows === 0 ? 0 : (page - 1) * pageSize;

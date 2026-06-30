@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { APP_BORDER, APP_TEAL } from "../components/app-ui-tokens";
+import { useAppRouter } from "@/app/components/use-app-router";
 
 export default function DeliveryNotesFiltersClient() {
-  const router = useRouter();
+  const router = useAppRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
 

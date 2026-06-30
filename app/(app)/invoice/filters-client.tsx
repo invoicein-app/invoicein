@@ -2,9 +2,10 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import InvoiceExportClient from "./invoice-export-client";
 import CustomerPicker from "../components/customer-picker";
+import { useAppRouter } from "@/app/components/use-app-router";
 
 const TEAL = "#2D7D71";
 const BORDER = "#E2E8F0";
@@ -16,7 +17,7 @@ export default function InvoiceFiltersClient({
 }: {
   customers: CustomerOption[];
 }) {
-  const router = useRouter();
+  const router = useAppRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
 

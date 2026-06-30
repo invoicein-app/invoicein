@@ -1,11 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { deleteDeliveryNotesForInvoice } from "@/lib/delivery-note-delete-for-invoice";
 import { reverseInvoiceStockOut } from "@/lib/invoice-finalize";
 
 export type InvoiceDeleteBlocker =
   | "cancelled"
   | "paid"
   | "payment_records"
-  | "delivery_note"
   | "stock_reversal";
 
 export type InvoiceDeleteAssessment = {
@@ -72,17 +72,17 @@ export function assessInvoiceDeletableFromSets(args: {
   }
   if (status === "paid" || amountPaid > 0) {
     blockers.push("paid");
-    reasons.push("Invoice sudah memiliki pembayaran.");
+    reasons.push(
+      "Invoice sudah memiliki pembayaran. Hapus catatan pembayaran di detail invoice terlebih dahulu."
+    );
   }
   if (args.invoiceIdsWithPayments.has(invoiceId)) {
     blockers.push("payment_records");
     if (!reasons.some((r) => r.includes("pembayaran"))) {
-      reasons.push("Invoice memiliki catatan pembayaran.");
+      reasons.push(
+        "Invoice memiliki catatan pembayaran. Hapus catatan pembayaran di detail invoice terlebih dahulu."
+      );
     }
-  }
-  if (args.invoiceIdsWithDeliveryNotes.has(invoiceId)) {
-    blockers.push("delivery_note");
-    reasons.push("Invoice sudah memiliki surat jalan terkait.");
   }
 
   const uniqueBlockers = [...new Set(blockers)];
@@ -123,7 +123,9 @@ export async function assessInvoiceDeletable(args: {
 
   if (status === "paid" || amountPaid > 0) {
     blockers.push("paid");
-    reasons.push("Invoice sudah memiliki pembayaran.");
+    reasons.push(
+      "Invoice sudah memiliki pembayaran. Hapus catatan pembayaran di detail invoice terlebih dahulu."
+    );
   }
 
   const { count: paymentCount, error: payErr } = await supabase
@@ -138,23 +140,10 @@ export async function assessInvoiceDeletable(args: {
   if ((paymentCount || 0) > 0) {
     blockers.push("payment_records");
     if (!reasons.some((r) => r.includes("pembayaran"))) {
-      reasons.push("Invoice memiliki catatan pembayaran.");
+      reasons.push(
+        "Invoice memiliki catatan pembayaran. Hapus catatan pembayaran di detail invoice terlebih dahulu."
+      );
     }
-  }
-
-  const { count: dnCount, error: dnErr } = await supabase
-    .from("delivery_notes")
-    .select("id", { count: "exact", head: true })
-    .eq("org_id", orgId)
-    .eq("invoice_id", invoiceId);
-
-  if (dnErr) {
-    return { canDelete: false, reasons: [dnErr.message], blockers: ["delivery_note"] };
-  }
-
-  if ((dnCount || 0) > 0) {
-    blockers.push("delivery_note");
-    reasons.push("Invoice sudah memiliki surat jalan terkait.");
   }
 
   const uniqueBlockers = [...new Set(blockers)];
@@ -176,9 +165,13 @@ export async function assessInvoiceDeletable(args: {
 
 export function formatInvoiceDeleteBlockedMessage(reasons: string[]): string {
   if (reasons.length === 0) {
-    return "Invoice tidak bisa dihapus karena sudah memiliki pembayaran / surat jalan / relasi stok. Silakan batalkan invoice.";
+    return "Invoice tidak bisa dihapus. Hapus catatan pembayaran terlebih dahulu jika sudah ada pembayaran.";
   }
-  return `Invoice tidak bisa dihapus: ${reasons.join(" ")} Silakan batalkan invoice jika perlu.`;
+  const hasPaymentBlock = reasons.some((r) => r.toLowerCase().includes("pembayaran"));
+  if (hasPaymentBlock) {
+    return `${reasons.join(" ")} Setelah itu invoice (dan surat jalan terkait) bisa dihapus.`;
+  }
+  return `${reasons.join(" ")}`;
 }
 
 export async function deleteInvoiceSafely(args: {
@@ -186,7 +179,10 @@ export async function deleteInvoiceSafely(args: {
   orgId: string;
   invoice: Record<string, unknown>;
   actorRole?: string | null;
-}): Promise<{ ok: true } | { ok: false; error: string; assessment?: InvoiceDeleteAssessment }> {
+}): Promise<
+  | { ok: true; deletedDeliveryNoteIds: string[] }
+  | { ok: false; error: string; assessment?: InvoiceDeleteAssessment }
+> {
   const { supabase, orgId } = args;
   const invoiceId = String(args.invoice.id || "").trim();
   if (!invoiceId) {
@@ -213,6 +209,24 @@ export async function deleteInvoiceSafely(args: {
       ok: false,
       error: formatInvoiceDeleteBlockedMessage(assessment.reasons),
       assessment,
+    };
+  }
+
+  const dnDelete = await deleteDeliveryNotesForInvoice({
+    supabase,
+    orgId,
+    invoiceId,
+  });
+
+  if (!dnDelete.ok) {
+    return {
+      ok: false,
+      error: dnDelete.error,
+      assessment: {
+        canDelete: false,
+        reasons: [dnDelete.error],
+        blockers: ["stock_reversal"],
+      },
     };
   }
 
@@ -287,5 +301,5 @@ export async function deleteInvoiceSafely(args: {
     return { ok: false, error: delInvErr.message };
   }
 
-  return { ok: true };
+  return { ok: true, deletedDeliveryNoteIds: dnDelete.deletedIds };
 }

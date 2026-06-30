@@ -5,19 +5,29 @@ import { createPortal } from "react-dom";
 import FormSubmitButton from "../components/form-submit-button";
 import { useSubmitGuard } from "../components/use-submit-guard";
 import {
-  formPageMutedButton,
+  formPagePrimaryLink,
   formPageSaveButton,
   formPageSoftLink,
 } from "../components/app-action-buttons";
+import { deliveryNoteStatusBadge, normalizeDeliveryNoteStatus } from "@/lib/delivery-note-status";
+
+type DeliveryNoteSummary = {
+  id: string;
+  sj_number: string | null;
+  sj_date: string | null;
+  status: string | null;
+};
 
 type SjState =
   | { loading: true }
   | { loading: false; exists: false }
-  | { loading: false; exists: true; id: string };
+  | { loading: false; exists: true; deliveryNote: DeliveryNoteSummary };
 
 type Props = {
   invoiceId: string;
   invoiceDate?: string | null;
+  customerName?: string | null;
+  customerAddress?: string | null;
 };
 
 function normalizeDateInput(value: string | null | undefined): string {
@@ -30,7 +40,20 @@ function normalizeDateInput(value: string | null | undefined): string {
   return `${y}-${m}-${d}`;
 }
 
-export default function SjButtonClient({ invoiceId, invoiceDate }: Props) {
+function fmtDateId(iso: string | null | undefined): string {
+  const s = String(iso ?? "").trim();
+  if (!s) return "-";
+  const d = new Date(s.length === 10 ? `${s}T00:00:00` : s);
+  if (Number.isNaN(d.getTime())) return s;
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+}
+
+export default function SjButtonClient({
+  invoiceId,
+  invoiceDate,
+  customerName,
+  customerAddress,
+}: Props) {
   const [state, setState] = useState<SjState>({ loading: true });
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -41,6 +64,12 @@ export default function SjButtonClient({ invoiceId, invoiceDate }: Props) {
   const { tryBegin, end } = useSubmitGuard(setSaving);
 
   const defaultSjDate = useMemo(() => normalizeDateInput(invoiceDate), [invoiceDate]);
+  const shippingAddress = String(customerAddress || "").trim() || "-";
+  const shipToName = String(customerName || "").trim() || "-";
+  const isCancelled =
+    state.loading === false &&
+    state.exists &&
+    normalizeDeliveryNoteStatus(state.deliveryNote.status) === "cancelled";
 
   useEffect(() => {
     setMounted(true);
@@ -60,8 +89,18 @@ export default function SjButtonClient({ invoiceId, invoiceDate }: Props) {
         return;
       }
 
-      if (json.exists && json.deliveryNoteId) {
-        setState({ loading: false, exists: true, id: json.deliveryNoteId });
+      const dn = json?.deliveryNote;
+      if (json.exists && dn?.id) {
+        setState({
+          loading: false,
+          exists: true,
+          deliveryNote: {
+            id: String(dn.id),
+            sj_number: dn.sj_number ?? null,
+            sj_date: dn.sj_date ?? null,
+            status: dn.status ?? null,
+          },
+        });
       } else {
         setState({ loading: false, exists: false });
       }
@@ -119,7 +158,7 @@ export default function SjButtonClient({ invoiceId, invoiceDate }: Props) {
       });
 
       const text = await res.text();
-      let json: { error?: string; id?: string; deliveryNoteId?: string } | null = null;
+      let json: { error?: string; id?: string; deliveryNoteId?: string; already_exists?: boolean } | null = null;
       try {
         json = JSON.parse(text);
       } catch {
@@ -127,6 +166,9 @@ export default function SjButtonClient({ invoiceId, invoiceDate }: Props) {
       }
 
       if (!res.ok) {
+        if (res.status === 409) {
+          await refresh();
+        }
         setErrorMsg(json?.error || `Gagal membuat Surat Jalan (${res.status}).`);
         return;
       }
@@ -135,6 +177,10 @@ export default function SjButtonClient({ invoiceId, invoiceDate }: Props) {
       if (!id) {
         setErrorMsg("Surat Jalan dibuat, tapi halaman tujuan tidak ditemukan.");
         return;
+      }
+
+      if (json?.already_exists) {
+        await refresh();
       }
 
       setModalOpen(false);
@@ -150,26 +196,6 @@ export default function SjButtonClient({ invoiceId, invoiceDate }: Props) {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     void createSj();
-  }
-
-  if (state.loading) {
-    return (
-      <button type="button" disabled style={formPageMutedButton()}>
-        Mengecek SJ...
-      </button>
-    );
-  }
-
-  if (state.exists) {
-    return (
-      <button
-        type="button"
-        onClick={() => (window.location.href = `/delivery-notes/${state.id}`)}
-        style={formPageSoftLink()}
-      >
-        Lihat SJ
-      </button>
-    );
   }
 
   const modal =
@@ -239,14 +265,267 @@ export default function SjButtonClient({ invoiceId, invoiceDate }: Props) {
       </div>
     ) : null;
 
+  if (state.loading) {
+    return (
+      <div style={panel()}>
+        <div style={{ color: "#64748b", fontSize: 14, fontWeight: 600 }}>Memuat data Surat Jalan...</div>
+      </div>
+    );
+  }
+
+  if (state.exists) {
+    const dn = state.deliveryNote;
+    const badge = deliveryNoteStatusBadge(dn.status);
+
+    return (
+      <>
+        <div style={panel()}>
+          <div style={summaryHeader()}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b", letterSpacing: "0.04em" }}>
+                SURAT JALAN TERKAIT
+              </div>
+              <div style={{ marginTop: 4, fontSize: 18, fontWeight: 800, color: "#0f172a" }}>
+                {dn.sj_number || "—"}
+              </div>
+            </div>
+            <span
+              style={{
+                padding: "6px 12px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 800,
+                background: badge.bg,
+                border: `1px solid ${badge.border}`,
+                color: badge.color,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {badge.label}
+            </span>
+          </div>
+
+          <div style={infoGrid()}>
+            <InfoRow label="Tanggal SJ" value={fmtDateId(dn.sj_date)} />
+            <InfoRow label="Kirim ke" value={shipToName} />
+            <InfoRow label="Alamat" value={shippingAddress} multiline />
+          </div>
+
+          <div style={actionRow()}>
+            <button
+              type="button"
+              onClick={() => (window.location.href = `/delivery-notes/${dn.id}`)}
+              style={formPageSoftLink()}
+            >
+              Lihat SJ
+            </button>
+            <button
+              type="button"
+              onClick={() => window.open(`/api/delivery-notes/pdf/${dn.id}`, "_blank", "noopener,noreferrer")}
+              style={formPagePrimaryLink()}
+            >
+              Download PDF
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                window.open(`/api/delivery-notes/pdf-dotmatrix/${dn.id}`, "_blank", "noopener,noreferrer")
+              }
+              style={formPageSoftLink()}
+            >
+              Dotmatrix
+            </button>
+          </div>
+
+          {isCancelled ? (
+            <p style={footnote()}>
+              Surat jalan ini sudah dibatalkan. Satu invoice hanya memiliki satu SJ — buka detail untuk
+              riwayat lengkap.
+            </p>
+          ) : (
+            <p style={footnote()}>
+              Item dan alamat SJ otomatis mengikuti invoice setelah Anda menyimpan perubahan invoice.
+            </p>
+          )}
+        </div>
+        {modal ? createPortal(modal, document.body) : null}
+      </>
+    );
+  }
+
   return (
     <>
-      <button type="button" onClick={openModal} style={formPageSaveButton()}>
-        Buat Surat Jalan
-      </button>
+      <div style={panel()}>
+        <div style={emptyHero()}>
+          <div style={emptyIcon()} aria-hidden>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2D7D71" strokeWidth="1.75">
+              <path d="M3 7h11v8H3z" strokeLinejoin="round" />
+              <path d="M14 10h4l3 3v2h-7V10z" strokeLinejoin="round" />
+              <circle cx="7" cy="17" r="1.5" fill="#2D7D71" stroke="none" />
+              <circle cx="17" cy="17" r="1.5" fill="#2D7D71" stroke="none" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a" }}>Belum ada Surat Jalan</div>
+            <div style={{ marginTop: 4, fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
+              Buat SJ dari item invoice ini untuk dokumen pengiriman.
+            </div>
+          </div>
+        </div>
+
+        <ul style={bulletList()}>
+          <li>Item mengikuti invoice ini</li>
+          <li>Tanggal default sama dengan tanggal invoice</li>
+          <li>Bisa cetak PDF setelah SJ dibuat</li>
+        </ul>
+
+        <div style={infoGrid()}>
+          <InfoRow label="Kirim ke" value={shipToName} />
+          <InfoRow label="Alamat kirim" value={shippingAddress} multiline />
+          <InfoRow label="Tanggal rencana" value={fmtDateId(defaultSjDate)} />
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <button type="button" onClick={openModal} style={{ ...formPageSaveButton(), width: "100%" }}>
+            Buat Surat Jalan
+          </button>
+        </div>
+
+        <p style={footnote()}>Satu invoice = satu surat jalan.</p>
+      </div>
       {modal ? createPortal(modal, document.body) : null}
     </>
   );
+}
+
+function InfoRow({
+  label,
+  value,
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}) {
+  return (
+    <div style={infoRow()}>
+      <span style={infoK()}>{label}</span>
+      <span
+        style={
+          multiline
+            ? { ...infoV(), whiteSpace: "pre-wrap", lineHeight: 1.45 }
+            : { ...infoV(), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
+        }
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function panel(): CSSProperties {
+  return {
+    minHeight: 280,
+    display: "flex",
+    flexDirection: "column",
+    gap: 0,
+  };
+}
+
+function emptyHero(): CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: "14px 14px 12px",
+    borderRadius: 12,
+    border: "1px dashed #cbd5e1",
+    background: "#f8fafc",
+  };
+}
+
+function emptyIcon(): CSSProperties {
+  return {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    background: "#e8f4f3",
+    display: "grid",
+    placeItems: "center",
+    flexShrink: 0,
+  };
+}
+
+function bulletList(): CSSProperties {
+  return {
+    margin: "14px 0 0",
+    paddingLeft: 20,
+    color: "#475569",
+    fontSize: 13,
+    lineHeight: 1.6,
+    fontWeight: 600,
+  };
+}
+
+function infoGrid(): CSSProperties {
+  return {
+    marginTop: 14,
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "1px solid #e2e8f0",
+    background: "#fff",
+  };
+}
+
+function infoRow(): CSSProperties {
+  return {
+    display: "grid",
+    gridTemplateColumns: "110px 1fr",
+    gap: 8,
+    padding: "6px 0",
+    borderBottom: "1px solid #f1f5f9",
+  };
+}
+
+function infoK(): CSSProperties {
+  return { fontSize: 12, color: "#64748b", fontWeight: 700 };
+}
+
+function infoV(): CSSProperties {
+  return { fontSize: 13, color: "#0f172a", fontWeight: 700 };
+}
+
+function summaryHeader(): CSSProperties {
+  return {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: "14px 14px 12px",
+    borderRadius: 12,
+    border: "1px solid #bbf7d0",
+    background: "#f0fdf4",
+  };
+}
+
+function actionRow(): CSSProperties {
+  return {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 16,
+  };
+}
+
+function footnote(): CSSProperties {
+  return {
+    marginTop: "auto",
+    paddingTop: 12,
+    marginBottom: 0,
+    fontSize: 12,
+    color: "#94a3b8",
+    fontWeight: 600,
+  };
 }
 
 function backdrop(): CSSProperties {

@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import AppHeaderNav from "./app-header-nav";
 import { APP_BORDER, APP_TEAL } from "./app-ui-tokens";
+import { useNavProgressOptional } from "@/app/components/nav-progress-context";
+import AppNavLink from "@/app/components/app-nav-link";
 import {
   listPageContentCard,
   listPageHeaderRow,
@@ -84,6 +85,8 @@ export default function ListPageLayout({
   perPageOptions = [10, 20, 30, 50],
 }: Props) {
   const cardHeading = listCardTitle ?? `Master Data · ${title}`;
+  const nav = useNavProgressOptional();
+  const isNavigating = Boolean(nav?.isNavigating);
 
   return (
     <div className="app-list-page" style={listPageShell}>
@@ -94,14 +97,14 @@ export default function ListPageLayout({
         </div>
         <div className="app-list-page__header-actions" style={listPageHeaderActions}>
           {secondaryLink ? (
-            <Link href={secondaryLink.href} style={btnOutline}>
+            <AppNavLink href={secondaryLink.href} style={btnOutline}>
               {secondaryLink.label}
-            </Link>
+            </AppNavLink>
           ) : null}
           {primaryLink ? (
-            <Link href={primaryLink.href} style={btnSolid}>
+            <AppNavLink href={primaryLink.href} style={btnSolid}>
               {primaryLink.label}
-            </Link>
+            </AppNavLink>
           ) : null}
           <AppHeaderNav />
         </div>
@@ -114,7 +117,9 @@ export default function ListPageLayout({
 
         <div style={{ marginBottom: 16 }}>{filters}</div>
 
-        <div className="app-table-scroll">{tableContent}</div>
+        <div className="app-table-scroll" style={isNavigating ? { opacity: 0.55, pointerEvents: "none" } : undefined}>
+          {tableContent}
+        </div>
 
         <div
           className="app-list-page__footer"
@@ -138,6 +143,7 @@ export default function ListPageLayout({
               <select
                 value={String(pageSize)}
                 onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                disabled={isNavigating}
                 style={{
                   padding: "6px 10px",
                   borderRadius: 6,
@@ -169,12 +175,13 @@ export default function ListPageLayout({
           </div>
 
           <nav style={{ display: "flex", alignItems: "center", gap: 8 }} aria-label="Pagination">
-            <PagerBtn onClick={clientPagination.onPrev} disabled={page <= 1} label="< Prev" />
+            <PagerBtn onClick={clientPagination.onPrev} disabled={page <= 1 || isNavigating} label="< Prev" />
             <span style={pagerActive()}>{Math.min(page, totalPages)}</span>
-            <PagerBtn onClick={clientPagination.onNext} disabled={page >= totalPages} label="Next >" />
+            <PagerBtn onClick={clientPagination.onNext} disabled={page >= totalPages || isNavigating} label="Next >" />
             <span style={{ width: 8 }} />
-            <PagerBtn onClick={clientPagination.onFirst} disabled={page <= 1} label="«" title="Halaman pertama" />
-            <PagerBtn onClick={clientPagination.onLast} disabled={page >= totalPages} label="»" title="Halaman terakhir" />
+            <PagerBtn onClick={clientPagination.onFirst} disabled={page <= 1 || isNavigating} label="«" title="Halaman pertama" />
+            <PagerBtn onClick={clientPagination.onLast} disabled={page >= totalPages || isNavigating} label="»" title="Halaman terakhir" />
+            {isNavigating ? <span style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Memuat...</span> : null}
           </nav>
         </div>
       </div>

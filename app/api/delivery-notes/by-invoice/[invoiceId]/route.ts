@@ -1,7 +1,9 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { requireApiContext } from "@/lib/api-context";
+import { findDeliveryNoteForInvoice } from "@/lib/delivery-note-from-invoice";
 
 export async function GET(
   _req: Request,
@@ -11,21 +13,37 @@ export async function GET(
 
   const auth = await requireApiContext();
   if (!auth.ok) return auth.response;
-  const { supabase } = auth.ctx;
+  const { orgId } = auth.ctx;
 
-  const { data, error } = await supabase
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: "Service role tidak tersedia." }, { status: 500 });
+  }
+
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+
+  const found = await findDeliveryNoteForInvoice(admin, orgId, invoiceId);
+  if (!found.ok) {
+    return NextResponse.json({ error: found.error }, { status: 400 });
+  }
+
+  if (!found.dn?.id) {
+    return NextResponse.json({ ok: true, exists: false });
+  }
+
+  const { data, error } = await admin
     .from("delivery_notes")
-    .select("id, sj_number, sj_date, invoice_id")
-    .eq("invoice_id", invoiceId)
-    .order("created_at", { ascending: false })
-    .limit(1)
+    .select("id, sj_number, sj_date, status, invoice_id")
+    .eq("id", found.dn.id)
     .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  // kalau belum ada
   if (!data) {
     return NextResponse.json({ ok: true, exists: false });
   }

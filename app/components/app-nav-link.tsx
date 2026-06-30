@@ -8,8 +8,17 @@ type Props = ComponentProps<typeof Link>;
 
 function hrefToString(href: Props["href"]): string {
   if (typeof href === "string") return href;
-  if (typeof href === "object" && href !== null && "pathname" in href) {
-    return String(href.pathname || "");
+  if (typeof href === "object" && href !== null) {
+    const path = "pathname" in href ? String(href.pathname || "") : "";
+    if ("search" in href && href.search) {
+      const search = String(href.search);
+      return search.startsWith("?") ? `${path}${search}` : `${path}?${search}`;
+    }
+    if ("query" in href && href.query && typeof href.query === "object") {
+      const q = new URLSearchParams(href.query as Record<string, string>).toString();
+      return q ? `${path}?${q}` : path;
+    }
+    return path;
   }
   return "";
 }

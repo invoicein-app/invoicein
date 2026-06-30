@@ -463,10 +463,12 @@ export default async function InvoiceViewPage({ params }: PageProps) {
         <div style={card()}>
           <div style={sectionTitle()}>Surat Jalan</div>
           <div style={cardBody()}>
-            <p style={sectionDesc()}>Buat atau buka surat jalan untuk pengiriman invoice ini.</p>
-            <div style={sjButtonWrap()}>
-              <SjButtonClient invoiceId={id} invoiceDate={invoice.invoice_date} />
-            </div>
+            <SjButtonClient
+              invoiceId={id}
+              invoiceDate={invoice.invoice_date}
+              customerName={(invoice as any).customer_name}
+              customerAddress={(invoice as any).customer_address}
+            />
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/app/components/use-app-router";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import ListPageLayout from "../components/list-page-layout";
 import ListFiltersClient from "../components/list-filters-client";
@@ -53,7 +53,7 @@ export default function CustomersListClient({
   searchQuery,
   baseQuery,
 }: Props) {
-  const router = useRouter();
+  const router = useAppRouter();
   const supabase = supabaseBrowser();
 
   const [msg, setMsg] = useState("");

@@ -7,6 +7,71 @@ import { coerceDateOrToday } from "@/lib/document-numbering";
 import { parseJsonBody } from "@/lib/validations/parse-request";
 import { createDeliveryNoteFromInvoiceBodySchema } from "@/lib/validations/delivery-note";
 import { createAndFinalizeDeliveryNote, rollbackDeliveryNoteCreate } from "@/lib/delivery-note-post";
+import {
+  buildDeliveryNoteItemPayload,
+  countDeliveryNoteItems,
+  findDeliveryNoteForInvoice,
+  findDeliveryNoteForInvoiceWithRetry,
+  loadInvoiceItemsForDeliveryNote,
+  type InvoiceItemForDn,
+} from "@/lib/delivery-note-from-invoice";
+import { normalizeDeliveryNoteStatus } from "@/lib/delivery-note-status";
+
+function isDuplicateKeyError(err: unknown) {
+  return String((err as { code?: string })?.code || "") === "23505";
+}
+
+async function completeDeliveryNoteFromInvoice(args: {
+  supabase: ReturnType<typeof createClient>;
+  admin: ReturnType<typeof createClient>;
+  orgId: string;
+  userId: string;
+  actorRole: string;
+  deliveryNoteId: string;
+  invoiceId: string;
+  items: InvoiceItemForDn[];
+}) {
+  const { supabase, admin, orgId, userId, actorRole, deliveryNoteId, invoiceId, items } = args;
+
+  const itemCount = await countDeliveryNoteItems(admin, deliveryNoteId);
+  if (itemCount === 0 && items.length > 0) {
+    const payload = await buildDeliveryNoteItemPayload(admin, deliveryNoteId, items);
+    const { error: dnItemsErr } = await admin.from("delivery_note_items").insert(payload);
+    if (dnItemsErr) {
+      return { ok: false as const, error: dnItemsErr.message, status: 400 };
+    }
+  }
+
+  const { data: dnRow, error: dnErr } = await admin
+    .from("delivery_notes")
+    .select("status")
+    .eq("id", deliveryNoteId)
+    .eq("org_id", orgId)
+    .maybeSingle();
+
+  if (dnErr) {
+    return { ok: false as const, error: dnErr.message, status: 400 };
+  }
+
+  const status = normalizeDeliveryNoteStatus(dnRow?.status);
+  if (status !== "posted") {
+    const finalize = await createAndFinalizeDeliveryNote({
+      supabase,
+      admin,
+      orgId,
+      userId,
+      actorRole,
+      deliveryNoteId,
+      invoiceId,
+    });
+
+    if (!finalize.ok) {
+      return { ok: false as const, error: finalize.error, status: finalize.status };
+    }
+  }
+
+  return { ok: true as const };
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,17 +94,11 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (invErr) {
-      return NextResponse.json(
-        { error: invErr.message, detail: invErr },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: invErr.message, detail: invErr }, { status: 403 });
     }
 
     if (!inv) {
-      return NextResponse.json(
-        { error: "Invoice tidak ditemukan / forbidden" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Invoice tidak ditemukan / forbidden" }, { status: 404 });
     }
 
     const invStatus = String(inv.status || "").toLowerCase();
@@ -60,65 +119,44 @@ export async function POST(req: NextRequest) {
     const admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: { persistSession: false, autoRefreshToken: false },
-      }
+      { auth: { persistSession: false, autoRefreshToken: false } }
     );
 
-    const { data: existingDn, error: existingErr } = await admin
-      .from("delivery_notes")
-      .select("id")
-      .eq("org_id", orgId)
-      .eq("invoice_id", invoiceId)
-      .maybeSingle();
-
-    if (existingErr) {
-      return NextResponse.json(
-        { error: existingErr.message, detail: existingErr },
-        { status: 400 }
-      );
+    const itemsLoaded = await loadInvoiceItemsForDeliveryNote(admin, invoiceId);
+    if (!itemsLoaded.ok) {
+      return NextResponse.json({ error: itemsLoaded.error }, { status: 400 });
     }
 
-    if (existingDn?.id) {
-      return NextResponse.json(
-        { id: existingDn.id, already_exists: true },
-        { status: 200 }
-      );
+    const existing = await findDeliveryNoteForInvoice(admin, orgId, invoiceId);
+    if (!existing.ok) {
+      return NextResponse.json({ error: existing.error }, { status: 400 });
     }
 
-    const { data: items, error: itemsErr } = await admin
-      .from("invoice_items")
-      .select("name, qty, sort_order, product_id, item_key, unit")
-      .eq("invoice_id", invoiceId)
-      .order("sort_order", { ascending: true });
-
-    if (itemsErr) {
-      return NextResponse.json(
-        { error: itemsErr.message, detail: itemsErr },
-        { status: 400 }
-      );
-    }
-
-    const productIds = [...new Set((items || []).map((it: any) => asText(it.product_id)).filter(Boolean))];
-
-    let productUnitMap = new Map<string, string | null>();
-
-    if (productIds.length > 0) {
-      const { data: products, error: prodErr } = await admin
-        .from("products")
-        .select("id, unit")
-        .in("id", productIds);
-
-      if (prodErr) {
+    if (existing.dn?.id) {
+      const dnStatus = normalizeDeliveryNoteStatus(existing.dn.status);
+      if (dnStatus === "cancelled") {
         return NextResponse.json(
-          { error: prodErr.message, detail: prodErr },
+          { error: "Surat jalan untuk invoice ini sudah dibatalkan. Hubungi admin jika perlu SJ baru." },
           { status: 400 }
         );
       }
 
-      productUnitMap = new Map(
-        (products || []).map((p: any) => [String(p.id), asText(p.unit) || null])
-      );
+      const completed = await completeDeliveryNoteFromInvoice({
+        supabase,
+        admin,
+        orgId,
+        userId: user.id,
+        actorRole,
+        deliveryNoteId: existing.dn.id,
+        invoiceId,
+        items: itemsLoaded.items,
+      });
+
+      if (!completed.ok) {
+        return NextResponse.json({ error: completed.error }, { status: completed.status });
+      }
+
+      return NextResponse.json({ id: existing.dn.id, already_exists: true }, { status: 200 });
     }
 
     const sjDate = coerceDateOrToday(sj_date || (inv as { invoice_date?: string | null }).invoice_date);
@@ -126,8 +164,8 @@ export async function POST(req: NextRequest) {
     const insertPayload = {
       org_id: orgId,
       invoice_id: invoiceId,
-      customer_name: asText((inv as any).customer_name) || "",
-      customer_phone: asText((inv as any).customer_phone) || null,
+      customer_name: asText((inv as { customer_name?: string | null }).customer_name) || "",
+      customer_phone: asText((inv as { customer_phone?: string | null }).customer_phone) || null,
       sj_date: sjDate,
       warehouse_id: inv.warehouse_id || null,
       shipping_address: inv.customer_address || "",
@@ -136,98 +174,72 @@ export async function POST(req: NextRequest) {
       created_by: user.id,
     };
 
-    const { data: createdDnRow, error: dnInsertErr } = await supabase
+    const { data: createdDnRow, error: dnInsertErr } = await admin
       .from("delivery_notes")
       .insert(insertPayload)
       .select("id")
       .maybeSingle();
 
-    let deliveryNoteId: string | null = createdDnRow?.id ?? null;
+    let deliveryNoteId: string | null = createdDnRow?.id ? String(createdDnRow.id) : null;
 
     if (dnInsertErr) {
-      if (String((dnInsertErr as any).code) === "23505") {
-        const { data: dn2, error: dn2Err } = await admin
-          .from("delivery_notes")
-          .select("id")
-          .eq("org_id", orgId)
-          .eq("invoice_id", invoiceId)
-          .maybeSingle();
-
-        if (dn2Err || !dn2?.id) {
-          return NextResponse.json(
-            { error: dn2Err?.message || "Duplicate but cannot fetch existing SJ" },
-            { status: 400 }
-          );
+      if (isDuplicateKeyError(dnInsertErr)) {
+        const raced = await findDeliveryNoteForInvoiceWithRetry(admin, orgId, invoiceId);
+        if (!raced.ok) {
+          return NextResponse.json({ error: raced.error }, { status: 400 });
         }
 
+        if (raced.dn?.id) {
+          const completed = await completeDeliveryNoteFromInvoice({
+            supabase,
+            admin,
+            orgId,
+            userId: user.id,
+            actorRole,
+            deliveryNoteId: raced.dn.id,
+            invoiceId,
+            items: itemsLoaded.items,
+          });
+
+          if (!completed.ok) {
+            return NextResponse.json({ error: completed.error }, { status: completed.status });
+          }
+
+          return NextResponse.json({ id: raced.dn.id, already_exists: true }, { status: 200 });
+        }
+
+        const detail = String((dnInsertErr as { message?: string }).message || "").trim();
         return NextResponse.json(
-          { id: dn2.id, already_exists: true },
-          { status: 200 }
+          {
+            error:
+              "Surat jalan untuk invoice ini sudah dibuat. Muat ulang halaman invoice lalu buka SJ yang ada." +
+              (detail ? ` (${detail})` : ""),
+          },
+          { status: 409 }
         );
       }
 
-      return NextResponse.json(
-        { error: dnInsertErr.message, detail: dnInsertErr },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: dnInsertErr.message, detail: dnInsertErr }, { status: 400 });
     }
 
     if (!deliveryNoteId) {
-      const { data: lastDn, error: lastDnErr } = await admin
-        .from("delivery_notes")
-        .select("id")
-        .eq("org_id", orgId)
-        .eq("invoice_id", invoiceId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (lastDnErr || !lastDn?.id) {
-        return NextResponse.json(
-          { error: lastDnErr?.message || "SJ dibuat, tapi gagal ambil id" },
-          { status: 500 }
-        );
+      const raced = await findDeliveryNoteForInvoiceWithRetry(admin, orgId, invoiceId);
+      if (!raced.ok) {
+        return NextResponse.json({ error: raced.error }, { status: 500 });
       }
-
-      deliveryNoteId = lastDn.id;
+      if (!raced.dn?.id) {
+        return NextResponse.json({ error: "SJ dibuat, tapi gagal ambil id" }, { status: 500 });
+      }
+      deliveryNoteId = raced.dn.id;
     }
 
-    if (!deliveryNoteId) {
-      return NextResponse.json(
-        { error: "SJ dibuat, tapi gagal ambil id" },
-        { status: 500 }
-      );
-    }
-
-    const resolvedDeliveryNoteId = deliveryNoteId;
-
-    if ((items || []).length) {
-      const payload = (items || []).map((it: any, i: number) => {
-        const productId = asText(it.product_id) || null;
-        const unitFromInvoice = asText(it.unit) || null;
-        const unitFromProduct = productId ? productUnitMap.get(productId) || null : null;
-
-        return {
-          delivery_note_id: resolvedDeliveryNoteId,
-          name: it.name,
-          qty: it.qty,
-          sort_order: it.sort_order ?? i,
-          unit: unitFromInvoice || unitFromProduct || null,
-          product_id: productId,
-          item_key: asText(it.item_key) || null,
-        };
-      });
-
-      const { error: dnItemsErr } = await admin
-        .from("delivery_note_items")
-        .insert(payload);
+    if (itemsLoaded.items.length > 0) {
+      const payload = await buildDeliveryNoteItemPayload(admin, deliveryNoteId, itemsLoaded.items);
+      const { error: dnItemsErr } = await admin.from("delivery_note_items").insert(payload);
 
       if (dnItemsErr) {
-        await rollbackDeliveryNoteCreate(admin, resolvedDeliveryNoteId);
-        return NextResponse.json(
-          { error: dnItemsErr.message, detail: dnItemsErr },
-          { status: 400 }
-        );
+        await rollbackDeliveryNoteCreate(admin, deliveryNoteId);
+        return NextResponse.json({ error: dnItemsErr.message, detail: dnItemsErr }, { status: 400 });
       }
     }
 
@@ -237,7 +249,7 @@ export async function POST(req: NextRequest) {
       orgId,
       userId: user.id,
       actorRole,
-      deliveryNoteId: resolvedDeliveryNoteId,
+      deliveryNoteId,
       invoiceId,
     });
 
@@ -245,15 +257,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: finalize.error }, { status: finalize.status });
     }
 
-    const { data: finalizedDn } = await supabase
+    const { data: finalizedDn } = await admin
       .from("delivery_notes")
       .select("id, sj_number, sj_date, status")
-      .eq("id", resolvedDeliveryNoteId)
+      .eq("id", deliveryNoteId)
       .maybeSingle();
 
     return NextResponse.json(
       {
-        id: resolvedDeliveryNoteId,
+        id: deliveryNoteId,
         already_exists: false,
         sj_number: finalizedDn?.sj_number || null,
         sj_date: finalizedDn?.sj_date || sjDate,
@@ -262,10 +274,8 @@ export async function POST(req: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Server error" },
-      { status: 500 }
-    );
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

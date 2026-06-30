@@ -1,8 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { APP_BORDER, APP_TEAL } from "../components/app-ui-tokens";
+import AppNavLink from "@/app/components/app-nav-link";
+import { useAppRouter } from "@/app/components/use-app-router";
+import { useNavProgressOptional } from "@/app/components/nav-progress-context";
 
 type Props = {
   pageSize: number;
@@ -31,7 +33,9 @@ export default function DeliveryNotesListFooterClient({
   firstUrl,
   lastUrl,
 }: Props) {
-  const router = useRouter();
+  const { push } = useAppRouter();
+  const nav = useNavProgressOptional();
+  const isNavigating = Boolean(nav?.isNavigating);
   const pathname = usePathname();
   const sp = useSearchParams();
 
@@ -40,7 +44,14 @@ export default function DeliveryNotesListFooterClient({
     next.set("ps", String(n));
     next.set("p", "1");
     const qs = next.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
+    push(qs ? `${pathname}?${qs}` : pathname);
+  }
+
+  function pagerNavStyle(disabled = false) {
+    if (disabled || isNavigating) {
+      return { ...pagerBtn(), opacity: 0.45, pointerEvents: "none" as const, cursor: "not-allowed" as const };
+    }
+    return pagerBtn();
   }
 
   return (
@@ -65,6 +76,7 @@ export default function DeliveryNotesListFooterClient({
         <select
           value={String(pageSize)}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          disabled={isNavigating}
           style={{
             padding: "6px 10px",
             borderRadius: 6,
@@ -95,33 +107,34 @@ export default function DeliveryNotesListFooterClient({
         {page <= 1 ? (
           <span style={pagerDisabled()}>&lt; Prev</span>
         ) : (
-          <Link href={prevUrl} style={pagerBtn()}>
+          <AppNavLink href={prevUrl} style={pagerNavStyle()}>
             &lt; Prev
-          </Link>
+          </AppNavLink>
         )}
         <span style={pagerActive()}>{page}</span>
         {page >= totalPages ? (
           <span style={pagerDisabled()}>Next &gt;</span>
         ) : (
-          <Link href={nextUrl} style={pagerBtn()}>
+          <AppNavLink href={nextUrl} style={pagerNavStyle()}>
             Next &gt;
-          </Link>
+          </AppNavLink>
         )}
         <span style={{ width: 8 }} />
         {page <= 1 ? (
           <span style={pagerDisabled()}>«</span>
         ) : (
-          <Link href={firstUrl} style={pagerBtn()}>
+          <AppNavLink href={firstUrl} style={pagerNavStyle()}>
             «
-          </Link>
+          </AppNavLink>
         )}
         {page >= totalPages ? (
           <span style={pagerDisabled()}>»</span>
         ) : (
-          <Link href={lastUrl} style={pagerBtn()}>
+          <AppNavLink href={lastUrl} style={pagerNavStyle()}>
             »
-          </Link>
+          </AppNavLink>
         )}
+        {isNavigating ? <span style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Memuat...</span> : null}
       </nav>
     </div>
   );
